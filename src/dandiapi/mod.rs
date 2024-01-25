@@ -8,7 +8,7 @@ pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
 use super::consts::USER_AGENT;
 use async_stream::try_stream;
-use futures_util::Stream;
+use futures_util::{Stream, TryStreamExt};
 use reqwest::{ClientBuilder, StatusCode};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
@@ -193,6 +193,36 @@ impl<'a> VersionEndpoint<'a> {
                 .append_pair("path_prefix", path.as_ref());
         }
         self.client.paginate(url)
+    }
+
+    // Returns `None` if nothing found at path
+    pub(crate) async fn get_path(&self, path: &AssetPath) -> Result<Option<AtAssetPath>, ApiError> {
+        let mut url = urljoin(
+            &self.client.api_url,
+            [
+                "dandisets",
+                self.dandiset_id.as_ref(),
+                "versions",
+                self.version_id.as_ref(),
+                "assets",
+            ],
+        );
+        url.query_pairs_mut()
+            .append_pair("path", path.as_ref())
+            .append_pair("order", "path");
+        let cutoff = format!("{path}/");
+        let mut stream = self.client.paginate::<Asset>(url);
+        tokio::pin!(stream);
+        while let Some(asset) = stream.try_next().await? {
+            if asset.path() == path {
+                return Ok(Some(AtAssetPath::Asset(asset)));
+            } else if asset.path().is_strictly_under(path) {
+                return Ok(Some(AtAssetPath::Folder(AssetFolder::Path(path.clone()))));
+            } else if **asset.path() > *cutoff {
+                return Ok(None);
+            }
+        }
+        Ok(None)
     }
 
     // TODO: pub(crate) async fn get_resource(&self, path: &AssetPath, with_children: bool) -> Result<???, ApiError>

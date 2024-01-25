@@ -8,7 +8,7 @@ use smartstring::alias::CompactString;
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use thiserror::Error;
-use url::Url;
+use url::{Host, Url};
 
 #[derive(Clone, Debug)]
 pub(crate) struct S3Client {
@@ -147,20 +147,59 @@ impl S3Client {
 pub(crate) struct S3Location {
     bucket: String,
     region: Option<String>,
-    key: String,
+    key: String, // Does not start with a slash
 }
 
-impl std::str::FromStr for S3Location {
-    type Err = ParseS3LocationError;
-
-    fn from_str(s: &str) -> Result<S3Location, Self::Err> {
-        todo!()
+impl S3Location {
+    pub(crate) fn parse_url(url: Url) -> Result<S3Location, S3UrlError> {
+        // cf. <https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html>
+        if !matches!(url.scheme(), "http" | "https") {
+            return Err(S3UrlError::NotHttp);
+        }
+        let Some(Host::Domain(fqdn)) = url.host() else {
+            return Err(S3UrlError::NoDomain);
+        };
+        // Possible domain formats (See link above):
+        // - {bucket}.s3.{region}.amazonaws.com
+        // - {bucket}.s3-{region}.amazonaws.com
+        // - {bucket}.s3.amazonaws.com
+        let e = S3UrlError::InvalidDomain;
+        let (bucket, s) = fqdn.split_once('.').ok_or(e)?;
+        let s = s
+            .strip_prefix("s3")
+            .ok_or(e)?
+            .strip_suffix(".amazonaws.com")
+            .ok_or(e)?;
+        let region = if s.is_empty() {
+            None
+        } else if let Some(region) = s.strip_prefix(['.', '-']) {
+            if !region.contains('.') {
+                Some(region)
+            } else {
+                return Err(e);
+            }
+        } else {
+            return Err(e);
+        };
+        let key = url.path();
+        let key = key.strip_prefix('/').unwrap_or(key);
+        Ok(S3Location {
+            bucket: bucket.to_owned(),
+            region: region.map(String::from),
+            key: key.to_owned(),
+        })
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
-#[error("TODO")]
-pub(crate) struct ParseS3LocationError;
+pub(crate) enum S3UrlError {
+    #[error("URL is not HTTP(S)")]
+    NotHttp,
+    #[error("URL lacks domain name")]
+    NoDomain,
+    #[error("domain in URL is not S3")]
+    InvalidDomain,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct S3EntryPage {
@@ -238,4 +277,42 @@ pub(crate) enum GetBucketRegionError {
     NoHeader,
     #[error("S3 response had undecodable x-amz-bucket-region header")]
     BadHeader(#[source] reqwest::header::ToStrError),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case(
+        "https://dandiarchive.s3.amazonaws.com/zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/",
+        "dandiarchive",
+        None,
+        "zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/"
+    )]
+    #[case("https://dandiarchive.s3.us-west-2.amazonaws.com/zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/", "dandiarchive", Some("us-west-2"), "zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/")]
+    #[case("https://dandiarchive.s3-us-west-2.amazonaws.com/zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/", "dandiarchive", Some("us-west-2"), "zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/")]
+    fn test_good_s3location_urls(
+        #[case] url: Url,
+        #[case] bucket: &str,
+        #[case] region: Option<&str>,
+        #[case] key: &str,
+    ) {
+        let s3loc = S3Location::parse_url(url).unwrap();
+        assert_eq!(s3loc.bucket, bucket);
+        assert_eq!(s3loc.region.as_deref(), region);
+        assert_eq!(s3loc.key, key);
+    }
+
+    #[rstest]
+    #[case("https://s3.amazonaws.com/dandiarchive/zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/")]
+    #[case("https://dandiarchive.amazonaws.com/zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/")]
+    #[case(
+        "https://dandiarchive.us-west-2.amazonaws.com/zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/"
+    )]
+    fn test_bad_s3location_urls(#[case] url: Url) {
+        let r = S3Location::parse_url(url);
+        assert!(r.is_err());
+    }
 }

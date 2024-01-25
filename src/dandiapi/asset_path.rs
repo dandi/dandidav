@@ -29,6 +29,13 @@ impl AssetPath {
     pub(crate) fn join(&self, subpath: &AssetPath) -> AssetPath {
         AssetPath(format!("{self}/{subpath}"))
     }
+
+    pub(crate) fn is_strictly_under(&self, other: &AssetPath) -> bool {
+        let Some(rest) = self.0.strip_prefix(&other.0) else {
+            return false;
+        };
+        rest.starts_with('/')
+    }
 }
 
 impl fmt::Debug for AssetPath {
@@ -127,6 +134,13 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
+    #[case("foo", "foo")]
+    #[case("foo/bar/baz", "baz")]
+    fn test_name(#[case] p: AssetPath, #[case] name: &str) {
+        assert_eq!(p.name(), name);
+    }
+
+    #[rstest]
     #[case("foo.nwb")]
     #[case("foo/bar.nwb")]
     fn test_good_asset_paths(#[case] s: &str) {
@@ -152,5 +166,16 @@ mod tests {
     fn test_bad_asset_paths(#[case] s: &str) {
         let r = s.parse::<AssetPath>();
         assert_matches!(r, Err(_));
+    }
+
+    #[rstest]
+    #[case("foo/bar/baz", "foo/bar/baz", false)]
+    #[case("foo/bar/baz", "foo/bar", true)]
+    #[case("foo/bar/baz", "foo", true)]
+    #[case("foo/bar", "foo/bar/baz", false)]
+    #[case("foo", "foo/bar/baz", false)]
+    #[case("foobar", "foo", false)]
+    fn test_is_strictly_under(#[case] p1: AssetPath, #[case] p2: AssetPath, #[case] r: bool) {
+        assert_eq!(p1.is_strictly_under(&p2), r);
     }
 }

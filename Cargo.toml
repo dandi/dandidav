@@ -242,5 +242,6 @@ wildcard_dependencies = "deny"
 zero_sized_map_values = "deny"
 
 [dev-dependencies]
+assert_matches = "1.5.0"
 indoc = "2.0.4"
 rstest = { version = "0.18.2", default-features = false }

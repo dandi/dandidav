@@ -1,6 +1,8 @@
+mod asset_path;
 mod dandiset_id;
 mod types;
 mod version_id;
+pub(crate) use self::asset_path::*;
 pub(crate) use self::dandiset_id::*;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;

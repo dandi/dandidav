@@ -21,6 +21,8 @@ futures-util = "0.3.30"
 http = "1.0.0"
 reqwest = { version = "0.11.23", features = ["json"] }
 serde = { version = "1.0.195", features = ["derive"] }
+serde_json = { version = "1.0.111", features = ["preserve_order"] }
+serde_yaml = "0.9.30"
 smartstring = "1.0.1"
 thiserror = "1.0.56"
 time = { version = "0.3.31", features = ["formatting", "parsing", "serde"] }
@@ -240,4 +242,5 @@ wildcard_dependencies = "deny"
 zero_sized_map_values = "deny"
 
 [dev-dependencies]
+indoc = "2.0.4"
 rstest = { version = "0.18.2", default-features = false }

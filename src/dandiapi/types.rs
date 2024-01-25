@@ -35,3 +35,12 @@ pub(crate) struct DandisetVersion {
     #[serde(with = "time::serde::rfc3339")]
     pub(crate) modified: OffsetDateTime,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct VersionMetadata(pub(super) Vec<u8>);
+
+impl VersionMetadata {
+    pub(crate) fn len(&self) -> usize {
+        self.0.len()
+    }
+}

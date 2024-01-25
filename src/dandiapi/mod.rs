@@ -151,7 +151,22 @@ impl<'a> VersionEndpoint<'a> {
             .await
     }
 
-    // get_metadata
+    pub(crate) async fn get_metadata(&self) -> Result<VersionMetadata, ApiError> {
+        let data = self
+            .client
+            .get::<serde_json::Value>(urljoin(
+                &self.client.api_url,
+                [
+                    "dandisets",
+                    self.dandiset_id.as_ref(),
+                    "versions",
+                    self.version_id.as_ref(),
+                ],
+            ))
+            .await?;
+        Ok(VersionMetadata(dump_json_as_yaml(data).into_bytes()))
+    }
+
     // get_resource(path: &str, with_children: bool)
 }
 
@@ -184,10 +199,16 @@ where
     url
 }
 
+fn dump_json_as_yaml(data: serde_json::Value) -> String {
+    serde_yaml::to_string(&data).expect("converting JSON to YAML should not fail")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use indoc::indoc;
     use rstest::rstest;
+    use serde_json::json;
 
     #[rstest]
     #[case("https://api.github.com")]
@@ -218,5 +239,39 @@ mod tests {
         let base = Url::parse("https://api.github.com/base").unwrap();
         let u = urljoin(&base, [path]);
         assert_eq!(u.as_str(), expected);
+    }
+
+    #[test]
+    fn test_dump_json_as_yaml() {
+        let data = json! ({
+            "key": "value",
+            "int": 42,
+            "truth": true,
+            "void": null,
+            "list": ["apple", "banana", "coconut"],
+            "mapping": {
+                "apple": "green",
+                "banana": "yellow",
+                "coconut": "brown",
+            }
+        });
+        let s = dump_json_as_yaml(data);
+        assert_eq!(
+            s,
+            indoc! {"
+            key: value
+            int: 42
+            truth: true
+            void: null
+            list:
+            - apple
+            - banana
+            - coconut
+            mapping:
+              apple: green
+              banana: yellow
+              coconut: brown
+        "}
+        );
     }
 }

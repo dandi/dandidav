@@ -13,11 +13,18 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.79"
+async-stream = "0.3.5"
 axum = { version = "0.7.4", default-features = false, features = ["http1", "tokio", "tower-log"] }
 clap = { version = "4.4.18", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
+futures-util = "0.3.30"
 http = "1.0.0"
+reqwest = { version = "0.11.23", features = ["json"] }
+serde = { version = "1.0.195", features = ["derive"] }
+thiserror = "1.0.56"
+time = { version = "0.3.31", features = ["formatting", "parsing", "serde"] }
 tokio = { version = "1.35.1", features = ["macros", "net", "rt", "rt-multi-thread"] }
 tower = "0.4.13"
+url = { version = "2.5.0", features = ["serde"] }
 
 [lints.rust]
 # Lint groups:
@@ -229,3 +236,6 @@ unwrap_used = "deny"
 used_underscore_binding = "deny"
 wildcard_dependencies = "deny"
 zero_sized_map_values = "deny"
+
+[dev-dependencies]
+rstest = { version = "0.18.2", default-features = false }

@@ -1,3 +1,4 @@
+#![allow(unused)]
 mod consts;
 mod dandiapi;
 use anyhow::Context;

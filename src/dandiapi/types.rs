@@ -1,5 +1,4 @@
-use super::dandiset_id::DandisetId;
-use super::version_id::VersionId;
+use super::{AssetPath, DandisetId, VersionId};
 use serde::Deserialize;
 use time::OffsetDateTime;
 use url::Url;
@@ -43,4 +42,45 @@ impl VersionMetadata {
     pub(crate) fn len(&self) -> usize {
         self.0.len()
     }
+}
+
+// Item in a `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths`
+// response
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[serde(from = "RawFolderEntry")]
+pub(crate) enum FolderEntry {
+    Folder(AssetFolder),
+    Asset { path: AssetPath, id: String },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum AssetFolder {
+    Root,
+    Path(AssetPath),
+}
+
+impl From<RawFolderEntry> for FolderEntry {
+    fn from(entry: RawFolderEntry) -> FolderEntry {
+        if let Some(asset) = entry.asset {
+            FolderEntry::Asset {
+                path: entry.path,
+                id: asset.asset_id,
+            }
+        } else {
+            FolderEntry::Folder(AssetFolder::Path(entry.path))
+        }
+    }
+}
+
+// Raw item in a `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths`
+// response
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+struct RawFolderEntry {
+    path: AssetPath,
+    asset: Option<RawFolderEntryAsset>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+struct RawFolderEntryAsset {
+    asset_id: String,
 }

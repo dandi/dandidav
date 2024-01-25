@@ -169,7 +169,33 @@ impl<'a> VersionEndpoint<'a> {
         Ok(VersionMetadata(dump_json_as_yaml(data).into_bytes()))
     }
 
-    // get_resource(path: &str, with_children: bool)
+    pub(crate) fn get_folder_entries(
+        &self,
+        path: &AssetFolder,
+    ) -> impl Stream<Item = Result<FolderEntry, ApiError>> {
+        let mut url = urljoin(
+            &self.client.api_url,
+            [
+                "dandisets",
+                self.dandiset_id.as_ref(),
+                "versions",
+                self.version_id.as_ref(),
+                "assets",
+                "paths",
+            ],
+        );
+        if let AssetFolder::Path(path) = path {
+            // Experimentation has shown that adding a trailing slash to the
+            // `path_prefix` is superfluous, and the Archive will do the right
+            // thing (namely, treat the prefix as a full folder path) even if
+            // `path_prefix=foo` and there exists a `foobar.txt`.
+            url.query_pairs_mut()
+                .append_pair("path_prefix", path.as_ref());
+        }
+        self.client.paginate(url)
+    }
+
+    // TODO: pub(crate) async fn get_resource(&self, path: &AssetPath, with_children: bool) -> Result<???, ApiError>
 }
 
 #[derive(Debug, Error)]

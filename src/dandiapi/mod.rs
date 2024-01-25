@@ -8,6 +8,7 @@ use super::consts::USER_AGENT;
 use async_stream::try_stream;
 use futures_util::Stream;
 use reqwest::{ClientBuilder, StatusCode};
+use serde::de::DeserializeOwned;
 use thiserror::Error;
 use url::Url;
 
@@ -26,19 +27,22 @@ impl Client {
         Ok(Client { client, api_url })
     }
 
-    pub(crate) fn get_all_dandisets(&self) -> impl Stream<Item = Result<Dandiset, ApiError>> {
+    fn paginate<T: DeserializeOwned>(&self, url: Url) -> impl Stream<Item = Result<T, ApiError>> {
         let this = self.clone();
         try_stream! {
-            let mut url = Some(urljoin(&this.api_url, ["dandisets"]));
+            let mut url = Some(url);
             while let Some(u) = url {
-                let page = this.client
+                let resp = this.client
                     .get(u.clone())
                     .send()
                     .await
-                    .map_err(|source| ApiError::Send {url: u.clone(), source})?
-                    .error_for_status()
+                    .map_err(|source| ApiError::Send {url: u.clone(), source})?;
+                if resp.status() == StatusCode::NOT_FOUND {
+                    Err(ApiError::NotFound {url: u.clone() })?;
+                }
+                let page = resp.error_for_status()
                     .map_err(|source| ApiError::Status {url: u.clone(), source})?
-                    .json::<Page<Dandiset>>()
+                    .json::<Page<T>>()
                     .await
                     .map_err(move |source| ApiError::Deserialize {url: u, source})?;
                 for r in page.results {
@@ -47,6 +51,10 @@ impl Client {
                 url = page.next;
             }
         }
+    }
+
+    pub(crate) fn get_all_dandisets(&self) -> impl Stream<Item = Result<Dandiset, ApiError>> {
+        self.paginate(urljoin(&self.api_url, ["dandisets"]))
     }
 
     pub(crate) fn dandiset<'a>(&'a self, dandiset_id: &'a DandisetId) -> DandisetEndpoint<'a> {
@@ -68,8 +76,7 @@ impl<'a> DandisetEndpoint<'a> {
         }
     }
 
-    // Returns `None` on 404
-    pub(crate) async fn get(&self) -> Result<Option<Dandiset>, ApiError> {
+    pub(crate) async fn get(&self) -> Result<Dandiset, ApiError> {
         let url = urljoin(
             &self.client.api_url,
             ["dandisets", self.dandiset_id.as_ref()],
@@ -85,7 +92,7 @@ impl<'a> DandisetEndpoint<'a> {
                 source,
             })?;
         if r.status() == StatusCode::NOT_FOUND {
-            return Ok(None);
+            return Err(ApiError::NotFound { url: url.clone() });
         }
         r.error_for_status()
             .map_err(|source| ApiError::Status {
@@ -94,8 +101,14 @@ impl<'a> DandisetEndpoint<'a> {
             })?
             .json::<Dandiset>()
             .await
-            .map(Some)
             .map_err(move |source| ApiError::Deserialize { url, source })
+    }
+
+    pub(crate) fn get_all_versions(&self) -> impl Stream<Item = Result<DandisetVersion, ApiError>> {
+        self.client.paginate(urljoin(
+            &self.client.api_url,
+            ["dandisets", self.dandiset_id.as_ref(), "versions"],
+        ))
     }
 }
 
@@ -107,6 +120,8 @@ pub(crate) struct BuildClientError(#[from] reqwest::Error);
 pub(crate) enum ApiError {
     #[error("failed to make request to {url}")]
     Send { url: Url, source: reqwest::Error },
+    #[error("no such resource: {url}")]
+    NotFound { url: Url },
     #[error("request to {url} returned error")]
     Status { url: Url, source: reqwest::Error },
     #[error("failed to deserialize response body from {url}")]

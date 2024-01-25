@@ -22,10 +22,7 @@ pub(crate) struct Client {
 
 impl Client {
     pub(crate) fn new(api_url: Url) -> Result<Self, BuildClientError> {
-        let client = ClientBuilder::new()
-            .user_agent(USER_AGENT)
-            .https_only(true)
-            .build()?;
+        let client = ClientBuilder::new().user_agent(USER_AGENT).build()?;
         Ok(Client { client, api_url })
     }
 

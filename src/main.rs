@@ -1,6 +1,7 @@
 #![allow(unused)]
 mod consts;
 mod dandiapi;
+mod s3;
 use anyhow::Context;
 use axum::{body::Body, extract::Request, Router};
 use clap::Parser;

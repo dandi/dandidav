@@ -27,6 +27,29 @@ impl Client {
         Ok(Client { client, api_url })
     }
 
+    pub(crate) async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, ApiError> {
+        let r = self
+            .client
+            .get(url.clone())
+            .send()
+            .await
+            .map_err(|source| ApiError::Send {
+                url: url.clone(),
+                source,
+            })?;
+        if r.status() == StatusCode::NOT_FOUND {
+            return Err(ApiError::NotFound { url: url.clone() });
+        }
+        r.error_for_status()
+            .map_err(|source| ApiError::Status {
+                url: url.clone(),
+                source,
+            })?
+            .json::<T>()
+            .await
+            .map_err(move |source| ApiError::Deserialize { url, source })
+    }
+
     fn paginate<T: DeserializeOwned>(&self, url: Url) -> impl Stream<Item = Result<T, ApiError>> {
         let this = self.clone();
         try_stream! {
@@ -62,7 +85,7 @@ impl Client {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct DandisetEndpoint<'a> {
     client: &'a Client,
     dandiset_id: &'a DandisetId,
@@ -76,32 +99,17 @@ impl<'a> DandisetEndpoint<'a> {
         }
     }
 
+    pub(crate) fn version(self, version_id: &'a VersionId) -> VersionEndpoint<'a> {
+        VersionEndpoint::new(self, version_id)
+    }
+
     pub(crate) async fn get(&self) -> Result<Dandiset, ApiError> {
-        let url = urljoin(
-            &self.client.api_url,
-            ["dandisets", self.dandiset_id.as_ref()],
-        );
-        let r = self
-            .client
-            .client
-            .get(url.clone())
-            .send()
+        self.client
+            .get(urljoin(
+                &self.client.api_url,
+                ["dandisets", self.dandiset_id.as_ref()],
+            ))
             .await
-            .map_err(|source| ApiError::Send {
-                url: url.clone(),
-                source,
-            })?;
-        if r.status() == StatusCode::NOT_FOUND {
-            return Err(ApiError::NotFound { url: url.clone() });
-        }
-        r.error_for_status()
-            .map_err(|source| ApiError::Status {
-                url: url.clone(),
-                source,
-            })?
-            .json::<Dandiset>()
-            .await
-            .map_err(move |source| ApiError::Deserialize { url, source })
     }
 
     pub(crate) fn get_all_versions(&self) -> impl Stream<Item = Result<DandisetVersion, ApiError>> {
@@ -110,6 +118,41 @@ impl<'a> DandisetEndpoint<'a> {
             ["dandisets", self.dandiset_id.as_ref(), "versions"],
         ))
     }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct VersionEndpoint<'a> {
+    client: &'a Client,
+    dandiset_id: &'a DandisetId,
+    version_id: &'a VersionId,
+}
+
+impl<'a> VersionEndpoint<'a> {
+    fn new(upper: DandisetEndpoint<'a>, version_id: &'a VersionId) -> Self {
+        Self {
+            client: upper.client,
+            dandiset_id: upper.dandiset_id,
+            version_id,
+        }
+    }
+
+    pub(crate) async fn get(&self) -> Result<DandisetVersion, ApiError> {
+        self.client
+            .get(urljoin(
+                &self.client.api_url,
+                [
+                    "dandisets",
+                    self.dandiset_id.as_ref(),
+                    "versions",
+                    self.version_id.as_ref(),
+                    "info",
+                ],
+            ))
+            .await
+    }
+
+    // get_metadata
+    // get_resource(path: &str, with_children: bool)
 }
 
 #[derive(Debug, Error)]

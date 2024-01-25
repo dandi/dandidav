@@ -1,4 +1,5 @@
 use super::dandiset_id::DandisetId;
+use super::version_id::VersionId;
 use serde::Deserialize;
 use time::OffsetDateTime;
 use url::Url;
@@ -24,7 +25,7 @@ pub(crate) struct Dandiset {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub(crate) struct DandisetVersion {
-    pub(crate) version: String,
+    pub(crate) version: VersionId,
     //name: String,
     //asset_count: u64,
     pub(crate) size: u64,

@@ -1,7 +1,9 @@
 mod dandiset_id;
 mod types;
+mod version_id;
 pub(crate) use self::dandiset_id::*;
 pub(crate) use self::types::*;
+pub(crate) use self::version_id::*;
 use super::consts::USER_AGENT;
 use async_stream::try_stream;
 use futures_util::Stream;

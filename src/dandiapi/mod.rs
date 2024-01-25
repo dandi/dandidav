@@ -7,7 +7,7 @@ pub(crate) use self::version_id::*;
 use super::consts::USER_AGENT;
 use async_stream::try_stream;
 use futures_util::Stream;
-use reqwest::ClientBuilder;
+use reqwest::{ClientBuilder, StatusCode};
 use thiserror::Error;
 use url::Url;
 
@@ -26,7 +26,7 @@ impl Client {
         Ok(Client { client, api_url })
     }
 
-    pub(crate) fn get_dandisets(&self) -> impl Stream<Item = Result<Dandiset, ApiError>> {
+    pub(crate) fn get_all_dandisets(&self) -> impl Stream<Item = Result<Dandiset, ApiError>> {
         let this = self.clone();
         try_stream! {
             let mut url = Some(urljoin(&this.api_url, ["dandisets"]));
@@ -40,13 +40,42 @@ impl Client {
                     .map_err(|source| ApiError::Status {url: u.clone(), source})?
                     .json::<Page<Dandiset>>()
                     .await
-                    .map_err(|source| ApiError::Deserialize {url: u, source})?;
+                    .map_err(move |source| ApiError::Deserialize {url: u, source})?;
                 for r in page.results {
                     yield r;
                 }
                 url = page.next;
             }
         }
+    }
+
+    // Returns `None` on 404
+    pub(crate) async fn get_dandiset(
+        &self,
+        dandiset_id: DandisetId,
+    ) -> Result<Option<Dandiset>, ApiError> {
+        let url = urljoin(&self.api_url, ["dandisets", dandiset_id.as_ref()]);
+        let r = self
+            .client
+            .get(url.clone())
+            .send()
+            .await
+            .map_err(|source| ApiError::Send {
+                url: url.clone(),
+                source,
+            })?;
+        if r.status() == StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        r.error_for_status()
+            .map_err(|source| ApiError::Status {
+                url: url.clone(),
+                source,
+            })?
+            .json::<Dandiset>()
+            .await
+            .map(Some)
+            .map_err(move |source| ApiError::Deserialize { url, source })
     }
 }
 
@@ -60,7 +89,7 @@ pub(crate) enum ApiError {
     Send { url: Url, source: reqwest::Error },
     #[error("request to {url} returned error")]
     Status { url: Url, source: reqwest::Error },
-    #[error("failed to deserialize response body from request to {url}")]
+    #[error("failed to deserialize response body from {url}")]
     Deserialize { url: Url, source: reqwest::Error },
 }
 

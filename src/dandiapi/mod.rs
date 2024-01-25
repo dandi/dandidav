@@ -49,13 +49,33 @@ impl Client {
         }
     }
 
+    pub(crate) fn dandiset<'a>(&'a self, dandiset_id: &'a DandisetId) -> DandisetEndpoint<'a> {
+        DandisetEndpoint::new(self, dandiset_id)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct DandisetEndpoint<'a> {
+    client: &'a Client,
+    dandiset_id: &'a DandisetId,
+}
+
+impl<'a> DandisetEndpoint<'a> {
+    fn new(client: &'a Client, dandiset_id: &'a DandisetId) -> Self {
+        Self {
+            client,
+            dandiset_id,
+        }
+    }
+
     // Returns `None` on 404
-    pub(crate) async fn get_dandiset(
-        &self,
-        dandiset_id: DandisetId,
-    ) -> Result<Option<Dandiset>, ApiError> {
-        let url = urljoin(&self.api_url, ["dandisets", dandiset_id.as_ref()]);
+    pub(crate) async fn get(&self) -> Result<Option<Dandiset>, ApiError> {
+        let url = urljoin(
+            &self.client.api_url,
+            ["dandisets", self.dandiset_id.as_ref()],
+        );
         let r = self
+            .client
             .client
             .get(url.clone())
             .send()

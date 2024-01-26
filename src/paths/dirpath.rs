@@ -20,6 +20,10 @@ impl PureDirPath {
         PurePath(format!("{self}{path}"))
     }
 
+    pub(crate) fn join_dir(&self, path: &PureDirPath) -> PureDirPath {
+        PureDirPath(format!("{self}{path}"))
+    }
+
     pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<PureDirPath> {
         let s = self.0.strip_prefix(&dirpath.0)?;
         (!s.is_empty()).then(|| PureDirPath(s.to_owned()))

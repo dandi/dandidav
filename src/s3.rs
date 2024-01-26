@@ -179,35 +179,31 @@ pub(crate) struct PrefixedS3Client {
 
 impl PrefixedS3Client {
     pub(crate) fn get_root_entries(&self) -> impl Stream<Item = Result<S3Entry, S3Error>> + '_ {
-        let stream = self.inner.list_entry_pages(&self.prefix);
+        let stream = self.inner.get_folder_entries(&self.prefix);
         try_stream! {
             tokio::pin!(stream);
-            while let Some(page) = stream.try_next().await? {
-                for entry in page.flatten() {
-                    if let Some(entry) = entry.relative_to(&self.prefix) {
-                        yield entry;
-                    }
-                    // TODO: Else: Error? Warn?
+            while let Some(entry) = stream.try_next().await? {
+                if let Some(entry) = entry.relative_to(&self.prefix) {
+                    yield entry;
                 }
+                // TODO: Else: Error? Warn?
             }
         }
     }
 
-    pub(crate) fn get_folder_entries<'a>(
-        &'a self,
-        dirpath: &'a PureDirPath,
-    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + 'a {
-        let key_prefix = format!("{}{}", self.prefix, dirpath);
-        let stream = self.inner.list_entry_pages(&key_prefix);
+    pub(crate) fn get_folder_entries(
+        &self,
+        dirpath: &PureDirPath,
+    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + '_ {
+        let key_prefix = self.prefix.join_dir(dirpath);
+        let stream = self.inner.get_folder_entries(&key_prefix);
         try_stream! {
             tokio::pin!(stream);
-            while let Some(page) = stream.try_next().await? {
-                for entry in page.flatten() {
-                    if let Some(entry) = entry.relative_to(&self.prefix) {
-                        yield entry;
-                    }
-                    // TODO: Else: Error? Warn?
+            while let Some(entry) = stream.try_next().await? {
+                if let Some(entry) = entry.relative_to(&self.prefix) {
+                    yield entry;
                 }
+                // TODO: Else: Error? Warn?
             }
         }
     }

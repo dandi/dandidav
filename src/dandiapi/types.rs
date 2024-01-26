@@ -28,7 +28,7 @@ pub(crate) struct DandisetVersion {
     pub(crate) version: VersionId,
     //name: String,
     //asset_count: u64,
-    pub(crate) size: u64,
+    pub(crate) size: i64,
     //status: ...,
     #[serde(with = "time::serde::rfc3339")]
     pub(crate) created: OffsetDateTime,
@@ -113,7 +113,7 @@ pub(crate) struct BlobAsset {
     pub(crate) asset_id: String,
     pub(crate) blob_id: String,
     pub(crate) path: AssetPath,
-    pub(crate) size: u64,
+    pub(crate) size: i64,
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
 }
@@ -123,7 +123,7 @@ pub(crate) struct ZarrAsset {
     pub(crate) asset_id: String,
     pub(crate) zarr_id: String,
     pub(crate) path: AssetPath,
-    pub(crate) size: u64,
+    pub(crate) size: i64,
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
 }
@@ -134,7 +134,7 @@ struct RawAsset {
     blob: Option<String>,
     zarr: Option<String>,
     path: AssetPath,
-    size: u64,
+    size: i64,
     #[serde(with = "time::serde::rfc3339")]
     created: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]

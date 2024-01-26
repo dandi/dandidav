@@ -67,7 +67,7 @@ impl S3Client {
                     // TODO: Handle this error!
                     let download_url = Url::parse(&download_url).expect("download URL should be valid URL");
                     Some(Object {
-                        key: key.to_string(),
+                        key: key.into_owned(),
                         modified,
                         size,
                         etag,

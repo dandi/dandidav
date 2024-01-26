@@ -1,5 +1,6 @@
 use super::{DandisetId, VersionId};
 use crate::paths::PurePath;
+use crate::s3::S3Client;
 use serde::Deserialize;
 use thiserror::Error;
 use time::OffsetDateTime;
@@ -179,4 +180,72 @@ pub(crate) enum AssetTypeError {
     Neither { asset_id: String },
     #[error(r#"asset {asset_id} has both "blob" and "zarr" set"#)]
     Both { asset_id: String },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum DandiResource {
+    Folder(AssetFolder),
+    Asset(Asset),
+    ZarrFolder(ZarrFolder),
+    ZarrEntry(ZarrEntry),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ZarrFolder {
+    path: PurePath,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ZarrEntry {
+    path: PurePath,
+    size: i64,
+    modified: OffsetDateTime,
+    etag: String,
+    url: Url,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum DandiResourceWithS3 {
+    Folder(AssetFolder),
+    Asset(Asset),
+    ZarrFolder { folder: ZarrFolder, s3: S3Client },
+    ZarrEntry(ZarrEntry),
+}
+
+impl From<AtAssetPath> for DandiResourceWithS3 {
+    fn from(value: AtAssetPath) -> DandiResourceWithS3 {
+        match value {
+            AtAssetPath::Folder(r) => DandiResourceWithS3::Folder(r),
+            AtAssetPath::Asset(r) => DandiResourceWithS3::Asset(r),
+        }
+    }
+}
+
+impl From<DandiResourceWithS3> for DandiResource {
+    fn from(value: DandiResourceWithS3) -> DandiResource {
+        match value {
+            DandiResourceWithS3::Folder(r) => DandiResource::Folder(r),
+            DandiResourceWithS3::Asset(r) => DandiResource::Asset(r),
+            DandiResourceWithS3::ZarrFolder { folder, .. } => DandiResource::ZarrFolder(folder),
+            DandiResourceWithS3::ZarrEntry(r) => DandiResource::ZarrEntry(r),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum DandiResourceWithChildren {
+    Folder {
+        folder: AssetFolder,
+        children: Vec<DandiResource>,
+    },
+    Blob(BlobAsset),
+    Zarr {
+        zarr: ZarrAsset,
+        children: Vec<DandiResource>,
+    },
+    ZarrFolder {
+        folder: ZarrFolder,
+        children: Vec<DandiResource>,
+    },
+    ZarrEntry(ZarrEntry),
 }

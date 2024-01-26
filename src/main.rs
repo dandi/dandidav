@@ -1,7 +1,7 @@
 #![allow(unused)]
 mod consts;
 mod dandiapi;
-mod purepath;
+mod paths;
 mod s3;
 use anyhow::Context;
 use axum::{body::Body, extract::Request, Router};

@@ -1,5 +1,5 @@
 use super::{DandisetId, VersionId};
-use crate::purepath::PurePath;
+use crate::paths::PurePath;
 use serde::Deserialize;
 use thiserror::Error;
 use time::OffsetDateTime;

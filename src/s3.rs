@@ -1,5 +1,5 @@
 use super::consts::USER_AGENT;
-use super::purepath::PurePath;
+use super::paths::{PureDirPath, PurePath};
 use async_stream::try_stream;
 use aws_sdk_s3::{operation::list_objects_v2::ListObjectsV2Error, Client};
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
@@ -79,19 +79,24 @@ impl S3Client {
                     .into_iter()
                     .filter_map(|compre| {
                         // TODO on None: Error?  Emit a warning?
-                        compre.prefix.map(|key_prefix| S3Folder {key_prefix})
+                        compre.prefix.map(|key_prefix| {
+                            // TODO: Handle this error!
+                            let key_prefix = key_prefix
+                                .parse::<PureDirPath>()
+                                .expect("S3 key common prefix should be normalized relative dir path");
+                            S3Folder {key_prefix}
+                        })
                     }).collect::<Vec<_>>();
                 yield S3EntryPage {folders, objects};
             }
         }
     }
 
-    // TODO: Enforce that `key_prefix` ends in `/`
     pub(crate) fn get_folder_entries(
         &self,
-        key_prefix: &str,
+        key_prefix: &PureDirPath,
     ) -> impl Stream<Item = Result<S3Entry, S3Error>> {
-        let stream = self.list_entry_pages(key_prefix);
+        let stream = self.list_entry_pages(key_prefix.as_ref());
         try_stream! {
             tokio::pin!(stream);
             while let Some(page) = stream.try_next().await? {
@@ -124,7 +129,7 @@ impl S3Client {
             }
             if !surpassed_folders {
                 for folder in page.folders {
-                    match folder_cutoff.cmp(&folder.key_prefix) {
+                    match (*folder_cutoff).cmp(&*folder.key_prefix) {
                         Ordering::Equal => return Ok(Some(S3Entry::Folder(folder))),
                         Ordering::Less => {
                             surpassed_folders = true;
@@ -224,7 +229,7 @@ pub(crate) enum S3Entry {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct S3Folder {
-    pub(crate) key_prefix: String, // Ends with '/'
+    pub(crate) key_prefix: PureDirPath,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -5,7 +5,7 @@ pub(crate) use self::dandiset_id::*;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
 use super::consts::USER_AGENT;
-use super::purepath::PurePath;
+use super::paths::PurePath;
 use async_stream::try_stream;
 use futures_util::{Stream, TryStreamExt};
 use reqwest::{ClientBuilder, StatusCode};

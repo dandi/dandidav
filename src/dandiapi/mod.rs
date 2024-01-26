@@ -204,6 +204,7 @@ impl<'a> VersionEndpoint<'a> {
         );
         url.query_pairs_mut()
             .append_pair("path", path.as_ref())
+            .append_pair("metadata", "1")
             .append_pair("order", "path");
         let cutoff = format!("{path}/");
         let mut stream = self.client.paginate::<Asset>(url.clone());

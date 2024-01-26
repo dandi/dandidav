@@ -118,6 +118,7 @@ pub(crate) struct BlobAsset {
     pub(crate) size: i64,
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
+    pub(crate) metadata: AssetMetadata,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -128,6 +129,21 @@ pub(crate) struct ZarrAsset {
     pub(crate) size: i64,
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
+    pub(crate) metadata: AssetMetadata,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AssetMetadata {
+    encoding_format: String,
+    content_url: Vec<Url>,
+    digest: AssetDigests,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub(crate) struct AssetDigests {
+    #[serde(rename = "dandi:dandi-etag")]
+    dandi_etag: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
@@ -141,6 +157,7 @@ struct RawAsset {
     created: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
     modified: OffsetDateTime,
+    metadata: AssetMetadata,
 }
 
 impl TryFrom<RawAsset> for Asset {
@@ -155,6 +172,7 @@ impl TryFrom<RawAsset> for Asset {
                 size: value.size,
                 created: value.created,
                 modified: value.modified,
+                metadata: value.metadata,
             })),
             (None, Some(zarr_id)) => Ok(Asset::Zarr(ZarrAsset {
                 asset_id: value.asset_id,
@@ -163,6 +181,7 @@ impl TryFrom<RawAsset> for Asset {
                 size: value.size,
                 created: value.created,
                 modified: value.modified,
+                metadata: value.metadata,
             })),
             (None, None) => Err(AssetTypeError::Neither {
                 asset_id: value.asset_id,

@@ -227,6 +227,23 @@ impl<'a> VersionEndpoint<'a> {
         Ok(VersionMetadata(dump_json_as_yaml(data).into_bytes()))
     }
 
+    pub(crate) async fn get_asset_by_id(&self, id: &str) -> Result<Asset, ApiError> {
+        self.client
+            .get(urljoin(
+                &self.client.api_url,
+                [
+                    "dandisets",
+                    self.dandiset_id.as_ref(),
+                    "versions",
+                    self.version_id.as_ref(),
+                    "assets",
+                    id,
+                    "info",
+                ],
+            ))
+            .await
+    }
+
     pub(crate) fn get_folder_entries(
         &self,
         path: &AssetFolder,
@@ -353,10 +370,24 @@ impl<'a> VersionEndpoint<'a> {
         path: &PurePath,
     ) -> Result<DandiResourceWithChildren, ApiError> {
         match self.get_resource_with_s3(path).await? {
-            DandiResourceWithS3::Folder(r) => {
-                // - Call `self.get_folder_entries()`
-                // - Get properties for each asset fetched
-                todo!()
+            DandiResourceWithS3::Folder(folder) => {
+                let mut children = Vec::new();
+                let mut stream = self.get_folder_entries(&folder);
+                tokio::pin!(stream);
+                while let Some(child) = stream.try_next().await? {
+                    let child = match child {
+                        FolderEntry::Folder(subf) => DandiResource::Folder(subf),
+                        FolderEntry::Asset { id, path } => match self.get_asset_by_id(&id).await {
+                            Ok(asset) => DandiResource::Asset(asset),
+                            Err(ApiError::NotFound { .. }) => {
+                                return Err(ApiError::DisappearingAsset { asset_id: id, path })
+                            }
+                            Err(e) => return Err(e),
+                        },
+                    };
+                    children.push(child);
+                }
+                Ok(DandiResourceWithChildren::Folder { folder, children })
             }
             DandiResourceWithS3::Asset(Asset::Blob(r)) => Ok(DandiResourceWithChildren::Blob(r)),
             DandiResourceWithS3::Asset(Asset::Zarr(zarr)) => {
@@ -389,6 +420,8 @@ pub(crate) enum ApiError {
         zarr_path: PurePath,
         entry_path: PurePath,
     },
+    #[error("folder listing included asset ID={asset_id} at path {path:?}, but request to asset returned 404")]
+    DisappearingAsset { asset_id: String, path: PurePath },
     #[error("request to {url} returned error")]
     Status { url: Url, source: reqwest::Error },
     #[error("failed to deserialize response body from {url}")]

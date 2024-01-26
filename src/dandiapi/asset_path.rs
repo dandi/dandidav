@@ -1,3 +1,4 @@
+use crate::consts::ZARR_EXTENSIONS;
 use derive_more::{AsRef, Deref, Display};
 use serde::{
     de::{Deserializer, Unexpected, Visitor},
@@ -35,6 +36,13 @@ impl AssetPath {
             return false;
         };
         rest.starts_with('/')
+    }
+
+    /// For each non-final component in the path that has an extension of
+    /// `.zarr` or `.ngff` (case sensitive), yield the portion of the path up
+    /// through that component along with the rest of the path.
+    pub(crate) fn split_zarr_candidates(&self) -> SplitZarrCandidates<'_> {
+        SplitZarrCandidates::new(self)
     }
 }
 
@@ -127,6 +135,43 @@ impl<'de> Deserialize<'de> for AssetPath {
     }
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct SplitZarrCandidates<'a> {
+    s: &'a str,
+    inner: std::str::MatchIndices<'a, char>,
+}
+
+impl<'a> SplitZarrCandidates<'a> {
+    fn new(path: &'a AssetPath) -> Self {
+        let s = &path.0;
+        let inner = s.match_indices('/');
+        SplitZarrCandidates { s, inner }
+    }
+}
+
+impl Iterator for SplitZarrCandidates<'_> {
+    type Item = (AssetPath, AssetPath);
+
+    fn next(&mut self) -> Option<(AssetPath, AssetPath)> {
+        for (i, _) in self.inner.by_ref() {
+            let zarrpath = &self.s[..i];
+            let entrypath = &self.s[(i + 1)..];
+            for ext in ZARR_EXTENSIONS {
+                if let Some(pre) = zarrpath.strip_suffix(ext) {
+                    if !pre.is_empty() && !pre.ends_with('/') {
+                        let zarrpath = AssetPath(zarrpath.into());
+                        let entrypath = AssetPath(entrypath.into());
+                        return Some((zarrpath, entrypath));
+                    }
+                }
+            }
+        }
+        None
+    }
+}
+
+impl std::iter::FusedIterator for SplitZarrCandidates<'_> {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,5 +222,135 @@ mod tests {
     #[case("foobar", "foo", false)]
     fn test_is_strictly_under(#[case] p1: AssetPath, #[case] p2: AssetPath, #[case] r: bool) {
         assert_eq!(p1.is_strictly_under(&p2), r);
+    }
+
+    mod split_zarr_candidates {
+        use super::*;
+
+        #[test]
+        fn no_zarr() {
+            let path = "foo/bar/baz".parse::<AssetPath>().unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn one_zarr() {
+            let path = "foo/bar.zarr/baz".parse::<AssetPath>().unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_matches!(iter.next(), Some((zp, ep)) => {
+                assert_eq!(zp, "foo/bar.zarr");
+                assert_eq!(ep, "baz");
+            });
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn one_ngff() {
+            let path = "foo/bar.ngff/baz".parse::<AssetPath>().unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_matches!(iter.next(), Some((zp, ep)) => {
+                assert_eq!(zp, "foo/bar.ngff");
+                assert_eq!(ep, "baz");
+            });
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn multiple_zarrs() {
+            let path = "foo.zarr/bar/baz.zarr/quux/glarch/cleesh.zarr/gnusto"
+                .parse::<AssetPath>()
+                .unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_matches!(iter.next(), Some((zp, ep)) => {
+                assert_eq!(zp, "foo.zarr");
+                assert_eq!(ep, "bar/baz.zarr/quux/glarch/cleesh.zarr/gnusto");
+            });
+            assert_matches!(iter.next(), Some((zp, ep)) => {
+                assert_eq!(zp, "foo.zarr/bar/baz.zarr");
+                assert_eq!(ep, "quux/glarch/cleesh.zarr/gnusto");
+            });
+            assert_matches!(iter.next(), Some((zp, ep)) => {
+                assert_eq!(zp, "foo.zarr/bar/baz.zarr/quux/glarch/cleesh.zarr");
+                assert_eq!(ep, "gnusto");
+            });
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn consecutive_zarrs() {
+            let path = "foo/bar.zarr/baz.zarr/quux".parse::<AssetPath>().unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_matches!(iter.next(), Some((zp, ep)) => {
+                assert_eq!(zp, "foo/bar.zarr");
+                assert_eq!(ep, "baz.zarr/quux");
+            });
+            assert_matches!(iter.next(), Some((zp, ep)) => {
+                assert_eq!(zp, "foo/bar.zarr/baz.zarr");
+                assert_eq!(ep, "quux");
+            });
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn capital_zarr_ext() {
+            let path = "foo/bar.Zarr/baz".parse::<AssetPath>().unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn capital_ngff_ext() {
+            let path = "foo/bar.Ngff/baz".parse::<AssetPath>().unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn final_zarr() {
+            let path = "foo/bar/baz.zarr".parse::<AssetPath>().unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn ext_component() {
+            let path = "foo/.zarr/baz".parse::<AssetPath>().unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn ext_first_component() {
+            let path = ".zarr/foo/baz".parse::<AssetPath>().unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn just_zarr() {
+            let path = "foo.zarr".parse::<AssetPath>().unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
+
+        #[test]
+        fn just_ext() {
+            let path = ".zarr".parse::<AssetPath>().unwrap();
+            let mut iter = path.split_zarr_candidates();
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None);
+        }
     }
 }

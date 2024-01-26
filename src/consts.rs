@@ -8,3 +8,6 @@ pub(crate) static USER_AGENT: &str = concat!(
 );
 
 pub(crate) static DEFAULT_API_URL: &str = "https://api.dandiarchive.org/api";
+
+// Case sensitive:
+pub(crate) static ZARR_EXTENSIONS: [&str; 2] = [".zarr", ".ngff"];

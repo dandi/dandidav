@@ -192,8 +192,7 @@ impl<'a> VersionEndpoint<'a> {
         self.client.paginate(url)
     }
 
-    // Returns `None` if nothing found at path
-    pub(crate) async fn get_path(&self, path: &AssetPath) -> Result<Option<AtAssetPath>, ApiError> {
+    pub(crate) async fn get_path(&self, path: &AssetPath) -> Result<AtAssetPath, ApiError> {
         let mut url = urljoin(
             &self.client.api_url,
             [
@@ -208,21 +207,62 @@ impl<'a> VersionEndpoint<'a> {
             .append_pair("path", path.as_ref())
             .append_pair("order", "path");
         let cutoff = format!("{path}/");
-        let mut stream = self.client.paginate::<Asset>(url);
+        let mut stream = self.client.paginate::<Asset>(url.clone());
         tokio::pin!(stream);
         while let Some(asset) = stream.try_next().await? {
             if asset.path() == path {
-                return Ok(Some(AtAssetPath::Asset(asset)));
+                return Ok(AtAssetPath::Asset(asset));
             } else if asset.path().is_strictly_under(path) {
-                return Ok(Some(AtAssetPath::Folder(AssetFolder::Path(path.clone()))));
+                return Ok(AtAssetPath::Folder(AssetFolder::Path(path.clone())));
             } else if **asset.path() > *cutoff {
-                return Ok(None);
+                break;
             }
         }
-        Ok(None)
+        Err(ApiError::NotFound { url })
     }
 
-    // TODO: pub(crate) async fn get_resource(&self, path: &AssetPath, with_children: bool) -> Result<???, ApiError>
+    pub(crate) async fn get_resource(
+        &self,
+        path: &AssetPath,
+        with_children: bool,
+    ) -> Result<(), ApiError> {
+        /*
+            Algorithm for efficiently (yet not always correctly) splitting
+            `path` into an asset path and an optional Zarr entry path (cf.
+            <https://github.com/dandi/dandi-webdav/issues/5>):
+                - For each non-final component in `path` from left to right
+                  that has a `.zarr` or `.ngff` extension (case sensitive):
+                    - Query the asset path up through that component.  If 404,
+                      return 404.  If blob asset, return 404.  If folder, go to
+                      next candidate.  Otherwise, we have a Zarr asset, and the
+                      rest of the original path is the Zarr entry path.
+                - If all components exhausted, treat the entirety of `path` as
+                  an asset/folder path.
+        */
+        for (zarr_path, entry_path) in path.split_zarr_candidates() {
+            match self.get_path(&zarr_path).await? {
+                AtAssetPath::Folder(_) => continue,
+                AtAssetPath::Asset(Asset::Blob(_)) => {
+                    let mut url = urljoin(
+                        &self.client.api_url,
+                        [
+                            "dandisets",
+                            self.dandiset_id.as_ref(),
+                            "versions",
+                            self.version_id.as_ref(),
+                            "assets",
+                        ],
+                    );
+                    url.query_pairs_mut().append_pair("path", path.as_ref());
+                    return Err(ApiError::NotFound { url });
+                }
+                AtAssetPath::Asset(Asset::Zarr(zarr)) => {
+                    todo!()
+                }
+            }
+        }
+        todo!()
+    }
 }
 
 #[derive(Debug, Error)]

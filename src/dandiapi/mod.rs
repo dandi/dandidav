@@ -388,7 +388,7 @@ impl<'a> VersionEndpoint<'a> {
                     let mut stream = s3.get_folder_entries(&folder.path);
                     tokio::pin!(stream);
                     while let Some(child) = stream.try_next().await? {
-                        todo!()
+                        children.push(DandiResource::from(child));
                     }
                 }
                 Ok(DandiResourceWithChildren::ZarrFolder { folder, children })

@@ -1,3 +1,4 @@
+use super::PureDirPath;
 use crate::consts::ZARR_EXTENSIONS;
 use derive_more::{AsRef, Deref, Display};
 use serde::{
@@ -18,7 +19,7 @@ use thiserror::Error;
 #[derive(AsRef, Clone, Deref, Display, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[as_ref(forward)]
 #[deref(forward)]
-pub(crate) struct PurePath(String);
+pub(crate) struct PurePath(pub(super) String);
 
 impl PurePath {
     pub(crate) fn name(&self) -> &str {
@@ -44,6 +45,15 @@ impl PurePath {
     /// through that component along with the rest of the path.
     pub(crate) fn split_zarr_candidates(&self) -> SplitZarrCandidates<'_> {
         SplitZarrCandidates::new(self)
+    }
+
+    pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<PurePath> {
+        let s = self.0.strip_prefix(&dirpath.0)?;
+        debug_assert!(
+            !s.is_empty(),
+            "{self:?} relative to {dirpath:?} should not be empty"
+        );
+        Some(PurePath(s.to_owned()))
     }
 }
 

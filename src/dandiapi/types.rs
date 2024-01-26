@@ -1,6 +1,6 @@
 use super::{DandisetId, VersionId};
 use crate::paths::PurePath;
-use crate::s3::S3Client;
+use crate::s3::PrefixedS3Client;
 use serde::Deserialize;
 use thiserror::Error;
 use time::OffsetDateTime;
@@ -208,7 +208,10 @@ pub(crate) struct ZarrEntry {
 pub(crate) enum DandiResourceWithS3 {
     Folder(AssetFolder),
     Asset(Asset),
-    ZarrFolder { folder: ZarrFolder, s3: S3Client },
+    ZarrFolder {
+        folder: ZarrFolder,
+        s3: PrefixedS3Client,
+    },
     ZarrEntry(ZarrEntry),
 }
 

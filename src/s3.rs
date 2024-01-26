@@ -32,6 +32,13 @@ impl S3Client {
         S3Client { inner, bucket }
     }
 
+    pub(crate) fn with_prefix(self, prefix: PureDirPath) -> PrefixedS3Client {
+        PrefixedS3Client {
+            inner: self,
+            prefix,
+        }
+    }
+
     // `key_prefix` may or may not end with `/`; it is used as-is
     fn list_entry_pages(
         &self,
@@ -147,6 +154,46 @@ impl S3Client {
     }
 }
 
+// Like `S3Client`, except all paths passed to and in objects returned from
+// this type are relative to a prefix
+#[derive(Clone, Debug)]
+pub(crate) struct PrefixedS3Client {
+    inner: S3Client,
+    prefix: PureDirPath,
+}
+
+impl PrefixedS3Client {
+    pub(crate) fn get_folder_entries<'a>(
+        &'a self,
+        dirpath: &'a PureDirPath,
+    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + 'a {
+        let key_prefix = format!("{}{}", self.prefix, dirpath);
+        let stream = self.inner.list_entry_pages(&key_prefix);
+        try_stream! {
+            tokio::pin!(stream);
+            while let Some(page) = stream.try_next().await? {
+                for entry in page.flatten() {
+                    if let Some(entry) = entry.relative_to(&self.prefix) {
+                        yield entry;
+                    }
+                    // TODO: Else: Error? Warn?
+                }
+            }
+        }
+    }
+
+    // Returns `None` if nothing found at path
+    pub(crate) async fn get_path(&self, path: &PurePath) -> Result<Option<S3Entry>, S3Error> {
+        let fullpath = self.prefix.join(path);
+        Ok(self
+            .inner
+            .get_path(&fullpath)
+            .await?
+            // TODO: If relative_to() returns None: Error? Warn?
+            .and_then(|entry| entry.relative_to(&self.prefix)))
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct S3Location {
     bucket: String,
@@ -227,9 +274,26 @@ pub(crate) enum S3Entry {
     Object(Object),
 }
 
+impl S3Entry {
+    pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<S3Entry> {
+        match self {
+            S3Entry::Folder(r) => Some(S3Entry::Folder(r.relative_to(dirpath)?)),
+            S3Entry::Object(r) => Some(S3Entry::Object(r.relative_to(dirpath)?)),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct S3Folder {
     pub(crate) key_prefix: PureDirPath,
+}
+
+impl S3Folder {
+    pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<S3Folder> {
+        Some(S3Folder {
+            key_prefix: self.key_prefix.relative_to(dirpath)?,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -239,6 +303,19 @@ pub(crate) struct Object {
     pub(crate) size: i64,
     pub(crate) etag: String,
     pub(crate) download_url: Url,
+}
+
+impl Object {
+    pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<Object> {
+        let key = self.key.relative_to(dirpath)?;
+        Some(Object {
+            key,
+            modified: self.modified,
+            size: self.size,
+            etag: self.etag.clone(),
+            download_url: self.download_url.clone(),
+        })
+    }
 }
 
 #[derive(Debug, Error)]

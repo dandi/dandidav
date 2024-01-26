@@ -1,3 +1,4 @@
+use super::PurePath;
 use derive_more::{AsRef, Deref, Display};
 use std::fmt;
 use thiserror::Error;
@@ -12,7 +13,18 @@ use thiserror::Error;
 #[derive(AsRef, Clone, Deref, Display, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[as_ref(forward)]
 #[deref(forward)]
-pub(crate) struct PureDirPath(String);
+pub(crate) struct PureDirPath(pub(super) String);
+
+impl PureDirPath {
+    pub(crate) fn join(&self, path: &PurePath) -> PurePath {
+        PurePath(format!("{self}{path}"))
+    }
+
+    pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<PureDirPath> {
+        let s = self.0.strip_prefix(&dirpath.0)?;
+        (!s.is_empty()).then(|| PureDirPath(s.to_owned()))
+    }
+}
 
 impl fmt::Debug for PureDirPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

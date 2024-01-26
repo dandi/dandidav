@@ -272,6 +272,9 @@ impl<'a> VersionEndpoint<'a> {
         // - If `with_children` and resource is a folder:
         //   - Call `self.get_folder_entries()`
         //   - Get properties for each asset fetched
+        // - If `with_children` and resource is a Zarr:
+        //   - Get children from S3
+        //   - Return Zarr along with children
         todo!()
     }
 }

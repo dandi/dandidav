@@ -3,6 +3,7 @@ use super::paths::{PureDirPath, PurePath};
 use async_stream::try_stream;
 use aws_sdk_s3::{operation::list_objects_v2::ListObjectsV2Error, Client};
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
+use aws_smithy_types_convert::date_time::DateTimeExt;
 use futures_util::{Stream, TryStreamExt};
 use reqwest::{ClientBuilder, StatusCode};
 use smartstring::alias::CompactString;
@@ -10,6 +11,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::sync::Arc;
 use thiserror::Error;
+use time::OffsetDateTime;
 use url::{Host, Url};
 
 #[derive(Clone, Debug)]
@@ -51,11 +53,21 @@ impl S3Client {
             let mut stream = this.inner
                 .list_objects_v2()
                 .bucket(&*this.bucket)
-                .prefix(key_prefix)
+                .prefix(&key_prefix)
                 .delimiter("/")
                 .into_paginator()
                 .send();
-            while let Some(page) = stream.try_next().await? {
+            while let Some(r) = stream.next().await {
+                let page = match r {
+                    Ok(page) => page,
+                    Err(source) => Err(
+                        S3Error::ListObjects {
+                            bucket: this.bucket.clone(),
+                            prefix: key_prefix.clone(),
+                            source,
+                        }
+                    )?,
+                };
                 let objects = page.contents.unwrap_or_default().into_iter().filter_map(|obj| {
                     let aws_sdk_s3::types::Object {
                         key: Some(key),
@@ -74,6 +86,8 @@ impl S3Client {
                     let download_url = format!("https://{}.s3.amazonaws.com/{}", this.bucket, key);
                     // TODO: Handle this error!
                     let download_url = Url::parse(&download_url).expect("download URL should be valid URL");
+                    // TODO: Handle this error!
+                    let modified = modified.to_time().expect("modification time should be between 10,000 BC and 9,999 AD");
                     Some(Object {
                         key,
                         modified,
@@ -218,7 +232,7 @@ pub(crate) struct S3Location {
 }
 
 impl S3Location {
-    pub(crate) fn parse_url(url: Url) -> Result<S3Location, S3UrlError> {
+    pub(crate) fn parse_url(url: &Url) -> Result<S3Location, S3UrlError> {
         // cf. <https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html>
         if !matches!(url.scheme(), "http" | "https") {
             return Err(S3UrlError::NotHttp);
@@ -317,7 +331,7 @@ impl S3Folder {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Object {
     pub(crate) key: PurePath,
-    pub(crate) modified: aws_sdk_s3::primitives::DateTime,
+    pub(crate) modified: OffsetDateTime,
     pub(crate) size: i64,
     pub(crate) etag: String,
     pub(crate) download_url: Url,
@@ -338,9 +352,12 @@ impl Object {
 
 #[derive(Debug, Error)]
 pub(crate) enum S3Error {
-    // TODO: Include prefix in error:
-    #[error("failed to list objects")]
-    ListObjects(#[from] SdkError<ListObjectsV2Error, HttpResponse>),
+    #[error("failed to list S3 objects in bucket {bucket:?} with prefix {prefix:?}")]
+    ListObjects {
+        bucket: CompactString,
+        prefix: String,
+        source: SdkError<ListObjectsV2Error, HttpResponse>,
+    },
 }
 
 // The AWS SDK currently cannot be used for this:
@@ -399,7 +416,7 @@ mod tests {
         #[case] region: Option<&str>,
         #[case] key: &str,
     ) {
-        let s3loc = S3Location::parse_url(url).unwrap();
+        let s3loc = S3Location::parse_url(&url).unwrap();
         assert_eq!(s3loc.bucket_spec.bucket, bucket);
         assert_eq!(s3loc.bucket_spec.region.as_deref(), region);
         assert_eq!(s3loc.key, key);
@@ -412,7 +429,7 @@ mod tests {
         "https://dandiarchive.us-west-2.amazonaws.com/zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/"
     )]
     fn test_bad_s3location_urls(#[case] url: Url) {
-        let r = S3Location::parse_url(url);
+        let r = S3Location::parse_url(&url);
         assert!(r.is_err());
     }
 }

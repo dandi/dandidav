@@ -6,7 +6,9 @@ pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
 use crate::consts::{S3CLIENT_CACHE_SIZE, USER_AGENT};
 use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
-use crate::s3::{BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Location};
+use crate::s3::{
+    BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Entry, S3Error, S3Location,
+};
 use async_stream::try_stream;
 use futures_util::{Stream, TryStreamExt};
 use lru::LruCache;
@@ -299,12 +301,33 @@ impl<'a> VersionEndpoint<'a> {
                     return Err(ApiError::NotFound { url });
                 }
                 AtAssetPath::Asset(Asset::Zarr(zarr)) => {
-                    // Get S3 content URL from asset metadata
-                    // Get S3 client for bucket
-                    // Get resource at {content_url_key}/{entry_path}:
-                    //  - Call S3Client.get_path(…) and convert return value
-                    // Return resource and S3Client
-                    todo!()
+                    let Some(s3loc) = zarr.s3location() else {
+                        return Err(ApiError::ZarrLacksS3Url {
+                            asset_id: zarr.asset_id,
+                        });
+                    };
+                    let s3 = self.client.get_s3client(s3loc).await?;
+                    return match s3.get_path(&entry_path).await? {
+                        Some(S3Entry::Folder(folder)) => Ok(DandiResourceWithS3::ZarrFolder {
+                            folder: ZarrFolder {
+                                path: folder.key_prefix,
+                            },
+                            s3,
+                        }),
+                        Some(S3Entry::Object(obj)) => {
+                            Ok(DandiResourceWithS3::ZarrEntry(ZarrEntry {
+                                path: obj.key,
+                                size: obj.size,
+                                modified: obj.modified,
+                                etag: obj.etag,
+                                url: obj.download_url,
+                            }))
+                        }
+                        None => Err(ApiError::ZarrEntryNotFound {
+                            zarr_path,
+                            entry_path,
+                        }),
+                    };
                 }
             }
         }
@@ -351,6 +374,11 @@ pub(crate) enum ApiError {
     Send { url: Url, source: reqwest::Error },
     #[error("no such resource: {url}")]
     NotFound { url: Url },
+    #[error("entry {entry_path:?} in Zarr {zarr_path:?} not found")]
+    ZarrEntryNotFound {
+        zarr_path: PurePath,
+        entry_path: PurePath,
+    },
     #[error("request to {url} returned error")]
     Status { url: Url, source: reqwest::Error },
     #[error("failed to deserialize response body from {url}")]
@@ -365,6 +393,10 @@ pub(crate) enum ApiError {
         bucket: CompactString,
         source: GetBucketRegionError,
     },
+    #[error("Zarr with asset ID {asset_id} does not have an S3 download URL")]
+    ZarrLacksS3Url { asset_id: String },
+    #[error(transparent)]
+    S3(#[from] S3Error),
 }
 
 fn urljoin<I>(url: &Url, segments: I) -> Url

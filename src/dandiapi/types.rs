@@ -1,6 +1,6 @@
 use super::{DandisetId, VersionId};
-use crate::paths::PurePath;
-use crate::s3::PrefixedS3Client;
+use crate::paths::{PureDirPath, PurePath};
+use crate::s3::{PrefixedS3Client, S3Location};
 use serde::Deserialize;
 use thiserror::Error;
 use time::OffsetDateTime;
@@ -132,6 +132,15 @@ pub(crate) struct ZarrAsset {
     pub(crate) metadata: AssetMetadata,
 }
 
+impl ZarrAsset {
+    pub(crate) fn s3location(&self) -> Option<S3Location> {
+        self.metadata
+            .content_url
+            .iter()
+            .find_map(|url| S3Location::parse_url(url).ok())
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AssetMetadata {
@@ -211,16 +220,16 @@ pub(crate) enum DandiResource {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ZarrFolder {
-    path: PurePath,
+    pub(crate) path: PureDirPath,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ZarrEntry {
-    path: PurePath,
-    size: i64,
-    modified: OffsetDateTime,
-    etag: String,
-    url: Url,
+    pub(crate) path: PurePath,
+    pub(crate) size: i64,
+    pub(crate) modified: OffsetDateTime,
+    pub(crate) etag: String,
+    pub(crate) url: Url,
 }
 
 #[derive(Clone, Debug)]

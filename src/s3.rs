@@ -178,6 +178,21 @@ pub(crate) struct PrefixedS3Client {
 }
 
 impl PrefixedS3Client {
+    pub(crate) fn get_root_entries(&self) -> impl Stream<Item = Result<S3Entry, S3Error>> + '_ {
+        let stream = self.inner.list_entry_pages(&self.prefix);
+        try_stream! {
+            tokio::pin!(stream);
+            while let Some(page) = stream.try_next().await? {
+                for entry in page.flatten() {
+                    if let Some(entry) = entry.relative_to(&self.prefix) {
+                        yield entry;
+                    }
+                    // TODO: Else: Error? Warn?
+                }
+            }
+        }
+    }
+
     pub(crate) fn get_folder_entries<'a>(
         &'a self,
         dirpath: &'a PureDirPath,

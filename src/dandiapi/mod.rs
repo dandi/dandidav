@@ -377,10 +377,16 @@ impl<'a> VersionEndpoint<'a> {
             }
             DandiResourceWithS3::Asset(Asset::Blob(r)) => Ok(DandiResourceWithChildren::Blob(r)),
             DandiResourceWithS3::Asset(Asset::Zarr(zarr)) => {
-                // - Construct S3 client
-                // - Get children from S3
-                // - Return Zarr along with children
-                todo!()
+                let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
+                let mut children = Vec::new();
+                {
+                    let mut stream = s3.get_root_entries();
+                    tokio::pin!(stream);
+                    while let Some(child) = stream.try_next().await? {
+                        children.push(DandiResource::from(child));
+                    }
+                }
+                Ok(DandiResourceWithChildren::Zarr { zarr, children })
             }
             DandiResourceWithS3::ZarrFolder { folder, s3 } => {
                 let mut children = Vec::new();

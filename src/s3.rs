@@ -8,6 +8,7 @@ use reqwest::{ClientBuilder, StatusCode};
 use smartstring::alias::CompactString;
 use std::borrow::Cow;
 use std::cmp::Ordering;
+use std::sync::Arc;
 use thiserror::Error;
 use url::{Host, Url};
 
@@ -32,7 +33,7 @@ impl S3Client {
         S3Client { inner, bucket }
     }
 
-    pub(crate) fn with_prefix(self, prefix: PureDirPath) -> PrefixedS3Client {
+    pub(crate) fn with_prefix(self: Arc<Self>, prefix: PureDirPath) -> PrefixedS3Client {
         PrefixedS3Client {
             inner: self,
             prefix,
@@ -158,7 +159,7 @@ impl S3Client {
 // this type are relative to a prefix
 #[derive(Clone, Debug)]
 pub(crate) struct PrefixedS3Client {
-    inner: S3Client,
+    inner: Arc<S3Client>,
     prefix: PureDirPath,
 }
 
@@ -194,10 +195,10 @@ impl PrefixedS3Client {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct BucketSpec {
-    bucket: CompactString,
-    region: Option<String>,
+    pub(crate) bucket: CompactString,
+    pub(crate) region: Option<String>,
 }
 
 impl BucketSpec {
@@ -212,8 +213,8 @@ impl BucketSpec {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct S3Location {
-    bucket_spec: BucketSpec,
-    key: String, // Does not start with a slash
+    pub(crate) bucket_spec: BucketSpec,
+    pub(crate) key: String, // Does not start with a slash
 }
 
 impl S3Location {

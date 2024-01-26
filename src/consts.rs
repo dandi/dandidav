@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 pub(crate) static USER_AGENT: &str = concat!(
     env!("CARGO_PKG_NAME"),
     "/",
@@ -11,3 +13,17 @@ pub(crate) static DEFAULT_API_URL: &str = "https://api.dandiarchive.org/api";
 
 // Case sensitive:
 pub(crate) static ZARR_EXTENSIONS: [&str; 2] = [".zarr", ".ngff"];
+
+const S3CLIENT_CACHE_SIZE_RAW: usize = 8;
+
+#[allow(unsafe_code)]
+#[allow(clippy::assertions_on_constants)]
+// <https://stackoverflow.com/q/66838439/744178>
+pub(crate) const S3CLIENT_CACHE_SIZE: NonZeroUsize = {
+    assert!(
+        S3CLIENT_CACHE_SIZE_RAW != 0,
+        "cache size should not be zero"
+    );
+    // SAFETY: Cache size is not zero
+    unsafe { NonZeroUsize::new_unchecked(S3CLIENT_CACHE_SIZE_RAW) }
+};

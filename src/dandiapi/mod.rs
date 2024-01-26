@@ -4,28 +4,39 @@ mod version_id;
 pub(crate) use self::dandiset_id::*;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
-use super::consts::USER_AGENT;
-use super::paths::PurePath;
+use crate::consts::{S3CLIENT_CACHE_SIZE, USER_AGENT};
+use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
+use crate::s3::{BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Location};
 use async_stream::try_stream;
 use futures_util::{Stream, TryStreamExt};
+use lru::LruCache;
 use reqwest::{ClientBuilder, StatusCode};
 use serde::de::DeserializeOwned;
+use smartstring::alias::CompactString;
+use std::sync::Arc;
 use thiserror::Error;
+use tokio::sync::Mutex;
 use url::Url;
 
 #[derive(Clone, Debug)]
 pub(crate) struct Client {
     inner: reqwest::Client,
     api_url: Url,
+    s3clients: Arc<Mutex<LruCache<BucketSpec, Arc<S3Client>>>>,
 }
 
 impl Client {
     pub(crate) fn new(api_url: Url) -> Result<Self, BuildClientError> {
         let inner = ClientBuilder::new().user_agent(USER_AGENT).build()?;
-        Ok(Client { inner, api_url })
+        let s3clients = Arc::new(Mutex::new(LruCache::new(S3CLIENT_CACHE_SIZE)));
+        Ok(Client {
+            inner,
+            api_url,
+            s3clients,
+        })
     }
 
-    pub(crate) async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, ApiError> {
+    async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, ApiError> {
         let r = self
             .inner
             .get(url.clone())
@@ -72,6 +83,40 @@ impl Client {
                 url = page.next;
             }
         }
+    }
+
+    async fn get_s3client(&self, loc: S3Location) -> Result<PrefixedS3Client, ApiError> {
+        let S3Location {
+            bucket_spec,
+            mut key,
+        } = loc;
+        if !key.ends_with('/') {
+            key.push('/');
+        }
+        let prefix = key
+            .parse::<PureDirPath>()
+            .map_err(|source| ApiError::BadS3Key { key, source })?;
+        let client = {
+            let mut cache = self.s3clients.lock().await;
+            if let Some(client) = cache.get(&bucket_spec) {
+                client.clone()
+            } else {
+                match bucket_spec.clone().into_s3client().await {
+                    Ok(client) => {
+                        let client = Arc::new(client);
+                        cache.put(bucket_spec, client.clone());
+                        client
+                    }
+                    Err(source) => {
+                        return Err(ApiError::LocateBucket {
+                            bucket: bucket_spec.bucket,
+                            source,
+                        })
+                    }
+                }
+            }
+        };
+        Ok(client.with_prefix(prefix))
     }
 
     pub(crate) fn get_all_dandisets(&self) -> impl Stream<Item = Result<Dandiset, ApiError>> {
@@ -310,6 +355,16 @@ pub(crate) enum ApiError {
     Status { url: Url, source: reqwest::Error },
     #[error("failed to deserialize response body from {url}")]
     Deserialize { url: Url, source: reqwest::Error },
+    #[error("key in S3 URL is not a well-formed path: {key:?}")]
+    BadS3Key {
+        key: String,
+        source: ParsePureDirPathError,
+    },
+    #[error("failed to determine region for S3 bucket {bucket:?}")]
+    LocateBucket {
+        bucket: CompactString,
+        source: GetBucketRegionError,
+    },
 }
 
 fn urljoin<I>(url: &Url, segments: I) -> Url

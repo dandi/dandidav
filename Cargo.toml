@@ -22,6 +22,7 @@ clap = { version = "4.4.18", default-features = false, features = ["derive", "er
 derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "deref", "display"] }
 futures-util = "0.3.30"
 http = "1.0.0"
+lru = "0.12.1"
 reqwest = { version = "0.11.23", features = ["json"] }
 serde = { version = "1.0.195", features = ["derive"] }
 serde_json = { version = "1.0.111", features = ["preserve_order"] }
@@ -29,7 +30,7 @@ serde_yaml = "0.9.30"
 smartstring = "1.0.1"
 thiserror = "1.0.56"
 time = { version = "0.3.31", features = ["formatting", "parsing", "serde"] }
-tokio = { version = "1.35.1", features = ["macros", "net", "rt", "rt-multi-thread"] }
+tokio = { version = "1.35.1", features = ["macros", "net", "rt-multi-thread", "sync"] }
 tower = "0.4.13"
 url = { version = "2.5.0", features = ["serde"] }
 

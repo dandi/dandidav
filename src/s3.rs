@@ -1,4 +1,5 @@
 use super::consts::USER_AGENT;
+use super::purepath::PurePath;
 use async_stream::try_stream;
 use aws_sdk_s3::{operation::list_objects_v2::ListObjectsV2Error, Client};
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
@@ -59,15 +60,14 @@ impl S3Client {
                         return None;
                     };
                     // This step shouldn't be necessary, but just in case…
-                    let key = match key.strip_prefix('/') {
-                        Some(k) => Cow::from(k),
-                        None => Cow::from(key),
-                    };
+                    let key = key.strip_prefix('/').unwrap_or(&key);
+                    // TODO: Handle this error!
+                    let key = key.parse::<PurePath>().expect("S3 key should be normalized relative path");
                     let download_url = format!("https://{}.s3.amazonaws.com/{}", this.bucket, key);
                     // TODO: Handle this error!
                     let download_url = Url::parse(&download_url).expect("download URL should be valid URL");
                     Some(Object {
-                        key: key.into_owned(),
+                        key,
                         modified,
                         size,
                         etag,
@@ -103,8 +103,7 @@ impl S3Client {
     }
 
     // Returns `None` if nothing found at path
-    // TODO: Enforce that `path` does NOT end in `/`
-    pub(crate) async fn get_path(&self, path: &str) -> Result<Option<S3Entry>, S3Error> {
+    pub(crate) async fn get_path(&self, path: &PurePath) -> Result<Option<S3Entry>, S3Error> {
         let mut surpassed_objects = false;
         let mut surpassed_folders = false;
         let folder_cutoff = format!("{path}/");
@@ -225,12 +224,12 @@ pub(crate) enum S3Entry {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct S3Folder {
-    pub(crate) key_prefix: String, // End with '/'
+    pub(crate) key_prefix: String, // Ends with '/'
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Object {
-    pub(crate) key: String,
+    pub(crate) key: PurePath,
     pub(crate) modified: aws_sdk_s3::primitives::DateTime,
     pub(crate) size: i64,
     pub(crate) etag: String,

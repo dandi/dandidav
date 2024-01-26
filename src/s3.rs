@@ -195,9 +195,24 @@ impl PrefixedS3Client {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct S3Location {
-    bucket: String,
+pub(crate) struct BucketSpec {
+    bucket: CompactString,
     region: Option<String>,
+}
+
+impl BucketSpec {
+    pub(crate) async fn into_s3client(self) -> Result<S3Client, GetBucketRegionError> {
+        let region = match self.region {
+            Some(region) => region,
+            None => get_bucket_region(&self.bucket).await?,
+        };
+        Ok(S3Client::new(self.bucket, region).await)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct S3Location {
+    bucket_spec: BucketSpec,
     key: String, // Does not start with a slash
 }
 
@@ -235,8 +250,10 @@ impl S3Location {
         let key = url.path();
         let key = key.strip_prefix('/').unwrap_or(key);
         Ok(S3Location {
-            bucket: bucket.to_owned(),
-            region: region.map(String::from),
+            bucket_spec: BucketSpec {
+                bucket: bucket.into(),
+                region: region.map(String::from),
+            },
             key: key.to_owned(),
         })
     }
@@ -382,8 +399,8 @@ mod tests {
         #[case] key: &str,
     ) {
         let s3loc = S3Location::parse_url(url).unwrap();
-        assert_eq!(s3loc.bucket, bucket);
-        assert_eq!(s3loc.region.as_deref(), region);
+        assert_eq!(s3loc.bucket_spec.bucket, bucket);
+        assert_eq!(s3loc.bucket_spec.region.as_deref(), region);
         assert_eq!(s3loc.key, key);
     }
 

@@ -1,6 +1,6 @@
 use super::{DandisetId, VersionId};
 use crate::paths::{PureDirPath, PurePath};
-use crate::s3::{PrefixedS3Client, S3Location};
+use crate::s3::{Object, PrefixedS3Client, S3Entry, S3Folder, S3Location};
 use serde::Deserialize;
 use thiserror::Error;
 use time::OffsetDateTime;
@@ -218,9 +218,37 @@ pub(crate) enum DandiResource {
     ZarrEntry(ZarrEntry),
 }
 
+impl DandiResource {
+    pub(super) fn with_s3(self, s3: PrefixedS3Client) -> DandiResourceWithS3 {
+        match self {
+            DandiResource::Folder(r) => DandiResourceWithS3::Folder(r),
+            DandiResource::Asset(r) => DandiResourceWithS3::Asset(r),
+            DandiResource::ZarrFolder(folder) => DandiResourceWithS3::ZarrFolder { folder, s3 },
+            DandiResource::ZarrEntry(r) => DandiResourceWithS3::ZarrEntry(r),
+        }
+    }
+}
+
+impl From<S3Entry> for DandiResource {
+    fn from(value: S3Entry) -> DandiResource {
+        match value {
+            S3Entry::Folder(folder) => DandiResource::ZarrFolder(folder.into()),
+            S3Entry::Object(obj) => DandiResource::ZarrEntry(obj.into()),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ZarrFolder {
     pub(crate) path: PureDirPath,
+}
+
+impl From<S3Folder> for ZarrFolder {
+    fn from(value: S3Folder) -> ZarrFolder {
+        ZarrFolder {
+            path: value.key_prefix,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -232,8 +260,20 @@ pub(crate) struct ZarrEntry {
     pub(crate) url: Url,
 }
 
+impl From<Object> for ZarrEntry {
+    fn from(obj: Object) -> ZarrEntry {
+        ZarrEntry {
+            path: obj.key,
+            size: obj.size,
+            modified: obj.modified,
+            etag: obj.etag,
+            url: obj.download_url,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
-pub(crate) enum DandiResourceWithS3 {
+pub(super) enum DandiResourceWithS3 {
     Folder(AssetFolder),
     Asset(Asset),
     ZarrFolder {

@@ -335,21 +335,7 @@ impl<'a> VersionEndpoint<'a> {
                 AtAssetPath::Asset(Asset::Zarr(zarr)) => {
                     let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
                     return match s3.get_path(&entry_path).await? {
-                        Some(S3Entry::Folder(folder)) => Ok(DandiResourceWithS3::ZarrFolder {
-                            folder: ZarrFolder {
-                                path: folder.key_prefix,
-                            },
-                            s3,
-                        }),
-                        Some(S3Entry::Object(obj)) => {
-                            Ok(DandiResourceWithS3::ZarrEntry(ZarrEntry {
-                                path: obj.key,
-                                size: obj.size,
-                                modified: obj.modified,
-                                etag: obj.etag,
-                                url: obj.download_url,
-                            }))
-                        }
+                        Some(entry) => Ok(DandiResource::from(entry).with_s3(s3)),
                         None => Err(ApiError::ZarrEntryNotFound {
                             zarr_path,
                             entry_path,
@@ -397,8 +383,15 @@ impl<'a> VersionEndpoint<'a> {
                 todo!()
             }
             DandiResourceWithS3::ZarrFolder { folder, s3 } => {
-                // Call S3Client.get_folder_entries("{prefix}/")
-                todo!()
+                let mut children = Vec::new();
+                {
+                    let mut stream = s3.get_folder_entries(&folder.path);
+                    tokio::pin!(stream);
+                    while let Some(child) = stream.try_next().await? {
+                        todo!()
+                    }
+                }
+                Ok(DandiResourceWithChildren::ZarrFolder { folder, children })
             }
             DandiResourceWithS3::ZarrEntry(r) => Ok(DandiResourceWithChildren::ZarrEntry(r)),
         }

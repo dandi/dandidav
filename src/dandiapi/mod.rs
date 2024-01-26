@@ -230,14 +230,16 @@ impl<'a> VersionEndpoint<'a> {
             Algorithm for efficiently (yet not always correctly) splitting
             `path` into an asset path and an optional Zarr entry path (cf.
             <https://github.com/dandi/dandi-webdav/issues/5>):
-                - For each non-final component in `path` from left to right
-                  that has a `.zarr` or `.ngff` extension (case sensitive):
-                    - Query the asset path up through that component.  If 404,
-                      return 404.  If blob asset, return 404.  If folder, go to
-                      next candidate.  Otherwise, we have a Zarr asset, and the
-                      rest of the original path is the Zarr entry path.
-                - If all components exhausted, treat the entirety of `path` as
-                  an asset/folder path.
+
+            - For each non-final component in `path` from left to right that
+              has a `.zarr` or `.ngff` extension (case sensitive), query the
+              asset path up through that component.  If 404, return 404.  If
+              blob asset, return 404.  If folder, go to next candidate.
+              Otherwise, we have a Zarr asset, and the rest of the original
+              path is the Zarr entry path.
+
+            - If all components are exhausted without erroring or finding a
+              Zarr, treat the entirety of `path` as an asset/folder path.
         */
         for (zarr_path, entry_path) in path.split_zarr_candidates() {
             match self.get_path(&zarr_path).await? {
@@ -257,10 +259,20 @@ impl<'a> VersionEndpoint<'a> {
                     return Err(ApiError::NotFound { url });
                 }
                 AtAssetPath::Asset(Asset::Zarr(zarr)) => {
+                    // Get S3 content URL from asset metadata
+                    // Get S3 client for bucket
+                    // Get resource at {content_url_key}/{entry_path}:
+                    //  - Call S3Client.get_path(…)
+                    //  - If `with_children` and resource is a folder:
+                    //    - Call S3Client.get_folder_entries("{prefix}/")
                     todo!()
                 }
             }
         }
+        // - Call `self.get_path(path)`
+        // - If `with_children` and resource is a folder:
+        //   - Call `self.get_folder_entries()`
+        //   - Get properties for each asset fetched
         todo!()
     }
 }

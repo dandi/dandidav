@@ -87,7 +87,7 @@ impl Client {
         }
     }
 
-    async fn get_s3client(&self, loc: S3Location) -> Result<PrefixedS3Client, ApiError> {
+    async fn get_s3client(&self, loc: S3Location) -> Result<PrefixedS3Client, ZarrToS3Error> {
         let S3Location {
             bucket_spec,
             mut key,
@@ -97,7 +97,7 @@ impl Client {
         }
         let prefix = key
             .parse::<PureDirPath>()
-            .map_err(|source| ApiError::BadS3Key { key, source })?;
+            .map_err(|source| ZarrToS3Error::BadS3Key { key, source })?;
         let client = {
             let mut cache = self.s3clients.lock().await;
             if let Some(client) = cache.get(&bucket_spec) {
@@ -110,7 +110,7 @@ impl Client {
                         client
                     }
                     Err(source) => {
-                        return Err(ApiError::LocateBucket {
+                        return Err(ZarrToS3Error::LocateBucket {
                             bucket: bucket_spec.bucket,
                             source,
                         })
@@ -119,6 +119,21 @@ impl Client {
             }
         };
         Ok(client.with_prefix(prefix))
+    }
+
+    async fn get_s3client_for_zarr(&self, zarr: &ZarrAsset) -> Result<PrefixedS3Client, ApiError> {
+        let Some(s3loc) = zarr.s3location() else {
+            return Err(ApiError::ZarrToS3Error {
+                asset_id: zarr.asset_id.clone(),
+                source: ZarrToS3Error::ZarrLacksS3Url,
+            });
+        };
+        self.get_s3client(s3loc)
+            .await
+            .map_err(|source| ApiError::ZarrToS3Error {
+                asset_id: zarr.asset_id.clone(),
+                source,
+            })
     }
 
     pub(crate) fn get_all_dandisets(&self) -> impl Stream<Item = Result<Dandiset, ApiError>> {
@@ -301,12 +316,7 @@ impl<'a> VersionEndpoint<'a> {
                     return Err(ApiError::NotFound { url });
                 }
                 AtAssetPath::Asset(Asset::Zarr(zarr)) => {
-                    let Some(s3loc) = zarr.s3location() else {
-                        return Err(ApiError::ZarrLacksS3Url {
-                            asset_id: zarr.asset_id,
-                        });
-                    };
-                    let s3 = self.client.get_s3client(s3loc).await?;
+                    let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
                     return match s3.get_path(&entry_path).await? {
                         Some(S3Entry::Folder(folder)) => Ok(DandiResourceWithS3::ZarrFolder {
                             folder: ZarrFolder {
@@ -383,6 +393,19 @@ pub(crate) enum ApiError {
     Status { url: Url, source: reqwest::Error },
     #[error("failed to deserialize response body from {url}")]
     Deserialize { url: Url, source: reqwest::Error },
+    #[error("failed to acquire S3 client for Zarr with asset ID {asset_id}")]
+    ZarrToS3Error {
+        asset_id: String,
+        source: ZarrToS3Error,
+    },
+    #[error(transparent)]
+    S3(#[from] S3Error),
+}
+
+#[derive(Debug, Error)]
+pub(crate) enum ZarrToS3Error {
+    #[error("Zarr does not have an S3 download URL")]
+    ZarrLacksS3Url,
     #[error("key in S3 URL is not a well-formed path: {key:?}")]
     BadS3Key {
         key: String,
@@ -393,10 +416,6 @@ pub(crate) enum ApiError {
         bucket: CompactString,
         source: GetBucketRegionError,
     },
-    #[error("Zarr with asset ID {asset_id} does not have an S3 download URL")]
-    ZarrLacksS3Url { asset_id: String },
-    #[error(transparent)]
-    S3(#[from] S3Error),
 }
 
 fn urljoin<I>(url: &Url, segments: I) -> Url

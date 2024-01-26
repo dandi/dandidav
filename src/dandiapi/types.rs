@@ -1,6 +1,6 @@
 use super::{DandisetId, VersionId};
 use crate::paths::{PureDirPath, PurePath};
-use crate::s3::{Object, PrefixedS3Client, S3Entry, S3Folder, S3Location};
+use crate::s3::{PrefixedS3Client, S3Entry, S3Folder, S3Location, S3Object};
 use serde::Deserialize;
 use thiserror::Error;
 use time::OffsetDateTime;
@@ -260,8 +260,8 @@ pub(crate) struct ZarrEntry {
     pub(crate) url: Url,
 }
 
-impl From<Object> for ZarrEntry {
-    fn from(obj: Object) -> ZarrEntry {
+impl From<S3Object> for ZarrEntry {
+    fn from(obj: S3Object) -> ZarrEntry {
         ZarrEntry {
             path: obj.key,
             size: obj.size,

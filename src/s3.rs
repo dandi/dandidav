@@ -88,7 +88,7 @@ impl S3Client {
                     let download_url = Url::parse(&download_url).expect("download URL should be valid URL");
                     // TODO: Handle this error!
                     let modified = modified.to_time().expect("modification time should be between 10,000 BC and 9,999 AD");
-                    Some(Object {
+                    Some(S3Object {
                         key,
                         modified,
                         size,
@@ -287,7 +287,7 @@ pub(crate) enum S3UrlError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct S3EntryPage {
     folders: Vec<S3Folder>,
-    objects: Vec<Object>,
+    objects: Vec<S3Object>,
 }
 
 impl S3EntryPage {
@@ -303,7 +303,7 @@ impl S3EntryPage {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum S3Entry {
     Folder(S3Folder),
-    Object(Object),
+    Object(S3Object),
 }
 
 impl S3Entry {
@@ -329,7 +329,7 @@ impl S3Folder {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct Object {
+pub(crate) struct S3Object {
     pub(crate) key: PurePath,
     pub(crate) modified: OffsetDateTime,
     pub(crate) size: i64,
@@ -337,10 +337,10 @@ pub(crate) struct Object {
     pub(crate) download_url: Url,
 }
 
-impl Object {
-    pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<Object> {
+impl S3Object {
+    pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<S3Object> {
         let key = self.key.relative_to(dirpath)?;
-        Some(Object {
+        Some(S3Object {
             key,
             modified: self.modified,
             size: self.size,

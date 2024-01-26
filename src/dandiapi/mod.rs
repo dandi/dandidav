@@ -1,12 +1,11 @@
-mod asset_path;
 mod dandiset_id;
 mod types;
 mod version_id;
-pub(crate) use self::asset_path::*;
 pub(crate) use self::dandiset_id::*;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
 use super::consts::USER_AGENT;
+use super::purepath::PurePath;
 use async_stream::try_stream;
 use futures_util::{Stream, TryStreamExt};
 use reqwest::{ClientBuilder, StatusCode};
@@ -192,7 +191,7 @@ impl<'a> VersionEndpoint<'a> {
         self.client.paginate(url)
     }
 
-    pub(crate) async fn get_path(&self, path: &AssetPath) -> Result<AtAssetPath, ApiError> {
+    pub(crate) async fn get_path(&self, path: &PurePath) -> Result<AtAssetPath, ApiError> {
         let mut url = urljoin(
             &self.client.api_url,
             [
@@ -223,7 +222,7 @@ impl<'a> VersionEndpoint<'a> {
 
     pub(crate) async fn get_resource(
         &self,
-        path: &AssetPath,
+        path: &PurePath,
         with_children: bool,
     ) -> Result<(), ApiError> {
         /*

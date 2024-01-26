@@ -1,4 +1,5 @@
-use super::{AssetPath, DandisetId, VersionId};
+use super::{DandisetId, VersionId};
+use crate::purepath::PurePath;
 use serde::Deserialize;
 use thiserror::Error;
 use time::OffsetDateTime;
@@ -51,13 +52,13 @@ impl VersionMetadata {
 #[serde(from = "RawFolderEntry")]
 pub(crate) enum FolderEntry {
     Folder(AssetFolder),
-    Asset { path: AssetPath, id: String },
+    Asset { path: PurePath, id: String },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum AssetFolder {
     Root,
-    Path(AssetPath),
+    Path(PurePath),
 }
 
 impl From<RawFolderEntry> for FolderEntry {
@@ -77,7 +78,7 @@ impl From<RawFolderEntry> for FolderEntry {
 // response
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 struct RawFolderEntry {
-    path: AssetPath,
+    path: PurePath,
     asset: Option<RawFolderEntryAsset>,
 }
 
@@ -100,7 +101,7 @@ pub(crate) enum Asset {
 }
 
 impl Asset {
-    pub(crate) fn path(&self) -> &AssetPath {
+    pub(crate) fn path(&self) -> &PurePath {
         match self {
             Asset::Blob(a) => &a.path,
             Asset::Zarr(a) => &a.path,
@@ -112,7 +113,7 @@ impl Asset {
 pub(crate) struct BlobAsset {
     pub(crate) asset_id: String,
     pub(crate) blob_id: String,
-    pub(crate) path: AssetPath,
+    pub(crate) path: PurePath,
     pub(crate) size: i64,
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
@@ -122,7 +123,7 @@ pub(crate) struct BlobAsset {
 pub(crate) struct ZarrAsset {
     pub(crate) asset_id: String,
     pub(crate) zarr_id: String,
-    pub(crate) path: AssetPath,
+    pub(crate) path: PurePath,
     pub(crate) size: i64,
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
@@ -133,7 +134,7 @@ struct RawAsset {
     asset_id: String,
     blob: Option<String>,
     zarr: Option<String>,
-    path: AssetPath,
+    path: PurePath,
     size: i64,
     #[serde(with = "time::serde::rfc3339")]
     created: OffsetDateTime,

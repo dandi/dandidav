@@ -239,6 +239,7 @@ pub(crate) struct Object {
 
 #[derive(Debug, Error)]
 pub(crate) enum S3Error {
+    // TODO: Include prefix in error:
     #[error("failed to list objects")]
     ListObjects(#[from] SdkError<ListObjectsV2Error, HttpResponse>),
 }

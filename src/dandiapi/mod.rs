@@ -16,19 +16,19 @@ use url::Url;
 
 #[derive(Clone, Debug)]
 pub(crate) struct Client {
-    client: reqwest::Client,
+    inner: reqwest::Client,
     api_url: Url,
 }
 
 impl Client {
     pub(crate) fn new(api_url: Url) -> Result<Self, BuildClientError> {
-        let client = ClientBuilder::new().user_agent(USER_AGENT).build()?;
-        Ok(Client { client, api_url })
+        let inner = ClientBuilder::new().user_agent(USER_AGENT).build()?;
+        Ok(Client { inner, api_url })
     }
 
     pub(crate) async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, ApiError> {
         let r = self
-            .client
+            .inner
             .get(url.clone())
             .send()
             .await
@@ -54,7 +54,7 @@ impl Client {
         try_stream! {
             let mut url = Some(url);
             while let Some(u) = url {
-                let resp = this.client
+                let resp = this.inner
                     .get(u.clone())
                     .send()
                     .await

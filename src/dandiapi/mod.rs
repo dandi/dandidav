@@ -248,14 +248,28 @@ impl<'a> VersionEndpoint<'a> {
             .await
     }
 
-    pub(crate) fn get_root_entries(
+    pub(crate) fn get_root_children(
         &self,
-        path: &AssetFolder,
-    ) -> impl Stream<Item = Result<FolderEntry, ApiError>> + '_ {
-        self.get_entries_under_path(None)
+    ) -> impl Stream<Item = Result<DandiResource, ApiError>> + '_ {
+        try_stream! {
+            let stream = self.get_entries_under_path(None);
+            tokio::pin!(stream);
+            while let Some(entry) = stream.try_next().await? {
+                match entry {
+                    FolderEntry::Folder(subf) => yield DandiResource::Folder(subf),
+                    FolderEntry::Asset { id, path } => match self.get_asset_by_id(&id).await {
+                        Ok(asset) => yield DandiResource::Asset(asset),
+                        Err(ApiError::NotFound { .. }) => {
+                            Err(ApiError::DisappearingAsset { asset_id: id, path })?;
+                        }
+                        Err(e) => Err(e)?,
+                    },
+                }
+            }
+        }
     }
 
-    pub(crate) fn get_folder_entries(
+    fn get_folder_entries(
         &self,
         path: &AssetFolder,
     ) -> impl Stream<Item = Result<FolderEntry, ApiError>> + '_ {

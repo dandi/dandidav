@@ -97,12 +97,9 @@ impl DandiDav {
         &self,
         dandiset_id: &DandisetId,
         version: &VersionSpec,
-    ) -> Result<DavCollection, DavError> {
-        let v = self
-            .get_version_endpoint(dandiset_id, version)
-            .await?
-            .get()
-            .await?;
+    ) -> Result<(DavCollection, VersionEndpoint<'_>), DavError> {
+        let endpoint = self.get_version_endpoint(dandiset_id, version).await?;
+        let v = endpoint.get().await?;
         // TODO: Do this more efficiently:
         let href = DavPath::Version {
             dandiset_id: dandiset_id.clone(),
@@ -113,7 +110,7 @@ impl DandiDav {
         if version == &VersionSpec::Latest {
             col.name = Some("latest".to_owned());
         }
-        Ok(col)
+        Ok((col, endpoint))
     }
 
     async fn resolve(&self, path: &DavPath) -> Result<DavResource, DavError> {
@@ -137,7 +134,7 @@ impl DandiDav {
             } => self
                 .get_dandiset_version(dandiset_id, version)
                 .await
-                .map(DavResource::Collection),
+                .map(|(col, _)| DavResource::Collection(col)),
             DavPath::DandisetYaml {
                 dandiset_id,
                 version,
@@ -155,7 +152,12 @@ impl DandiDav {
                     .await?
                     .get_resource(path)
                     .await?;
-                Ok(DavResource::dandi_resource(res, path.to_string()))
+                let version_href = DavPath::Version {
+                    dandiset_id: dandiset_id.clone(),
+                    version: version.clone(),
+                }
+                .to_string();
+                Ok(DavResource::dandi_resource(res, &version_href))
             }
         }
     }
@@ -220,7 +222,17 @@ impl DandiDav {
             DavPath::Version {
                 dandiset_id,
                 version,
-            } => todo!(),
+            } => {
+                let (col, endpoint) = self.get_dandiset_version(dandiset_id, version).await?;
+                let mut children = Vec::new();
+                let version_href = path.to_string();
+                let stream = endpoint.get_root_children();
+                tokio::pin!(stream);
+                while let Some(res) = stream.try_next().await? {
+                    children.push(DavResource::dandi_resource(res, &version_href));
+                }
+                Ok(DavResourceWithChildren::Collection { col, children })
+            }
             DavPath::DandisetYaml {
                 dandiset_id,
                 version,
@@ -338,10 +350,10 @@ impl DavResource {
         }
     }
 
-    fn dandi_resource(res: DandiResource, mut href: String) -> Self {
+    fn dandi_resource(res: DandiResource, version_href: &str) -> Self {
         match res {
             DandiResource::Folder(AssetFolder { path }) => {
-                href.push('/');
+                let href = format!("{version_href}/{path}/");
                 DavResource::Collection(DavCollection {
                     name: Some(path.name().to_owned()),
                     href,
@@ -351,27 +363,30 @@ impl DavResource {
                     kind: ResourceKind::AssetFolder,
                 })
             }
-            DandiResource::Asset(Asset::Blob(blob)) => DavResource::Item(DavItem {
-                name: blob.path.name().to_owned(),
-                href,
-                created: Some(blob.created),
-                modified: Some(blob.modified),
-                content_type: blob
-                    .content_type()
-                    .unwrap_or(DEFAULT_CONTENT_TYPE)
-                    .to_owned(),
-                size: Some(blob.size),
-                etag: blob.etag().map(String::from),
-                kind: ResourceKind::Blob,
-                content: match blob.download_url() {
-                    Some(url) => DavContent::Redirect(url.clone()),
-                    // TODO: Log a warning when asset doesn't have a download
-                    // URL?
-                    None => DavContent::Missing,
-                },
-            }),
+            DandiResource::Asset(Asset::Blob(blob)) => {
+                let href = format!("{}/{}", version_href, blob.path);
+                DavResource::Item(DavItem {
+                    name: blob.path.name().to_owned(),
+                    href,
+                    created: Some(blob.created),
+                    modified: Some(blob.modified),
+                    content_type: blob
+                        .content_type()
+                        .unwrap_or(DEFAULT_CONTENT_TYPE)
+                        .to_owned(),
+                    size: Some(blob.size),
+                    etag: blob.etag().map(String::from),
+                    kind: ResourceKind::Blob,
+                    content: match blob.download_url() {
+                        Some(url) => DavContent::Redirect(url.clone()),
+                        // TODO: Log a warning when asset doesn't have a
+                        // download URL?
+                        None => DavContent::Missing,
+                    },
+                })
+            }
             DandiResource::Asset(Asset::Zarr(zarr)) => {
-                href.push('/');
+                let href = format!("{}/{}/", version_href, zarr.path);
                 DavResource::Collection(DavCollection {
                     name: Some(zarr.path.name().to_owned()),
                     href,
@@ -382,7 +397,7 @@ impl DavResource {
                 })
             }
             DandiResource::ZarrFolder(ZarrFolder { path }) => {
-                href.push('/');
+                let href = format!("{version_href}/{path}/");
                 DavResource::Collection(DavCollection {
                     name: Some(path.name().to_owned()),
                     href,
@@ -392,17 +407,20 @@ impl DavResource {
                     kind: ResourceKind::ZarrFolder,
                 })
             }
-            DandiResource::ZarrEntry(entry) => DavResource::Item(DavItem {
-                name: entry.path.name().to_owned(),
-                href,
-                created: None,
-                modified: Some(entry.modified),
-                content_type: DEFAULT_CONTENT_TYPE.to_owned(),
-                size: Some(entry.size),
-                etag: Some(entry.etag),
-                kind: ResourceKind::ZarrEntry,
-                content: DavContent::Redirect(entry.url),
-            }),
+            DandiResource::ZarrEntry(entry) => {
+                let href = format!("{}/{}", version_href, entry.path);
+                DavResource::Item(DavItem {
+                    name: entry.path.name().to_owned(),
+                    href,
+                    created: None,
+                    modified: Some(entry.modified),
+                    content_type: DEFAULT_CONTENT_TYPE.to_owned(),
+                    size: Some(entry.size),
+                    etag: Some(entry.etag),
+                    kind: ResourceKind::ZarrEntry,
+                    content: DavContent::Redirect(entry.url),
+                })
+            }
         }
     }
 }

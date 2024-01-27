@@ -353,7 +353,7 @@ impl DavResource {
     fn dandi_resource(res: DandiResource, version_href: &str) -> Self {
         match res {
             DandiResource::Folder(AssetFolder { path }) => {
-                let href = format!("{version_href}/{path}/");
+                let href = format!("{version_href}/{path}");
                 DavResource::Collection(DavCollection {
                     name: Some(path.name().to_owned()),
                     href,
@@ -397,7 +397,7 @@ impl DavResource {
                 })
             }
             DandiResource::ZarrFolder(ZarrFolder { path }) => {
-                let href = format!("{version_href}/{path}/");
+                let href = format!("{version_href}/{path}");
                 DavResource::Collection(DavCollection {
                     name: Some(path.name().to_owned()),
                     href,

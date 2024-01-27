@@ -95,7 +95,10 @@ impl DandiDav {
         match path {
             DavPath::Root => Ok(DavResource::root()),
             DavPath::DandisetIndex => Ok(DavResource::Collection(DavCollection::dandiset_index())),
-            DavPath::Dandiset { dandiset_id } => todo!(),
+            DavPath::Dandiset { dandiset_id } => {
+                let ds = self.client.dandiset(dandiset_id.clone()).get().await?;
+                Ok(DavResource::Collection(ds.into()))
+            }
             DavPath::DandisetReleases { dandiset_id } => todo!(),
             DavPath::Version {
                 dandiset_id,

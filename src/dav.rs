@@ -338,16 +338,19 @@ impl DavResource {
         }
     }
 
-    fn dandi_resource(res: DandiResource, href: String) -> Self {
+    fn dandi_resource(res: DandiResource, mut href: String) -> Self {
         match res {
-            DandiResource::Folder(AssetFolder { path }) => DavResource::Collection(DavCollection {
-                name: Some(path.name().to_owned()),
-                href,
-                created: None,
-                modified: None,
-                size: None,
-                kind: ResourceKind::AssetFolder,
-            }),
+            DandiResource::Folder(AssetFolder { path }) => {
+                href.push('/');
+                DavResource::Collection(DavCollection {
+                    name: Some(path.name().to_owned()),
+                    href,
+                    created: None,
+                    modified: None,
+                    size: None,
+                    kind: ResourceKind::AssetFolder,
+                })
+            }
             DandiResource::Asset(Asset::Blob(blob)) => DavResource::Item(DavItem {
                 name: blob.path.name().to_owned(),
                 href,
@@ -367,15 +370,19 @@ impl DavResource {
                     None => DavContent::Missing,
                 },
             }),
-            DandiResource::Asset(Asset::Zarr(zarr)) => DavResource::Collection(DavCollection {
-                name: Some(zarr.path.name().to_owned()),
-                href,
-                created: Some(zarr.created),
-                modified: Some(zarr.modified),
-                size: Some(zarr.size),
-                kind: ResourceKind::Zarr,
-            }),
+            DandiResource::Asset(Asset::Zarr(zarr)) => {
+                href.push('/');
+                DavResource::Collection(DavCollection {
+                    name: Some(zarr.path.name().to_owned()),
+                    href,
+                    created: Some(zarr.created),
+                    modified: Some(zarr.modified),
+                    size: Some(zarr.size),
+                    kind: ResourceKind::Zarr,
+                })
+            }
             DandiResource::ZarrFolder(ZarrFolder { path }) => {
+                href.push('/');
                 DavResource::Collection(DavCollection {
                     name: Some(path.name().to_owned()),
                     href,

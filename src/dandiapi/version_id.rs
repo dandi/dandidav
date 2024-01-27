@@ -6,34 +6,53 @@ use serde::{
 };
 use smartstring::alias::CompactString;
 use std::fmt;
+use std::ops::Deref;
 use thiserror::Error;
 
-#[derive(AsRef, Clone, Deref, Display, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[as_ref(forward)]
-#[deref(forward)]
-pub(crate) struct VersionId(CompactString);
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum VersionId {
+    Draft,
+    Published(PublishedVersionId),
+}
 
-impl VersionId {
-    pub(crate) fn is_draft(&self) -> bool {
-        self.0 == "draft"
+impl AsRef<str> for VersionId {
+    fn as_ref(&self) -> &str {
+        match self {
+            VersionId::Draft => "draft",
+            VersionId::Published(v) => v.as_ref(),
+        }
     }
 }
 
-impl fmt::Debug for VersionId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.0)
+impl Deref for VersionId {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        self.as_ref()
     }
 }
 
 impl PartialEq<str> for VersionId {
     fn eq(&self, other: &str) -> bool {
-        self.0 == other
+        match self {
+            VersionId::Draft => other == "draft",
+            VersionId::Published(v) => v == other,
+        }
     }
 }
 
 impl<'a> PartialEq<&'a str> for VersionId {
     fn eq(&self, other: &&'a str) -> bool {
-        &self.0 == other
+        self == *other
+    }
+}
+
+impl fmt::Display for VersionId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VersionId::Draft => write!(f, "draft"),
+            VersionId::Published(v) => write!(f, "{v}"),
+        }
     }
 }
 
@@ -41,10 +60,13 @@ impl std::str::FromStr for VersionId {
     type Err = ParseVersionIdError;
 
     fn from_str(s: &str) -> Result<VersionId, ParseVersionIdError> {
-        if s == "draft" || is_published_version_id(s) {
-            Ok(VersionId(CompactString::from(s)))
+        if s == "draft" {
+            Ok(VersionId::Draft)
         } else {
-            Err(ParseVersionIdError)
+            let v = s
+                .parse::<PublishedVersionId>()
+                .map_err(|_| ParseVersionIdError)?;
+            Ok(VersionId::Published(v))
         }
     }
 }
@@ -90,18 +112,54 @@ impl<'de> Deserialize<'de> for VersionId {
     }
 }
 
-fn is_published_version_id(s: &str) -> bool {
-    let mut parts = s.split('.');
-    for _ in 0..3 {
-        let Some(p) = parts.next() else {
-            return false;
-        };
-        if p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()) {
-            return false;
+#[derive(AsRef, Clone, Deref, Display, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[as_ref(forward)]
+#[deref(forward)]
+pub(crate) struct PublishedVersionId(CompactString);
+
+impl fmt::Debug for PublishedVersionId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+impl PartialEq<str> for PublishedVersionId {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl<'a> PartialEq<&'a str> for PublishedVersionId {
+    fn eq(&self, other: &&'a str) -> bool {
+        &self.0 == other
+    }
+}
+
+impl std::str::FromStr for PublishedVersionId {
+    type Err = ParsePublishedVersionIdError;
+
+    fn from_str(s: &str) -> Result<PublishedVersionId, Self::Err> {
+        let e = Err(ParsePublishedVersionIdError);
+        let mut parts = s.split('.');
+        for _ in 0..3 {
+            let Some(p) = parts.next() else {
+                return e;
+            };
+            if p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()) {
+                return e;
+            }
+        }
+        if parts.next().is_none() {
+            Ok(PublishedVersionId(CompactString::from(s)))
+        } else {
+            e
         }
     }
-    parts.next().is_none()
 }
+
+#[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
+#[error(r#"Published version IDs must be of the form "N.N.N""#)]
+pub(crate) struct ParsePublishedVersionIdError;
 
 #[cfg(test)]
 mod tests {
@@ -118,7 +176,7 @@ mod tests {
     #[case("1.2.3", true)]
     #[case("1.2.3.4", false)]
     #[case("", false)]
-    fn test_is_published_version_id(#[case] s: &str, #[case] r: bool) {
-        assert_eq!(is_published_version_id(s), r);
+    fn test_published_version_id(#[case] s: &str, #[case] r: bool) {
+        assert_eq!(s.parse::<PublishedVersionId>().is_ok(), r);
     }
 }

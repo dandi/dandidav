@@ -1,11 +1,9 @@
-use crate::consts::YAML_CONTENT_TYPE;
-use crate::dandiapi::{
-    ApiError, Client, Dandiset, DandisetId, DandisetVersion, PublishedVersionId, VersionEndpoint,
-    VersionId, VersionMetadata,
-};
+use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
+use crate::dandiapi::*;
 use crate::paths::PurePath;
 use axum::{
     body::Body,
+    http::StatusCode,
     response::{IntoResponse, Redirect},
 };
 use futures_util::{Stream, TryStreamExt};
@@ -40,6 +38,10 @@ impl DandiDav {
                 content: DavContent::Redirect(url),
                 ..
             }) => Ok(Redirect::temporary(url.as_str()).into_response()),
+            DavResourceWithChildren::Item(DavItem {
+                content: DavContent::Missing,
+                ..
+            }) => Ok(StatusCode::NOT_FOUND.into_response()),
         }
     }
 
@@ -143,7 +145,14 @@ impl DandiDav {
                 dandiset_id,
                 version,
                 path,
-            } => todo!(),
+            } => {
+                let res = self
+                    .get_version_endpoint(dandiset_id, version)
+                    .await?
+                    .get_resource(path)
+                    .await?;
+                Ok(DavResource::dandi_resource(res, path.to_string()))
+            }
         }
     }
 
@@ -302,6 +311,35 @@ impl DavResource {
             DavResource::Item(item) => DavResource::Item(item.with_href_prefix(prefix)),
         }
     }
+
+    fn dandi_resource(res: DandiResource, href: String) -> Self {
+        match res {
+            DandiResource::Folder(AssetFolder::Root) => todo!(),
+            DandiResource::Folder(AssetFolder::Path(path)) => todo!(),
+            DandiResource::Asset(Asset::Blob(blob)) => DavResource::Item(DavItem {
+                name: blob.path.name().to_owned(),
+                href,
+                created: Some(blob.created),
+                modified: Some(blob.modified),
+                content_type: blob
+                    .content_type()
+                    .unwrap_or(DEFAULT_CONTENT_TYPE)
+                    .to_owned(),
+                size: Some(blob.size),
+                etag: blob.etag().map(String::from),
+                kind: ResourceKind::Blob,
+                content: match blob.download_url() {
+                    Some(url) => DavContent::Redirect(url.clone()),
+                    // TODO: Log a warning when asset doesn't have a download
+                    // URL?
+                    None => DavContent::Missing,
+                },
+            }),
+            DandiResource::Asset(Asset::Zarr(zarr)) => todo!(),
+            DandiResource::ZarrFolder(ZarrFolder { path }) => todo!(),
+            DandiResource::ZarrEntry(entry) => todo!(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -449,6 +487,8 @@ impl From<VersionMetadata> for DavItem {
 enum DavContent {
     Blob(Vec<u8>),
     Redirect(Url),
+    // Used when a blob asset lacks an S3 download URL
+    Missing,
 }
 
 // For use in rendering the "Type" column in HTML views

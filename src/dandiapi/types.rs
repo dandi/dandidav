@@ -114,6 +114,34 @@ impl Asset {
             Asset::Zarr(a) => &a.path,
         }
     }
+
+    pub(crate) fn size(&self) -> i64 {
+        match self {
+            Asset::Blob(a) => a.size,
+            Asset::Zarr(a) => a.size,
+        }
+    }
+
+    pub(crate) fn created(&self) -> OffsetDateTime {
+        match self {
+            Asset::Blob(a) => a.created,
+            Asset::Zarr(a) => a.created,
+        }
+    }
+
+    pub(crate) fn modified(&self) -> OffsetDateTime {
+        match self {
+            Asset::Blob(a) => a.modified,
+            Asset::Zarr(a) => a.modified,
+        }
+    }
+
+    pub(crate) fn metadata(&self) -> &AssetMetadata {
+        match self {
+            Asset::Blob(a) => &a.metadata,
+            Asset::Zarr(a) => &a.metadata,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -125,6 +153,23 @@ pub(crate) struct BlobAsset {
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
     pub(crate) metadata: AssetMetadata,
+}
+
+impl BlobAsset {
+    pub(crate) fn content_type(&self) -> Option<&str> {
+        self.metadata.encoding_format.as_deref()
+    }
+
+    pub(crate) fn etag(&self) -> Option<&str> {
+        self.metadata.digest.dandi_etag.as_deref()
+    }
+
+    pub(crate) fn download_url(&self) -> Option<&Url> {
+        self.metadata
+            .content_url
+            .iter()
+            .find(|url| S3Location::parse_url(url).is_ok())
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -150,7 +195,7 @@ impl ZarrAsset {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AssetMetadata {
-    encoding_format: String,
+    encoding_format: Option<String>,
     content_url: Vec<Url>,
     digest: AssetDigests,
 }

@@ -61,12 +61,14 @@ impl Client {
             .map_err(move |source| ApiError::Deserialize { url, source })
     }
 
-    fn paginate<T: DeserializeOwned>(&self, url: Url) -> impl Stream<Item = Result<T, ApiError>> {
-        let this = self.clone();
+    fn paginate<T: DeserializeOwned + 'static>(
+        &self,
+        url: Url,
+    ) -> impl Stream<Item = Result<T, ApiError>> + '_ {
         try_stream! {
             let mut url = Some(url);
             while let Some(u) = url {
-                let resp = this.inner
+                let resp = self.inner
                     .get(u.clone())
                     .send()
                     .await
@@ -136,7 +138,7 @@ impl Client {
             })
     }
 
-    pub(crate) fn get_all_dandisets(&self) -> impl Stream<Item = Result<Dandiset, ApiError>> {
+    pub(crate) fn get_all_dandisets(&self) -> impl Stream<Item = Result<Dandiset, ApiError>> + '_ {
         self.paginate(urljoin(&self.api_url, ["dandisets"]))
     }
 
@@ -172,7 +174,9 @@ impl<'a> DandisetEndpoint<'a> {
             .await
     }
 
-    pub(crate) fn get_all_versions(&self) -> impl Stream<Item = Result<DandisetVersion, ApiError>> {
+    pub(crate) fn get_all_versions(
+        &self,
+    ) -> impl Stream<Item = Result<DandisetVersion, ApiError>> + '_ {
         self.client.paginate(urljoin(
             &self.client.api_url,
             ["dandisets", self.dandiset_id.as_ref(), "versions"],
@@ -247,7 +251,7 @@ impl<'a> VersionEndpoint<'a> {
     pub(crate) fn get_folder_entries(
         &self,
         path: &AssetFolder,
-    ) -> impl Stream<Item = Result<FolderEntry, ApiError>> {
+    ) -> impl Stream<Item = Result<FolderEntry, ApiError>> + '_ {
         let mut url = urljoin(
             &self.client.api_url,
             [

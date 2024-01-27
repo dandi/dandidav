@@ -1,13 +1,14 @@
 use crate::consts::YAML_CONTENT_TYPE;
 use crate::dandiapi::{
-    ApiError, Client, DandisetId, DandisetVersion, PublishedVersionId, VersionEndpoint, VersionId,
-    VersionMetadata,
+    ApiError, Client, Dandiset, DandisetId, DandisetVersion, PublishedVersionId, VersionEndpoint,
+    VersionId, VersionMetadata,
 };
 use crate::paths::PurePath;
 use axum::{
     body::Body,
     response::{IntoResponse, Redirect},
 };
+use futures_util::{Stream, TryStreamExt};
 use http::response::Response;
 use std::fmt;
 use thiserror::Error;
@@ -93,7 +94,7 @@ impl DandiDav {
     async fn resolve(&self, path: &DavPath) -> Result<DavResource, DavError> {
         match path {
             DavPath::Root => Ok(DavResource::root()),
-            DavPath::DandisetIndex => todo!(),
+            DavPath::DandisetIndex => Ok(DavResource::Collection(DavCollection::dandiset_index())),
             DavPath::Dandiset { dandiset_id } => todo!(),
             DavPath::DandisetReleases { dandiset_id } => todo!(),
             DavPath::Version {
@@ -121,7 +122,16 @@ impl DandiDav {
     ) -> Result<DavResourceWithChildren, DavError> {
         match path {
             DavPath::Root => Ok(DavResourceWithChildren::root()),
-            DavPath::DandisetIndex => todo!(),
+            DavPath::DandisetIndex => {
+                let col = DavCollection::dandiset_index();
+                let mut children = Vec::new();
+                let stream = self.client.get_all_dandisets();
+                tokio::pin!(stream);
+                while let Some(ds) = stream.try_next().await? {
+                    children.push(DavResource::Collection(ds.into()));
+                }
+                Ok(DavResourceWithChildren::Collection { col, children })
+            }
             DavPath::Dandiset { dandiset_id } => todo!(),
             DavPath::DandisetReleases { dandiset_id } => todo!(),
             DavPath::Version {
@@ -311,6 +321,18 @@ impl DavCollection {
             created: None,
             modified: None,
             kind: ResourceKind::DandisetIndex,
+        }
+    }
+}
+
+impl From<Dandiset> for DavCollection {
+    fn from(ds: Dandiset) -> DavCollection {
+        DavCollection {
+            name: Some(ds.identifier.to_string()),
+            href: format!("/dandisets/{}/", ds.identifier),
+            created: Some(ds.created),
+            modified: Some(ds.modified),
+            kind: ResourceKind::Dandiset,
         }
     }
 }

@@ -66,13 +66,27 @@ impl S3Client {
                         }
                     )?,
                 };
-                let objects = page.contents.unwrap_or_default().into_iter().map(|obj| {
-                    S3Object::try_from_aws_object(obj, &self.bucket)
-                }).collect::<Result<Vec<_>, _>>()?;
+                let objects = page
+                    .contents
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|obj| S3Object::try_from_aws_object(obj, &self.bucket))
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|source| S3Error::BadObject {
+                        bucket: self.bucket.clone(),
+                        prefix: key_prefix.to_owned(),
+                        source,
+                    })?;
                 let folders = page.common_prefixes
                     .unwrap_or_default()
                     .into_iter()
-                    .map(S3Folder::try_from).collect::<Result<Vec<_>, _>>()?;
+                    .map(S3Folder::try_from)
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|source| S3Error::BadPrefix {
+                        bucket: self.bucket.clone(),
+                        prefix: key_prefix.to_owned(),
+                        source,
+                    })?;
                 yield S3EntryPage {folders, objects};
             }
         }
@@ -418,11 +432,18 @@ pub(crate) enum S3Error {
         prefix: String,
         source: SdkError<ListObjectsV2Error, HttpResponse>,
     },
-    // TODO: Include bucket and lookup prefix in these errors:
-    #[error("invalid object found in bucket")]
-    BadObject(#[from] TryFromAwsObjectError),
-    #[error("invalid common prefix found in bucket")]
-    BadPrefix(#[from] TryFromCommonPrefixError),
+    #[error("invalid object found in S3 bucket {bucket:?} under prefix {prefix:?}")]
+    BadObject {
+        bucket: CompactString,
+        prefix: String,
+        source: TryFromAwsObjectError,
+    },
+    #[error("invalid common prefix found in bucket {bucket:?} under prefix {prefix:?}")]
+    BadPrefix {
+        bucket: CompactString,
+        prefix: String,
+        source: TryFromCommonPrefixError,
+    },
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq)]

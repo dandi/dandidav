@@ -5,6 +5,7 @@ use axum::{
     response::{IntoResponse, Redirect},
 };
 use http::response::Response;
+use std::fmt;
 use time::OffsetDateTime;
 use url::Url;
 
@@ -147,6 +148,24 @@ enum ResourceKind {
     Zarr,
     ZarrEntry,
     ZarrFolder,
+}
+
+impl fmt::Display for ResourceKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            ResourceKind::DandisetIndex => "Dandisets",
+            ResourceKind::Dandiset => "Dandiset",
+            ResourceKind::DandisetReleases => "Published versions",
+            ResourceKind::Version => "Dandiset version",
+            ResourceKind::VersionMetadata => "Version metadata",
+            ResourceKind::AssetFolder => "Directory",
+            ResourceKind::Blob => "Blob asset",
+            ResourceKind::Zarr => "Zarr asset",
+            ResourceKind::ZarrEntry => "Zarr entry",
+            ResourceKind::ZarrFolder => "Directory",
+        };
+        write!(f, "{s}")
+    }
 }
 
 pub(crate) struct Propfind; // TODO

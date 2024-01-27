@@ -248,9 +248,23 @@ impl<'a> VersionEndpoint<'a> {
             .await
     }
 
+    pub(crate) fn get_root_entries(
+        &self,
+        path: &AssetFolder,
+    ) -> impl Stream<Item = Result<FolderEntry, ApiError>> + '_ {
+        self.get_entries_under_path(None)
+    }
+
     pub(crate) fn get_folder_entries(
         &self,
         path: &AssetFolder,
+    ) -> impl Stream<Item = Result<FolderEntry, ApiError>> + '_ {
+        self.get_entries_under_path(Some(&path.path))
+    }
+
+    fn get_entries_under_path(
+        &self,
+        path: Option<&PurePath>,
     ) -> impl Stream<Item = Result<FolderEntry, ApiError>> + '_ {
         let mut url = self.client.get_url([
             "dandisets",
@@ -260,7 +274,7 @@ impl<'a> VersionEndpoint<'a> {
             "assets",
             "paths",
         ]);
-        if let AssetFolder::Path(path) = path {
+        if let Some(path) = path {
             // Experimentation has shown that adding a trailing slash to the
             // `path_prefix` is superfluous, and the Archive will do the right
             // thing (namely, treat the prefix as a full folder path) even if
@@ -290,7 +304,7 @@ impl<'a> VersionEndpoint<'a> {
             if asset.path() == path {
                 return Ok(AtAssetPath::Asset(asset));
             } else if asset.path().is_strictly_under(path) {
-                return Ok(AtAssetPath::Folder(AssetFolder::Path(path.clone())));
+                return Ok(AtAssetPath::Folder(AssetFolder { path: path.clone() }));
             } else if **asset.path() > *cutoff {
                 break;
             }

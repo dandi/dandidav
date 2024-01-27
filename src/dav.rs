@@ -314,8 +314,7 @@ impl DavResource {
 
     fn dandi_resource(res: DandiResource, href: String) -> Self {
         match res {
-            DandiResource::Folder(AssetFolder::Root) => todo!(),
-            DandiResource::Folder(AssetFolder::Path(path)) => todo!(),
+            DandiResource::Folder(AssetFolder { path }) => todo!(),
             DandiResource::Asset(Asset::Blob(blob)) => DavResource::Item(DavItem {
                 name: blob.path.name().to_owned(),
                 href,

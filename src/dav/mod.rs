@@ -229,6 +229,11 @@ impl DandiDav {
                 while let Some(res) = stream.try_next().await? {
                     children.push(DavResource::from(res).under_version_path(dandiset_id, version));
                 }
+                children.push(
+                    self.get_dandiset_yaml(dandiset_id, version)
+                        .await
+                        .map(DavResource::Item)?,
+                );
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
             DavPath::DandisetYaml {

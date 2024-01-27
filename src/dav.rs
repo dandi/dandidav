@@ -99,7 +99,13 @@ impl DandiDav {
                 let ds = self.client.dandiset(dandiset_id.clone()).get().await?;
                 Ok(DavResource::Collection(ds.into()))
             }
-            DavPath::DandisetReleases { dandiset_id } => todo!(),
+            DavPath::DandisetReleases { dandiset_id } => {
+                // TODO: Should this return a 404 when the Dandiset doesn't
+                // have any published releases?
+                Ok(DavResource::Collection(DavCollection::dandiset_releases(
+                    dandiset_id,
+                )))
+            }
             DavPath::Version {
                 dandiset_id,
                 version,
@@ -136,7 +142,24 @@ impl DandiDav {
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
             DavPath::Dandiset { dandiset_id } => todo!(),
-            DavPath::DandisetReleases { dandiset_id } => todo!(),
+            DavPath::DandisetReleases { dandiset_id } => {
+                // TODO: Should this return a 404 when the Dandiset doesn't
+                // have any published releases?
+                let col = DavCollection::dandiset_releases(dandiset_id);
+                let mut children = Vec::new();
+                let endpoint = self.client.dandiset(dandiset_id.clone());
+                let stream = endpoint.get_all_versions();
+                tokio::pin!(stream);
+                while let Some(v) = stream.try_next().await? {
+                    if v.version != VersionId::Draft {
+                        let href = format!("/dandisets/{}/releases/{}/", dandiset_id, v.version);
+                        children.push(DavResource::Collection(DavCollection::dandiset_version(
+                            v, href,
+                        )));
+                    }
+                }
+                Ok(DavResourceWithChildren::Collection { col, children })
+            }
             DavPath::Version {
                 dandiset_id,
                 version,
@@ -324,6 +347,27 @@ impl DavCollection {
             created: None,
             modified: None,
             kind: ResourceKind::DandisetIndex,
+        }
+    }
+
+    fn dandiset_releases(dandiset_id: &DandisetId) -> Self {
+        DavCollection {
+            name: Some("releases".to_owned()),
+            href: format!("/dandisets/{dandiset_id}/releases/"),
+            created: None,
+            modified: None,
+            kind: ResourceKind::DandisetReleases,
+        }
+    }
+
+    fn dandiset_version(v: DandisetVersion, href: String) -> Self {
+        DavCollection {
+            name: Some(v.version.to_string()),
+            href,
+            //href: format!("/dandisets/{}/releases/{}/", ds.identifier, v.version),
+            created: Some(v.created),
+            modified: Some(v.modified),
+            kind: ResourceKind::Version,
         }
     }
 }

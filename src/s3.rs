@@ -1,5 +1,5 @@
 use super::consts::USER_AGENT;
-use super::paths::{PureDirPath, PurePath};
+use super::paths::{ParsePurePathError, PureDirPath, PurePath};
 use async_stream::try_stream;
 use aws_sdk_s3::{operation::list_objects_v2::ListObjectsV2Error, Client};
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
@@ -66,34 +66,9 @@ impl S3Client {
                         }
                     )?,
                 };
-                let objects = page.contents.unwrap_or_default().into_iter().filter_map(|obj| {
-                    let aws_sdk_s3::types::Object {
-                        key: Some(key),
-                        last_modified: Some(modified),
-                        e_tag: Some(etag),
-                        size: Some(size),
-                        ..
-                    } = obj else {
-                        // TODO: Error?  Emit a warning?
-                        return None;
-                    };
-                    // This step shouldn't be necessary, but just in case…
-                    let key = key.strip_prefix('/').unwrap_or(&key);
-                    // TODO: Handle this error!
-                    let key = key.parse::<PurePath>().expect("S3 key should be normalized relative path");
-                    let download_url = format!("https://{}.s3.amazonaws.com/{}", self.bucket, key);
-                    // TODO: Handle this error!
-                    let download_url = Url::parse(&download_url).expect("download URL should be valid URL");
-                    // TODO: Handle this error!
-                    let modified = modified.to_time().expect("modification time should be between 10,000 BC and 9,999 AD");
-                    Some(S3Object {
-                        key,
-                        modified,
-                        size,
-                        etag,
-                        download_url,
-                    })
-                }).collect::<Vec<_>>();
+                let objects = page.contents.unwrap_or_default().into_iter().map(|obj| {
+                    S3Object::try_from_aws_object(obj, &self.bucket)
+                }).collect::<Result<Vec<_>, _>>()?;
                 let folders = page.common_prefixes
                     .unwrap_or_default()
                     .into_iter()
@@ -347,6 +322,52 @@ pub(crate) struct S3Object {
 }
 
 impl S3Object {
+    fn try_from_aws_object(
+        obj: aws_sdk_s3::types::Object,
+        bucket: &str,
+    ) -> Result<S3Object, TryFromAwsObjectError> {
+        let Some(key) = obj.key else {
+            return Err(TryFromAwsObjectError::NoKey);
+        };
+        let Some(modified) = obj.last_modified else {
+            return Err(TryFromAwsObjectError::NoLastModified { key });
+        };
+        let Some(etag) = obj.e_tag else {
+            return Err(TryFromAwsObjectError::NoETag { key });
+        };
+        let Some(size) = obj.size else {
+            return Err(TryFromAwsObjectError::NoSize { key });
+        };
+        let keypath = key
+            .parse::<PurePath>()
+            .map_err(|source| TryFromAwsObjectError::BadKey {
+                key: key.clone(),
+                source,
+            })?;
+        let url = format!("https://{bucket}.s3.amazonaws.com/{key}");
+        let download_url = Url::parse(&url).map_err(|source| TryFromAwsObjectError::BadUrl {
+            key: key.clone(),
+            url,
+            source,
+        })?;
+        let modified = modified
+            .to_time()
+            .map_err(|source| TryFromAwsObjectError::BadModified {
+                key,
+                modified,
+                source,
+            })?;
+        Ok(S3Object {
+            key: keypath,
+            modified,
+            size,
+            etag,
+            download_url,
+        })
+    }
+}
+
+impl S3Object {
     pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<S3Object> {
         let key = self.key.relative_to(dirpath)?;
         Some(S3Object {
@@ -366,6 +387,39 @@ pub(crate) enum S3Error {
         bucket: CompactString,
         prefix: String,
         source: SdkError<ListObjectsV2Error, HttpResponse>,
+    },
+    #[error("invalid object found in bucket")]
+    BadObject(#[from] TryFromAwsObjectError),
+}
+
+#[derive(Debug, Error)]
+pub(crate) enum TryFromAwsObjectError {
+    #[error("S3 object lacks key")]
+    NoKey,
+    #[error("S3 object with key {key:?} lacks last_modified")]
+    NoLastModified { key: String },
+    #[error("S3 object with key {key:?} lacks e_tag")]
+    NoETag { key: String },
+    #[error("S3 object with key {key:?} lacks size")]
+    NoSize { key: String },
+    #[error("S3 key {key:?} is not a well-formed path")]
+    BadKey {
+        key: String,
+        source: ParsePurePathError,
+    },
+    #[error("URL {url:?} computed for S3 key {key:?} is invalid")]
+    BadUrl {
+        key: String,
+        url: String,
+        source: url::ParseError,
+    },
+    #[error(
+        "last_modified value {modified} for S3 object {key:?} is outside time library's range"
+    )]
+    BadModified {
+        key: String,
+        modified: aws_sdk_s3::primitives::DateTime,
+        source: aws_smithy_types_convert::date_time::Error,
     },
 }
 

@@ -109,7 +109,11 @@ impl DandiDav {
             version: version.clone(),
         }
         .to_string();
-        Ok(DavCollection::dandiset_version(v, href))
+        let mut col = DavCollection::dandiset_version(v, href);
+        if version == &VersionSpec::Latest {
+            col.name = Some("latest".to_owned());
+        }
+        Ok(col)
     }
 
     async fn resolve(&self, path: &DavPath) -> Result<DavResource, DavError> {
@@ -172,7 +176,29 @@ impl DandiDav {
                 }
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
-            DavPath::Dandiset { dandiset_id } => todo!(),
+            DavPath::Dandiset { dandiset_id } => {
+                let ds = self.client.dandiset(dandiset_id.clone()).get().await?;
+                let draft = DavResource::Collection(DavCollection::dandiset_version(
+                    ds.draft_version.clone(),
+                    format!("/dandisets/{dandiset_id}/draft/"),
+                ));
+                let children = match ds.most_recent_published_version {
+                    Some(ref v) => {
+                        let mut latest = DavCollection::dandiset_version(
+                            v.clone(),
+                            format!("/dandisets/{dandiset_id}/latest/"),
+                        );
+                        latest.name = Some("latest".to_owned());
+                        let latest = DavResource::Collection(latest);
+                        let releases =
+                            DavResource::Collection(DavCollection::dandiset_releases(dandiset_id));
+                        vec![draft, latest, releases]
+                    }
+                    None => vec![draft],
+                };
+                let col = DavCollection::from(ds);
+                Ok(DavResourceWithChildren::Collection { col, children })
+            }
             DavPath::DandisetReleases { dandiset_id } => {
                 // TODO: Should this return a 404 when the Dandiset doesn't
                 // have any published releases?
@@ -458,9 +484,10 @@ impl DavCollection {
 
     fn dandiset_version(v: DandisetVersion, href: String) -> Self {
         DavCollection {
+            // TODO: Determine `name` from `href` so that it doesn't have to be
+            // externally overwritten for "latest":
             name: Some(v.version.to_string()),
             href,
-            //href: format!("/dandisets/{}/releases/{}/", ds.identifier, v.version),
             created: Some(v.created),
             modified: Some(v.modified),
             size: Some(v.size),

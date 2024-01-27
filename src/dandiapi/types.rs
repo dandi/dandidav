@@ -21,7 +21,7 @@ pub(crate) struct Dandiset {
     pub(crate) modified: OffsetDateTime,
     //contact_person: String,
     //embargo_status: ...,
-    pub(crate) draft_version: Option<DandisetVersion>,
+    pub(crate) draft_version: DandisetVersion,
     pub(crate) most_recent_published_version: Option<DandisetVersion>,
 }
 

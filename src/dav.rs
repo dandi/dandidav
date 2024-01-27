@@ -252,62 +252,11 @@ pub(crate) enum DavPath {
     },
 }
 
-impl fmt::Display for DavPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DavPath::Root => write!(f, "/"),
-            DavPath::DandisetIndex => write!(f, "/dandisets/"),
-            DavPath::Dandiset { dandiset_id } => write!(f, "/dandisets/{dandiset_id}/"),
-            DavPath::DandisetReleases { dandiset_id } => {
-                write!(f, "/dandisets/{dandiset_id}/releases/")
-            }
-            DavPath::Version {
-                dandiset_id,
-                version,
-            } => {
-                write!(f, "/dandisets/{dandiset_id}/")?;
-                version.write_davpath_fragment(f)?;
-                write!(f, "/")?;
-                Ok(())
-            }
-            DavPath::DandisetYaml {
-                dandiset_id,
-                version,
-            } => {
-                write!(f, "/dandisets/{dandiset_id}/")?;
-                version.write_davpath_fragment(f)?;
-                write!(f, "/dandiset.yaml")?;
-                Ok(())
-            }
-            DavPath::DandiResource {
-                dandiset_id,
-                version,
-                path,
-            } => {
-                write!(f, "/dandisets/{dandiset_id}/")?;
-                version.write_davpath_fragment(f)?;
-                write!(f, "/{path}")?;
-                Ok(())
-            }
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum VersionSpec {
     Draft,
     Published(PublishedVersionId),
     Latest,
-}
-
-impl VersionSpec {
-    fn write_davpath_fragment(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            VersionSpec::Draft => write!(f, "draft"),
-            VersionSpec::Published(v) => write!(f, "releases/{v}"),
-            VersionSpec::Latest => write!(f, "latest"),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

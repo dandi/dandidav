@@ -216,7 +216,7 @@ impl From<Dandiset> for DavCollection {
     fn from(ds: Dandiset) -> DavCollection {
         DavCollection {
             path: Some(
-                format!("dandisets/{}", ds.identifier)
+                format!("dandisets/{}/", ds.identifier)
                     .parse::<PureDirPath>()
                     .expect("should be a valid dir path"),
             ),

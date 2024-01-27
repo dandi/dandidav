@@ -157,7 +157,7 @@ impl DandiDav {
                     version: version.clone(),
                 }
                 .to_string();
-                Ok(DavResource::dandi_resource(res, &version_href))
+                Ok(DavResource::from(res).with_href_prefix(version_href))
             }
         }
     }
@@ -229,7 +229,7 @@ impl DandiDav {
                 let stream = endpoint.get_root_children();
                 tokio::pin!(stream);
                 while let Some(res) = stream.try_next().await? {
-                    children.push(DavResource::dandi_resource(res, &version_href));
+                    children.push(DavResource::from(res).with_href_prefix(version_href.clone()));
                 }
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
@@ -349,80 +349,6 @@ impl DavResource {
             DavResource::Item(item) => DavResource::Item(item.with_href_prefix(prefix)),
         }
     }
-
-    fn dandi_resource(res: DandiResource, version_href: &str) -> Self {
-        match res {
-            DandiResource::Folder(AssetFolder { path }) => {
-                let href = format!("{version_href}/{path}");
-                DavResource::Collection(DavCollection {
-                    name: Some(path.name().to_owned()),
-                    href,
-                    created: None,
-                    modified: None,
-                    size: None,
-                    kind: ResourceKind::AssetFolder,
-                })
-            }
-            DandiResource::Asset(Asset::Blob(blob)) => {
-                let href = format!("{}/{}", version_href, blob.path);
-                DavResource::Item(DavItem {
-                    name: blob.path.name().to_owned(),
-                    href,
-                    created: Some(blob.created),
-                    modified: Some(blob.modified),
-                    content_type: blob
-                        .content_type()
-                        .unwrap_or(DEFAULT_CONTENT_TYPE)
-                        .to_owned(),
-                    size: Some(blob.size),
-                    etag: blob.etag().map(String::from),
-                    kind: ResourceKind::Blob,
-                    content: match blob.download_url() {
-                        Some(url) => DavContent::Redirect(url.clone()),
-                        // TODO: Log a warning when asset doesn't have a
-                        // download URL?
-                        None => DavContent::Missing,
-                    },
-                })
-            }
-            DandiResource::Asset(Asset::Zarr(zarr)) => {
-                let href = format!("{}/{}/", version_href, zarr.path);
-                DavResource::Collection(DavCollection {
-                    name: Some(zarr.path.name().to_owned()),
-                    href,
-                    created: Some(zarr.created),
-                    modified: Some(zarr.modified),
-                    size: Some(zarr.size),
-                    kind: ResourceKind::Zarr,
-                })
-            }
-            DandiResource::ZarrFolder(ZarrFolder { path }) => {
-                let href = format!("{version_href}/{path}");
-                DavResource::Collection(DavCollection {
-                    name: Some(path.name().to_owned()),
-                    href,
-                    created: None,
-                    modified: None,
-                    size: None,
-                    kind: ResourceKind::ZarrFolder,
-                })
-            }
-            DandiResource::ZarrEntry(entry) => {
-                let href = format!("{}/{}", version_href, entry.path);
-                DavResource::Item(DavItem {
-                    name: entry.path.name().to_owned(),
-                    href,
-                    created: None,
-                    modified: Some(entry.modified),
-                    content_type: DEFAULT_CONTENT_TYPE.to_owned(),
-                    size: Some(entry.size),
-                    etag: Some(entry.etag),
-                    kind: ResourceKind::ZarrEntry,
-                    content: DavContent::Redirect(entry.url),
-                })
-            }
-        }
-    }
 }
 
 impl From<DavCollection> for DavResource {
@@ -434,6 +360,18 @@ impl From<DavCollection> for DavResource {
 impl From<DavItem> for DavResource {
     fn from(value: DavItem) -> DavResource {
         DavResource::Item(value)
+    }
+}
+
+impl From<DandiResource> for DavResource {
+    fn from(res: DandiResource) -> DavResource {
+        match res {
+            DandiResource::Folder(folder) => DavResource::Collection(folder.into()),
+            DandiResource::Asset(Asset::Blob(blob)) => DavResource::Item(blob.into()),
+            DandiResource::Asset(Asset::Zarr(zarr)) => DavResource::Collection(zarr.into()),
+            DandiResource::ZarrFolder(folder) => DavResource::Collection(folder.into()),
+            DandiResource::ZarrEntry(entry) => DavResource::Item(entry.into()),
+        }
     }
 }
 
@@ -552,6 +490,45 @@ impl From<Dandiset> for DavCollection {
     }
 }
 
+impl From<AssetFolder> for DavCollection {
+    fn from(AssetFolder { path }: AssetFolder) -> DavCollection {
+        DavCollection {
+            name: Some(path.name().to_owned()),
+            href: format!("/{path}"),
+            created: None,
+            modified: None,
+            size: None,
+            kind: ResourceKind::AssetFolder,
+        }
+    }
+}
+
+impl From<ZarrAsset> for DavCollection {
+    fn from(zarr: ZarrAsset) -> DavCollection {
+        DavCollection {
+            name: Some(zarr.path.name().to_owned()),
+            href: format!("/{}/", zarr.path),
+            created: Some(zarr.created),
+            modified: Some(zarr.modified),
+            size: Some(zarr.size),
+            kind: ResourceKind::Zarr,
+        }
+    }
+}
+
+impl From<ZarrFolder> for DavCollection {
+    fn from(ZarrFolder { path }: ZarrFolder) -> DavCollection {
+        DavCollection {
+            name: Some(path.name().to_owned()),
+            href: format!("/{path}"),
+            created: None,
+            modified: None,
+            size: None,
+            kind: ResourceKind::ZarrFolder,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DavItem {
     name: String,
@@ -587,6 +564,45 @@ impl From<VersionMetadata> for DavItem {
             etag: None,
             kind: ResourceKind::VersionMetadata,
             content: DavContent::Blob(blob),
+        }
+    }
+}
+
+impl From<BlobAsset> for DavItem {
+    fn from(blob: BlobAsset) -> DavItem {
+        DavItem {
+            name: blob.path.name().to_owned(),
+            href: format!("/{}", blob.path),
+            created: Some(blob.created),
+            modified: Some(blob.modified),
+            content_type: blob
+                .content_type()
+                .unwrap_or(DEFAULT_CONTENT_TYPE)
+                .to_owned(),
+            size: Some(blob.size),
+            etag: blob.etag().map(String::from),
+            kind: ResourceKind::Blob,
+            content: match blob.download_url() {
+                Some(url) => DavContent::Redirect(url.clone()),
+                // TODO: Log a warning when asset doesn't have a download URL?
+                None => DavContent::Missing,
+            },
+        }
+    }
+}
+
+impl From<ZarrEntry> for DavItem {
+    fn from(entry: ZarrEntry) -> DavItem {
+        DavItem {
+            name: entry.path.name().to_owned(),
+            href: format!("/{}", entry.path),
+            created: None,
+            modified: Some(entry.modified),
+            content_type: DEFAULT_CONTENT_TYPE.to_owned(),
+            size: Some(entry.size),
+            etag: Some(entry.etag),
+            kind: ResourceKind::ZarrEntry,
+            content: DavContent::Redirect(entry.url),
         }
     }
 }

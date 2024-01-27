@@ -427,4 +427,14 @@ pub(crate) enum DavError {
     NoLatestVersion { dandiset_id: DandisetId },
 }
 
+impl DavError {
+    pub(crate) fn is_404(&self) -> bool {
+        matches!(
+            self,
+            DavError::DandiApi(ApiError::NotFound { .. } | ApiError::ZarrEntryNotFound { .. })
+                | DavError::NoLatestVersion { .. }
+        )
+    }
+}
+
 pub(crate) struct Propfind; // TODO

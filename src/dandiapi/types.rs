@@ -47,6 +47,12 @@ impl VersionMetadata {
     }
 }
 
+impl From<VersionMetadata> for Vec<u8> {
+    fn from(value: VersionMetadata) -> Vec<u8> {
+        value.0
+    }
+}
+
 // Item in a `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths`
 // response
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]

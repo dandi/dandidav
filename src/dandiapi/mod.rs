@@ -150,26 +150,26 @@ impl Client {
         self.paginate(self.get_url(["dandisets"]))
     }
 
-    pub(crate) fn dandiset<'a>(&'a self, dandiset_id: &'a DandisetId) -> DandisetEndpoint<'a> {
+    pub(crate) fn dandiset(&self, dandiset_id: DandisetId) -> DandisetEndpoint<'_> {
         DandisetEndpoint::new(self, dandiset_id)
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct DandisetEndpoint<'a> {
     client: &'a Client,
-    dandiset_id: &'a DandisetId,
+    dandiset_id: DandisetId,
 }
 
 impl<'a> DandisetEndpoint<'a> {
-    fn new(client: &'a Client, dandiset_id: &'a DandisetId) -> Self {
+    fn new(client: &'a Client, dandiset_id: DandisetId) -> Self {
         Self {
             client,
             dandiset_id,
         }
     }
 
-    pub(crate) fn version(self, version_id: &'a VersionId) -> VersionEndpoint<'a> {
+    pub(crate) fn version(self, version_id: VersionId) -> VersionEndpoint<'a> {
         VersionEndpoint::new(self, version_id)
     }
 
@@ -193,15 +193,15 @@ impl<'a> DandisetEndpoint<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct VersionEndpoint<'a> {
     client: &'a Client,
-    dandiset_id: &'a DandisetId,
-    version_id: &'a VersionId,
+    dandiset_id: DandisetId,
+    version_id: VersionId,
 }
 
 impl<'a> VersionEndpoint<'a> {
-    fn new(upper: DandisetEndpoint<'a>, version_id: &'a VersionId) -> Self {
+    fn new(upper: DandisetEndpoint<'a>, version_id: VersionId) -> Self {
         Self {
             client: upper.client,
             dandiset_id: upper.dandiset_id,

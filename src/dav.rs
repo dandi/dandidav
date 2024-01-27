@@ -1,4 +1,8 @@
-use crate::dandiapi::{Client, DandisetId, VersionId};
+use crate::consts::YAML_CONTENT_TYPE;
+use crate::dandiapi::{
+    ApiError, Client, DandisetId, DandisetVersion, PublishedVersionId, VersionEndpoint, VersionId,
+    VersionMetadata,
+};
 use crate::paths::PurePath;
 use axum::{
     body::Body,
@@ -6,6 +10,7 @@ use axum::{
 };
 use http::response::Response;
 use std::fmt;
+use thiserror::Error;
 use time::OffsetDateTime;
 use url::Url;
 
@@ -47,17 +52,95 @@ impl DandiDav {
         todo!()
     }
 
-    #[allow(clippy::unused_async)]
-    async fn resolve(&self, path: &DavPath) -> Result<DavResource, DavError> {
-        todo!()
+    async fn get_version_endpoint(
+        &self,
+        dandiset_id: &DandisetId,
+        version: &VersionSpec,
+    ) -> Result<VersionEndpoint<'_>, DavError> {
+        let d = self.client.dandiset(dandiset_id.clone());
+        match version {
+            VersionSpec::Draft => Ok(d.version(VersionId::Draft)),
+            VersionSpec::Published(v) => Ok(d.version(VersionId::Published(v.clone()))),
+            VersionSpec::Latest => match d.get().await?.most_recent_published_version {
+                Some(DandisetVersion { version, .. }) => Ok(d.version(version)),
+                None => Err(DavError::NoLatestVersion {
+                    dandiset_id: dandiset_id.clone(),
+                }),
+            },
+        }
     }
 
-    #[allow(clippy::unused_async)]
+    async fn get_dandiset_yaml(
+        &self,
+        dandiset_id: &DandisetId,
+        version: &VersionSpec,
+    ) -> Result<DavItem, DavError> {
+        let md = self
+            .get_version_endpoint(dandiset_id, version)
+            .await?
+            .get_metadata()
+            .await?;
+        let mut item = DavItem::from(md);
+        // TODO: Do this more efficiently:
+        item.href = DavPath::DandisetYaml {
+            dandiset_id: dandiset_id.clone(),
+            version: version.clone(),
+        }
+        .to_string();
+        Ok(item)
+    }
+
+    async fn resolve(&self, path: &DavPath) -> Result<DavResource, DavError> {
+        match path {
+            DavPath::Root => Ok(DavResource::root()),
+            DavPath::DandisetIndex => todo!(),
+            DavPath::Dandiset { dandiset_id } => todo!(),
+            DavPath::DandisetReleases { dandiset_id } => todo!(),
+            DavPath::Version {
+                dandiset_id,
+                version,
+            } => todo!(),
+            DavPath::DandisetYaml {
+                dandiset_id,
+                version,
+            } => self
+                .get_dandiset_yaml(dandiset_id, version)
+                .await
+                .map(DavResource::Item),
+            DavPath::DandiResource {
+                dandiset_id,
+                version,
+                path,
+            } => todo!(),
+        }
+    }
+
     async fn resolve_with_children(
         &self,
         path: &DavPath,
     ) -> Result<DavResourceWithChildren, DavError> {
-        todo!()
+        match path {
+            DavPath::Root => Ok(DavResourceWithChildren::root()),
+            DavPath::DandisetIndex => todo!(),
+            DavPath::Dandiset { dandiset_id } => todo!(),
+            DavPath::DandisetReleases { dandiset_id } => todo!(),
+            DavPath::Version {
+                dandiset_id,
+                version,
+            } => todo!(),
+            DavPath::DandisetYaml {
+                dandiset_id,
+                version,
+            } => self
+                .get_dandiset_yaml(dandiset_id, version)
+                .await
+                .map(DavResourceWithChildren::Item),
+            DavPath::DandiResource {
+                dandiset_id,
+                version,
+                path,
+            } => todo!(),
+        }
     }
 }
 
@@ -79,23 +162,88 @@ pub(crate) enum DavPath {
         dandiset_id: DandisetId,
         version: VersionSpec,
     },
-    Folder {
+    DandiResource {
         dandiset_id: DandisetId,
         version: VersionSpec,
         path: PurePath,
     },
 }
 
+impl fmt::Display for DavPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DavPath::Root => write!(f, "/"),
+            DavPath::DandisetIndex => write!(f, "/dandisets/"),
+            DavPath::Dandiset { dandiset_id } => write!(f, "/dandisets/{dandiset_id}/"),
+            DavPath::DandisetReleases { dandiset_id } => {
+                write!(f, "/dandisets/{dandiset_id}/releases/")
+            }
+            DavPath::Version {
+                dandiset_id,
+                version,
+            } => {
+                write!(f, "/dandisets/{dandiset_id}/")?;
+                version.write_davpath_fragment(f)?;
+                write!(f, "/")?;
+                Ok(())
+            }
+            DavPath::DandisetYaml {
+                dandiset_id,
+                version,
+            } => {
+                write!(f, "/dandisets/{dandiset_id}/")?;
+                version.write_davpath_fragment(f)?;
+                write!(f, "/dandiset.yaml")?;
+                Ok(())
+            }
+            DavPath::DandiResource {
+                dandiset_id,
+                version,
+                path,
+            } => {
+                write!(f, "/dandisets/{dandiset_id}/")?;
+                version.write_davpath_fragment(f)?;
+                write!(f, "/{path}")?;
+                Ok(())
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum VersionSpec {
-    Fixed(VersionId),
+    Draft,
+    Published(PublishedVersionId),
     Latest,
+}
+
+impl VersionSpec {
+    fn write_davpath_fragment(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VersionSpec::Draft => write!(f, "draft"),
+            VersionSpec::Published(v) => write!(f, "releases/{v}"),
+            VersionSpec::Latest => write!(f, "latest"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DavResource {
     Collection(DavCollection),
     Item(DavItem),
+}
+
+impl DavResource {
+    fn root() -> Self {
+        DavResource::Collection(DavCollection::root())
+    }
+
+    fn with_href_prefix(self, mut prefix: String) -> DavResource {
+        match self {
+            DavResource::Collection(col) => DavResource::Collection(col.with_href_prefix(prefix)),
+            DavResource::Item(item) => DavResource::Item(item.with_href_prefix(prefix)),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -107,13 +255,64 @@ enum DavResourceWithChildren {
     Item(DavItem),
 }
 
+impl DavResourceWithChildren {
+    fn root() -> Self {
+        DavResourceWithChildren::Collection {
+            col: DavCollection::root(),
+            children: vec![DavResource::Collection(DavCollection::dandiset_index())],
+        }
+    }
+
+    fn with_href_prefix(self, mut prefix: String) -> DavResourceWithChildren {
+        match self {
+            DavResourceWithChildren::Collection { col, children } => {
+                DavResourceWithChildren::Collection {
+                    col: col.with_href_prefix(prefix),
+                    children,
+                }
+            }
+            DavResourceWithChildren::Item(item) => {
+                DavResourceWithChildren::Item(item.with_href_prefix(prefix))
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DavCollection {
-    name: String,
+    name: Option<String>, // None for root collection
     href: String,
     created: Option<OffsetDateTime>,
     modified: Option<OffsetDateTime>,
     kind: ResourceKind,
+}
+
+impl DavCollection {
+    fn with_href_prefix(mut self, mut prefix: String) -> DavCollection {
+        prefix.push_str(&self.href);
+        self.href = prefix;
+        self
+    }
+
+    fn root() -> Self {
+        DavCollection {
+            name: None,
+            href: "/".to_owned(),
+            created: None,
+            modified: None,
+            kind: ResourceKind::Root,
+        }
+    }
+
+    fn dandiset_index() -> Self {
+        DavCollection {
+            name: Some("dandisets".to_owned()),
+            href: "/dandisets/".to_owned(),
+            created: None,
+            modified: None,
+            kind: ResourceKind::DandisetIndex,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -123,10 +322,36 @@ struct DavItem {
     created: Option<OffsetDateTime>,
     modified: Option<OffsetDateTime>,
     content_type: String,
-    size: i64,
+    size: Option<i64>,
     etag: Option<String>,
     kind: ResourceKind,
     content: DavContent,
+}
+
+impl DavItem {
+    fn with_href_prefix(mut self, mut prefix: String) -> DavItem {
+        prefix.push_str(&self.href);
+        self.href = prefix;
+        self
+    }
+}
+
+impl From<VersionMetadata> for DavItem {
+    fn from(value: VersionMetadata) -> DavItem {
+        let len = value.len();
+        let blob = Vec::<u8>::from(value);
+        DavItem {
+            name: "dandiset.yaml".to_owned(),
+            href: "/dandiset.yaml".to_owned(),
+            created: None,
+            modified: None,
+            content_type: YAML_CONTENT_TYPE.to_owned(),
+            size: i64::try_from(len).ok(),
+            etag: None,
+            kind: ResourceKind::VersionMetadata,
+            content: DavContent::Blob(blob),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -138,6 +363,7 @@ enum DavContent {
 // For use in rendering the "Type" column in HTML views
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum ResourceKind {
+    Root,
     DandisetIndex,
     Dandiset,
     DandisetReleases,
@@ -153,6 +379,7 @@ enum ResourceKind {
 impl fmt::Display for ResourceKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
+            ResourceKind::Root => "Root", // Not actually shown
             ResourceKind::DandisetIndex => "Dandisets",
             ResourceKind::Dandiset => "Dandiset",
             ResourceKind::DandisetReleases => "Published versions",
@@ -168,5 +395,14 @@ impl fmt::Display for ResourceKind {
     }
 }
 
+#[derive(Debug, Error)]
+pub(crate) enum DavError {
+    #[error("failed to fetch data from Archive")]
+    DandiApi(#[from] ApiError),
+    #[error(
+        "latest version was requested for Dandiset {dandiset_id}, but it has not been published"
+    )]
+    NoLatestVersion { dandiset_id: DandisetId },
+}
+
 pub(crate) struct Propfind; // TODO
-pub(crate) struct DavError; // TODO

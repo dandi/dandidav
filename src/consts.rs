@@ -27,3 +27,5 @@ pub(crate) const S3CLIENT_CACHE_SIZE: NonZeroUsize = {
     // SAFETY: Cache size is not zero
     unsafe { NonZeroUsize::new_unchecked(S3CLIENT_CACHE_SIZE_RAW) }
 };
+
+pub(crate) static YAML_CONTENT_TYPE: &str = "text/yaml; charset=utf-8";

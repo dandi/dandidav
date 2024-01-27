@@ -91,6 +91,25 @@ impl DandiDav {
         Ok(item)
     }
 
+    async fn get_dandiset_version(
+        &self,
+        dandiset_id: &DandisetId,
+        version: &VersionSpec,
+    ) -> Result<DavCollection, DavError> {
+        let v = self
+            .get_version_endpoint(dandiset_id, version)
+            .await?
+            .get()
+            .await?;
+        // TODO: Do this more efficiently:
+        let href = DavPath::Version {
+            dandiset_id: dandiset_id.clone(),
+            version: version.clone(),
+        }
+        .to_string();
+        Ok(DavCollection::dandiset_version(v, href))
+    }
+
     async fn resolve(&self, path: &DavPath) -> Result<DavResource, DavError> {
         match path {
             DavPath::Root => Ok(DavResource::root()),
@@ -109,7 +128,10 @@ impl DandiDav {
             DavPath::Version {
                 dandiset_id,
                 version,
-            } => todo!(),
+            } => self
+                .get_dandiset_version(dandiset_id, version)
+                .await
+                .map(DavResource::Collection),
             DavPath::DandisetYaml {
                 dandiset_id,
                 version,

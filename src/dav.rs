@@ -222,7 +222,14 @@ impl DandiDav {
                 dandiset_id,
                 version,
                 path,
-            } => todo!(),
+            } => {
+                let res = self
+                    .get_version_endpoint(dandiset_id, version)
+                    .await?
+                    .get_resource_with_children(path)
+                    .await?;
+                Ok(DavResourceWithChildren::from(res).under_version_path(dandiset_id, version))
+            }
         }
     }
 }
@@ -332,7 +339,10 @@ impl DavResourceWithChildren {
             DavResourceWithChildren::Collection { col, children } => {
                 DavResourceWithChildren::Collection {
                     col: col.under_version_path(dandiset_id, version),
-                    children,
+                    children: children
+                        .into_iter()
+                        .map(|r| r.under_version_path(dandiset_id, version))
+                        .collect(),
                 }
             }
             DavResourceWithChildren::Item(item) => {
@@ -345,6 +355,32 @@ impl DavResourceWithChildren {
 impl From<DavItem> for DavResourceWithChildren {
     fn from(value: DavItem) -> DavResourceWithChildren {
         DavResourceWithChildren::Item(value)
+    }
+}
+
+impl From<DandiResourceWithChildren> for DavResourceWithChildren {
+    fn from(res: DandiResourceWithChildren) -> DavResourceWithChildren {
+        fn map_children(vec: Vec<DandiResource>) -> Vec<DavResource> {
+            vec.into_iter().map(DavResource::from).collect()
+        }
+
+        use DandiResourceWithChildren::*;
+        match res {
+            Folder { folder, children } => DavResourceWithChildren::Collection {
+                col: DavCollection::from(folder),
+                children: map_children(children),
+            },
+            Blob(blob) => DavResourceWithChildren::Item(blob.into()),
+            Zarr { zarr, children } => DavResourceWithChildren::Collection {
+                col: DavCollection::from(zarr),
+                children: map_children(children),
+            },
+            ZarrFolder { folder, children } => DavResourceWithChildren::Collection {
+                col: DavCollection::from(folder),
+                children: map_children(children),
+            },
+            ZarrEntry(entry) => DavResourceWithChildren::Item(entry.into()),
+        }
     }
 }
 

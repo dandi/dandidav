@@ -9,12 +9,15 @@ use crate::dandi::*;
 use crate::paths::PurePath;
 use axum::{
     body::Body,
-    http::StatusCode,
+    extract::Request,
+    http::{Method, StatusCode},
     response::{IntoResponse, Redirect},
 };
 use futures_util::TryStreamExt;
 use http::response::Response;
 use thiserror::Error;
+
+static ALLOW_HEADER_VALUE: &str = "GET, HEAD, PROPFIND, OPTIONS";
 
 pub(crate) struct DandiDav {
     client: Client,
@@ -31,7 +34,30 @@ impl DandiDav {
         }
     }
 
-    pub(crate) async fn get(&self, path: &DavPath) -> Result<Response<Body>, DavError> {
+    pub(crate) async fn handle_request(
+        &self,
+        req: Request<Body>,
+    ) -> Result<Response<Body>, DavError> {
+        match req.method() {
+            &Method::GET => {
+                let Some(path) = DavPath::parse_uri_path(req.uri().path()) else {
+                    return Ok(StatusCode::NOT_FOUND.into_response());
+                };
+                self.get(&path).await
+            }
+            &Method::OPTIONS => {
+                Ok(([("Allow", ALLOW_HEADER_VALUE)], StatusCode::NO_CONTENT).into_response())
+            }
+            m if m.as_str().eq_ignore_ascii_case("PROPFIND") => todo!(),
+            _ => Ok((
+                [("Allow", ALLOW_HEADER_VALUE)],
+                StatusCode::METHOD_NOT_ALLOWED,
+            )
+                .into_response()),
+        }
+    }
+
+    async fn get(&self, path: &DavPath) -> Result<Response<Body>, DavError> {
         match self.resolve_with_children(path).await? {
             DavResourceWithChildren::Collection { children, .. } => {
                 let mut rows = children.into_iter().map(ColRow::from).collect::<Vec<_>>();
@@ -66,7 +92,7 @@ impl DandiDav {
     }
 
     #[allow(clippy::unused_async)]
-    pub(crate) async fn propfind(
+    async fn propfind(
         &self,
         path: &DavPath,
         depth1: bool,
@@ -260,7 +286,7 @@ impl DandiDav {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum DavPath {
+enum DavPath {
     Root,
     DandisetIndex,
     Dandiset {
@@ -284,8 +310,14 @@ pub(crate) enum DavPath {
     },
 }
 
+impl DavPath {
+    fn parse_uri_path(s: &str) -> Option<DavPath> {
+        todo!()
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum VersionSpec {
+enum VersionSpec {
     Draft,
     Published(PublishedVersionId),
     Latest,
@@ -310,6 +342,18 @@ impl DavError {
             DavError::DandiApi(DandiError::NotFound { .. } | DandiError::ZarrEntryNotFound { .. })
                 | DavError::NoLatestVersion { .. }
         )
+    }
+}
+
+impl IntoResponse for DavError {
+    fn into_response(self) -> Response<Body> {
+        if self.is_404() {
+            StatusCode::NOT_FOUND
+        } else {
+            // TODO: Log error details
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+        .into_response()
     }
 }
 

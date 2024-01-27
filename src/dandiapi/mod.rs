@@ -38,6 +38,14 @@ impl Client {
         })
     }
 
+    fn get_url<I>(&self, segments: I) -> Url
+    where
+        I: IntoIterator,
+        I::Item: AsRef<str>,
+    {
+        urljoin(&self.api_url, segments)
+    }
+
     async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, ApiError> {
         let r = self
             .inner
@@ -139,7 +147,7 @@ impl Client {
     }
 
     pub(crate) fn get_all_dandisets(&self) -> impl Stream<Item = Result<Dandiset, ApiError>> + '_ {
-        self.paginate(urljoin(&self.api_url, ["dandisets"]))
+        self.paginate(self.get_url(["dandisets"]))
     }
 
     pub(crate) fn dandiset<'a>(&'a self, dandiset_id: &'a DandisetId) -> DandisetEndpoint<'a> {
@@ -167,20 +175,21 @@ impl<'a> DandisetEndpoint<'a> {
 
     pub(crate) async fn get(&self) -> Result<Dandiset, ApiError> {
         self.client
-            .get(urljoin(
-                &self.client.api_url,
-                ["dandisets", self.dandiset_id.as_ref()],
-            ))
+            .get(
+                self.client
+                    .get_url(["dandisets", self.dandiset_id.as_ref()]),
+            )
             .await
     }
 
     pub(crate) fn get_all_versions(
         &self,
     ) -> impl Stream<Item = Result<DandisetVersion, ApiError>> + '_ {
-        self.client.paginate(urljoin(
-            &self.client.api_url,
-            ["dandisets", self.dandiset_id.as_ref(), "versions"],
-        ))
+        self.client.paginate(self.client.get_url([
+            "dandisets",
+            self.dandiset_id.as_ref(),
+            "versions",
+        ]))
     }
 }
 
@@ -202,49 +211,40 @@ impl<'a> VersionEndpoint<'a> {
 
     pub(crate) async fn get(&self) -> Result<DandisetVersion, ApiError> {
         self.client
-            .get(urljoin(
-                &self.client.api_url,
-                [
-                    "dandisets",
-                    self.dandiset_id.as_ref(),
-                    "versions",
-                    self.version_id.as_ref(),
-                    "info",
-                ],
-            ))
+            .get(self.client.get_url([
+                "dandisets",
+                self.dandiset_id.as_ref(),
+                "versions",
+                self.version_id.as_ref(),
+                "info",
+            ]))
             .await
     }
 
     pub(crate) async fn get_metadata(&self) -> Result<VersionMetadata, ApiError> {
         let data = self
             .client
-            .get::<serde_json::Value>(urljoin(
-                &self.client.api_url,
-                [
-                    "dandisets",
-                    self.dandiset_id.as_ref(),
-                    "versions",
-                    self.version_id.as_ref(),
-                ],
-            ))
+            .get::<serde_json::Value>(self.client.get_url([
+                "dandisets",
+                self.dandiset_id.as_ref(),
+                "versions",
+                self.version_id.as_ref(),
+            ]))
             .await?;
         Ok(VersionMetadata(dump_json_as_yaml(data).into_bytes()))
     }
 
     pub(crate) async fn get_asset_by_id(&self, id: &str) -> Result<Asset, ApiError> {
         self.client
-            .get(urljoin(
-                &self.client.api_url,
-                [
-                    "dandisets",
-                    self.dandiset_id.as_ref(),
-                    "versions",
-                    self.version_id.as_ref(),
-                    "assets",
-                    id,
-                    "info",
-                ],
-            ))
+            .get(self.client.get_url([
+                "dandisets",
+                self.dandiset_id.as_ref(),
+                "versions",
+                self.version_id.as_ref(),
+                "assets",
+                id,
+                "info",
+            ]))
             .await
     }
 
@@ -252,17 +252,14 @@ impl<'a> VersionEndpoint<'a> {
         &self,
         path: &AssetFolder,
     ) -> impl Stream<Item = Result<FolderEntry, ApiError>> + '_ {
-        let mut url = urljoin(
-            &self.client.api_url,
-            [
-                "dandisets",
-                self.dandiset_id.as_ref(),
-                "versions",
-                self.version_id.as_ref(),
-                "assets",
-                "paths",
-            ],
-        );
+        let mut url = self.client.get_url([
+            "dandisets",
+            self.dandiset_id.as_ref(),
+            "versions",
+            self.version_id.as_ref(),
+            "assets",
+            "paths",
+        ]);
         if let AssetFolder::Path(path) = path {
             // Experimentation has shown that adding a trailing slash to the
             // `path_prefix` is superfluous, and the Archive will do the right
@@ -275,16 +272,13 @@ impl<'a> VersionEndpoint<'a> {
     }
 
     pub(crate) async fn get_path(&self, path: &PurePath) -> Result<AtAssetPath, ApiError> {
-        let mut url = urljoin(
-            &self.client.api_url,
-            [
-                "dandisets",
-                self.dandiset_id.as_ref(),
-                "versions",
-                self.version_id.as_ref(),
-                "assets",
-            ],
-        );
+        let mut url = self.client.get_url([
+            "dandisets",
+            self.dandiset_id.as_ref(),
+            "versions",
+            self.version_id.as_ref(),
+            "assets",
+        ]);
         url.query_pairs_mut()
             .append_pair("path", path.as_ref())
             .append_pair("metadata", "1")
@@ -323,16 +317,13 @@ impl<'a> VersionEndpoint<'a> {
             match self.get_path(&zarr_path).await? {
                 AtAssetPath::Folder(_) => continue,
                 AtAssetPath::Asset(Asset::Blob(_)) => {
-                    let mut url = urljoin(
-                        &self.client.api_url,
-                        [
-                            "dandisets",
-                            self.dandiset_id.as_ref(),
-                            "versions",
-                            self.version_id.as_ref(),
-                            "assets",
-                        ],
-                    );
+                    let mut url = self.client.get_url([
+                        "dandisets",
+                        self.dandiset_id.as_ref(),
+                        "versions",
+                        self.version_id.as_ref(),
+                        "assets",
+                    ]);
                     url.query_pairs_mut().append_pair("path", path.as_ref());
                     return Err(ApiError::NotFound { url });
                 }
@@ -463,7 +454,9 @@ where
     url.path_segments_mut()
         .expect("API URL should be able to be a base")
         .pop_if_empty()
-        .extend(segments);
+        .extend(segments)
+        // Add an empty segment so that the final URL will end with a slash:
+        .push("");
     url
 }
 
@@ -483,9 +476,9 @@ mod tests {
     #[case("https://api.github.com/")]
     fn test_urljoin_nopath(#[case] base: Url) {
         let u = urljoin(&base, ["foo"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo");
+        assert_eq!(u.as_str(), "https://api.github.com/foo/");
         let u = urljoin(&base, ["foo", "bar"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar");
+        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/");
     }
 
     #[rstest]
@@ -493,16 +486,16 @@ mod tests {
     #[case("https://api.github.com/foo/bar/")]
     fn test_urljoin_path(#[case] base: Url) {
         let u = urljoin(&base, ["gnusto"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto");
+        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/");
         let u = urljoin(&base, ["gnusto", "cleesh"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/cleesh");
+        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/cleesh/");
     }
 
     #[rstest]
-    #[case("foo#bar", "https://api.github.com/base/foo%23bar")]
-    #[case("foo%bar", "https://api.github.com/base/foo%25bar")]
-    #[case("foo/bar", "https://api.github.com/base/foo%2Fbar")]
-    #[case("foo?bar", "https://api.github.com/base/foo%3Fbar")]
+    #[case("foo#bar", "https://api.github.com/base/foo%23bar/")]
+    #[case("foo%bar", "https://api.github.com/base/foo%25bar/")]
+    #[case("foo/bar", "https://api.github.com/base/foo%2Fbar/")]
+    #[case("foo?bar", "https://api.github.com/base/foo%3Fbar/")]
     fn test_urljoin_special_chars(#[case] path: &str, #[case] expected: &str) {
         let base = Url::parse("https://api.github.com/base").unwrap();
         let u = urljoin(&base, [path]);

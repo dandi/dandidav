@@ -130,11 +130,11 @@ impl From<DandiResourceWithChildren> for DavResourceWithChildren {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DavCollection {
-    path: Option<PureDirPath>, // None for root collection
-    created: Option<OffsetDateTime>,
-    modified: Option<OffsetDateTime>,
-    size: Option<i64>,
-    kind: ResourceKind,
+    pub(super) path: Option<PureDirPath>, // None for root collection
+    pub(super) created: Option<OffsetDateTime>,
+    pub(super) modified: Option<OffsetDateTime>,
+    pub(super) size: Option<i64>,
+    pub(super) kind: ResourceKind,
 }
 
 impl DavCollection {
@@ -266,17 +266,25 @@ impl From<ZarrFolder> for DavCollection {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DavItem {
-    path: PurePath,
-    created: Option<OffsetDateTime>,
-    modified: Option<OffsetDateTime>,
+    pub(super) path: PurePath,
+    pub(super) created: Option<OffsetDateTime>,
+    pub(super) modified: Option<OffsetDateTime>,
     pub(super) content_type: String,
-    size: Option<i64>,
-    etag: Option<String>,
-    kind: ResourceKind,
+    pub(super) size: Option<i64>,
+    pub(super) etag: Option<String>,
+    pub(super) kind: ResourceKind,
     pub(super) content: DavContent,
 }
 
 impl DavItem {
+    pub(super) fn name(&self) -> &str {
+        self.path.name()
+    }
+
+    pub(super) fn href(&self) -> String {
+        format!("/{}", self.path)
+    }
+
     pub(super) fn under_version_path(
         mut self,
         dandiset_id: &DandisetId,
@@ -357,9 +365,10 @@ pub(super) enum DavContent {
 }
 
 // For use in rendering the "Type" column in HTML views
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(super) enum ResourceKind {
     Root,
+    Parent,
     DandisetIndex,
     Dandiset,
     DandisetReleases,
@@ -376,6 +385,7 @@ impl ResourceKind {
     pub(super) fn as_str(&self) -> &'static str {
         match self {
             ResourceKind::Root => "Root", // Not actually shown
+            ResourceKind::Parent => "Parent directory",
             ResourceKind::DandisetIndex => "Dandisets",
             ResourceKind::Dandiset => "Dandiset",
             ResourceKind::DandisetReleases => "Published versions",

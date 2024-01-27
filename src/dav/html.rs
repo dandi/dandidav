@@ -1,4 +1,4 @@
-use super::ResourceKind;
+use super::{DavCollection, DavItem, DavResource, ResourceKind};
 use crate::consts::HTML_TIMESTAMP_FORMAT;
 use serde::{ser::Serializer, Serialize};
 use tera::{Context, Error, Tera};
@@ -41,14 +41,14 @@ impl Templater {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub(super) struct CollectionContext {
-    title: String,
-    rows: Vec<ColRow>,
-    package_url: &'static str,
-    package_version: &'static str,
-    package_commit: &'static str,
+    pub(super) title: String,
+    pub(super) rows: Vec<ColRow>,
+    pub(super) package_url: &'static str,
+    pub(super) package_version: &'static str,
+    pub(super) package_commit: Option<&'static str>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub(super) struct ColRow {
     name: String,
     is_dir: bool,
@@ -60,8 +60,56 @@ pub(super) struct ColRow {
     modified: Option<OffsetDateTime>,
 }
 
+impl ColRow {
+    pub(super) fn parentdir() -> ColRow {
+        ColRow {
+            name: "..".to_owned(),
+            is_dir: true,
+            kind: ResourceKind::Parent,
+            size: None,
+            created: None,
+            modified: None,
+        }
+    }
+}
+
+impl From<DavResource> for ColRow {
+    fn from(res: DavResource) -> ColRow {
+        match res {
+            DavResource::Collection(col) => col.into(),
+            DavResource::Item(item) => item.into(),
+        }
+    }
+}
+
+impl From<DavCollection> for ColRow {
+    fn from(col: DavCollection) -> ColRow {
+        ColRow {
+            name: col.name().unwrap_or("/").to_owned(),
+            is_dir: true,
+            kind: col.kind,
+            size: col.size,
+            created: col.created,
+            modified: col.modified,
+        }
+    }
+}
+
+impl From<DavItem> for ColRow {
+    fn from(item: DavItem) -> ColRow {
+        ColRow {
+            name: item.name().to_owned(),
+            is_dir: false,
+            kind: item.kind,
+            size: item.size,
+            created: item.created,
+            modified: item.modified,
+        }
+    }
+}
+
 #[derive(Debug, Error)]
-pub(super) enum TemplateError {
+pub(crate) enum TemplateError {
     #[error("failed to load template {path:?}")]
     Load { path: &'static str, source: Error },
     #[error("failed to create context for template {path:?}")]

@@ -40,7 +40,7 @@
         {% endfor %}
     </table>
     <footer>
-        <a href="{{package_url}}">dandidav</a>, v{{package_version}}, commit {{package_commit}}
+        <a href="{{package_url}}">dandidav</a>, v{{package_version}}{% if package_commit is defined %}, commit {{package_commit}}{% endif %}
     </footer>
 </body>
 </html>

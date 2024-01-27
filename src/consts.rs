@@ -29,6 +29,8 @@ pub(crate) const S3CLIENT_CACHE_SIZE: NonZeroUsize = {
     unsafe { NonZeroUsize::new_unchecked(S3CLIENT_CACHE_SIZE_RAW) }
 };
 
+pub(crate) static HTML_CONTENT_TYPE: &str = "text/html; charset=utf-8";
+
 pub(crate) static YAML_CONTENT_TYPE: &str = "text/yaml; charset=utf-8";
 
 pub(crate) static DEFAULT_CONTENT_TYPE: &str = "application/octet-stream";

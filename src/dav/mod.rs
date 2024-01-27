@@ -1,8 +1,10 @@
 mod html;
 mod types;
 mod util;
+use self::html::*;
 use self::types::*;
 use self::util::*;
+use crate::consts::HTML_CONTENT_TYPE;
 use crate::dandi::*;
 use crate::paths::PurePath;
 use axum::{
@@ -16,19 +18,36 @@ use thiserror::Error;
 
 pub(crate) struct DandiDav {
     client: Client,
+    templater: Templater,
     title: String,
 }
 
 impl DandiDav {
-    pub(crate) fn new(client: Client, title: String) -> DandiDav {
-        DandiDav { client, title }
+    pub(crate) fn new(client: Client, templater: Templater, title: String) -> DandiDav {
+        DandiDav {
+            client,
+            templater,
+            title,
+        }
     }
 
     pub(crate) async fn get(&self, path: &DavPath) -> Result<Response<Body>, DavError> {
         match self.resolve_with_children(path).await? {
             DavResourceWithChildren::Collection { children, .. } => {
-                // Render HTML table
-                todo!()
+                let mut rows = children.into_iter().map(ColRow::from).collect::<Vec<_>>();
+                rows.sort_unstable();
+                if path != &DavPath::Root {
+                    rows.insert(0, ColRow::parentdir());
+                }
+                let context = CollectionContext {
+                    title: self.title.clone(),
+                    rows,
+                    package_url: env!("CARGO_PKG_REPOSITORY"),
+                    package_version: env!("CARGO_PKG_VERSION"),
+                    package_commit: option_env!("GIT_COMMIT"),
+                };
+                let html = self.templater.render_collection(context)?;
+                Ok(([("Content-Type", HTML_CONTENT_TYPE)], html).into_response())
             }
             DavResourceWithChildren::Item(DavItem {
                 content_type,
@@ -275,6 +294,8 @@ pub(crate) enum DavError {
         "latest version was requested for Dandiset {dandiset_id}, but it has not been published"
     )]
     NoLatestVersion { dandiset_id: DandisetId },
+    #[error(transparent)]
+    Template(#[from] TemplateError),
 }
 
 impl DavError {

@@ -335,7 +335,14 @@ impl DavResource {
                     None => DavContent::Missing,
                 },
             }),
-            DandiResource::Asset(Asset::Zarr(zarr)) => todo!(),
+            DandiResource::Asset(Asset::Zarr(zarr)) => DavResource::Collection(DavCollection {
+                name: Some(zarr.path.name().to_owned()),
+                href,
+                created: Some(zarr.created),
+                modified: Some(zarr.modified),
+                size: Some(zarr.size),
+                kind: ResourceKind::Zarr,
+            }),
             DandiResource::ZarrFolder(ZarrFolder { path }) => todo!(),
             DandiResource::ZarrEntry(entry) => todo!(),
         }
@@ -380,6 +387,7 @@ struct DavCollection {
     href: String,
     created: Option<OffsetDateTime>,
     modified: Option<OffsetDateTime>,
+    size: Option<i64>,
     kind: ResourceKind,
 }
 
@@ -396,6 +404,7 @@ impl DavCollection {
             href: "/".to_owned(),
             created: None,
             modified: None,
+            size: None,
             kind: ResourceKind::Root,
         }
     }
@@ -406,6 +415,7 @@ impl DavCollection {
             href: "/dandisets/".to_owned(),
             created: None,
             modified: None,
+            size: None,
             kind: ResourceKind::DandisetIndex,
         }
     }
@@ -416,6 +426,7 @@ impl DavCollection {
             href: format!("/dandisets/{dandiset_id}/releases/"),
             created: None,
             modified: None,
+            size: None,
             kind: ResourceKind::DandisetReleases,
         }
     }
@@ -427,6 +438,7 @@ impl DavCollection {
             //href: format!("/dandisets/{}/releases/{}/", ds.identifier, v.version),
             created: Some(v.created),
             modified: Some(v.modified),
+            size: Some(v.size),
             kind: ResourceKind::Version,
         }
     }
@@ -439,6 +451,7 @@ impl From<Dandiset> for DavCollection {
             href: format!("/dandisets/{}/", ds.identifier),
             created: Some(ds.created),
             modified: Some(ds.modified),
+            size: None,
             kind: ResourceKind::Dandiset,
         }
     }

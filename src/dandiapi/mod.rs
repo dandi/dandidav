@@ -290,7 +290,7 @@ impl<'a> VersionEndpoint<'a> {
             .append_pair("metadata", "1")
             .append_pair("order", "path");
         let cutoff = format!("{path}/");
-        let mut stream = self.client.paginate::<Asset>(url.clone());
+        let stream = self.client.paginate::<Asset>(url.clone());
         tokio::pin!(stream);
         while let Some(asset) = stream.try_next().await? {
             if asset.path() == path {
@@ -362,7 +362,7 @@ impl<'a> VersionEndpoint<'a> {
         match self.get_resource_with_s3(path).await? {
             DandiResourceWithS3::Folder(folder) => {
                 let mut children = Vec::new();
-                let mut stream = self.get_folder_entries(&folder);
+                let stream = self.get_folder_entries(&folder);
                 tokio::pin!(stream);
                 while let Some(child) = stream.try_next().await? {
                     let child = match child {
@@ -384,7 +384,7 @@ impl<'a> VersionEndpoint<'a> {
                 let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
                 let mut children = Vec::new();
                 {
-                    let mut stream = s3.get_root_entries();
+                    let stream = s3.get_root_entries();
                     tokio::pin!(stream);
                     while let Some(child) = stream.try_next().await? {
                         children.push(DandiResource::from(child));
@@ -395,7 +395,7 @@ impl<'a> VersionEndpoint<'a> {
             DandiResourceWithS3::ZarrFolder { folder, s3 } => {
                 let mut children = Vec::new();
                 {
-                    let mut stream = s3.get_folder_entries(&folder.path);
+                    let stream = s3.get_folder_entries(&folder.path);
                     tokio::pin!(stream);
                     while let Some(child) = stream.try_next().await? {
                         children.push(DandiResource::from(child));

@@ -1,6 +1,6 @@
 use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
 use crate::dandiapi::*;
-use crate::paths::PurePath;
+use crate::paths::{PureDirPath, PurePath};
 use axum::{
     body::Body,
     http::StatusCode,
@@ -8,7 +8,7 @@ use axum::{
 };
 use futures_util::{Stream, TryStreamExt};
 use http::response::Response;
-use std::fmt;
+use std::fmt::{self, Write};
 use thiserror::Error;
 use time::OffsetDateTime;
 use url::Url;
@@ -83,14 +83,7 @@ impl DandiDav {
             .await?
             .get_metadata()
             .await?;
-        let mut item = DavItem::from(md);
-        // TODO: Do this more efficiently:
-        item.href = DavPath::DandisetYaml {
-            dandiset_id: dandiset_id.clone(),
-            version: version.clone(),
-        }
-        .to_string();
-        Ok(item)
+        Ok(DavItem::from(md).under_version_path(dandiset_id, version))
     }
 
     async fn get_dandiset_version(
@@ -100,16 +93,8 @@ impl DandiDav {
     ) -> Result<(DavCollection, VersionEndpoint<'_>), DavError> {
         let endpoint = self.get_version_endpoint(dandiset_id, version).await?;
         let v = endpoint.get().await?;
-        // TODO: Do this more efficiently:
-        let href = DavPath::Version {
-            dandiset_id: dandiset_id.clone(),
-            version: version.clone(),
-        }
-        .to_string();
-        let mut col = DavCollection::dandiset_version(v, href);
-        if version == &VersionSpec::Latest {
-            col.name = Some("latest".to_owned());
-        }
+        let path = version_path(dandiset_id, version);
+        let col = DavCollection::dandiset_version(v, path);
         Ok((col, endpoint))
     }
 
@@ -152,12 +137,7 @@ impl DandiDav {
                     .await?
                     .get_resource(path)
                     .await?;
-                let version_href = DavPath::Version {
-                    dandiset_id: dandiset_id.clone(),
-                    version: version.clone(),
-                }
-                .to_string();
-                Ok(DavResource::from(res).with_href_prefix(version_href))
+                Ok(DavResource::from(res).under_version_path(dandiset_id, version))
             }
         }
     }
@@ -182,15 +162,14 @@ impl DandiDav {
                 let ds = self.client.dandiset(dandiset_id.clone()).get().await?;
                 let draft = DavResource::Collection(DavCollection::dandiset_version(
                     ds.draft_version.clone(),
-                    format!("/dandisets/{dandiset_id}/draft/"),
+                    version_path(dandiset_id, &VersionSpec::Draft),
                 ));
                 let children = match ds.most_recent_published_version {
                     Some(ref v) => {
-                        let mut latest = DavCollection::dandiset_version(
+                        let latest = DavCollection::dandiset_version(
                             v.clone(),
-                            format!("/dandisets/{dandiset_id}/latest/"),
+                            version_path(dandiset_id, &VersionSpec::Latest),
                         );
-                        latest.name = Some("latest".to_owned());
                         let latest = DavResource::Collection(latest);
                         let releases =
                             DavResource::Collection(DavCollection::dandiset_releases(dandiset_id));
@@ -210,10 +189,10 @@ impl DandiDav {
                 let stream = endpoint.get_all_versions();
                 tokio::pin!(stream);
                 while let Some(v) = stream.try_next().await? {
-                    if v.version != VersionId::Draft {
-                        let href = format!("/dandisets/{}/releases/{}/", dandiset_id, v.version);
+                    if let VersionId::Published(ref pvid) = v.version {
+                        let path = version_path(dandiset_id, &VersionSpec::Published(pvid.clone()));
                         children.push(DavResource::Collection(DavCollection::dandiset_version(
-                            v, href,
+                            v, path,
                         )));
                     }
                 }
@@ -225,11 +204,10 @@ impl DandiDav {
             } => {
                 let (col, endpoint) = self.get_dandiset_version(dandiset_id, version).await?;
                 let mut children = Vec::new();
-                let version_href = path.to_string();
                 let stream = endpoint.get_root_children();
                 tokio::pin!(stream);
                 while let Some(res) = stream.try_next().await? {
-                    children.push(DavResource::from(res).with_href_prefix(version_href.clone()));
+                    children.push(DavResource::from(res).under_version_path(dandiset_id, version));
                 }
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
@@ -343,10 +321,14 @@ impl DavResource {
         DavResource::Collection(DavCollection::root())
     }
 
-    fn with_href_prefix(self, mut prefix: String) -> DavResource {
+    fn under_version_path(self, dandiset_id: &DandisetId, version: &VersionSpec) -> DavResource {
         match self {
-            DavResource::Collection(col) => DavResource::Collection(col.with_href_prefix(prefix)),
-            DavResource::Item(item) => DavResource::Item(item.with_href_prefix(prefix)),
+            DavResource::Collection(col) => {
+                DavResource::Collection(col.under_version_path(dandiset_id, version))
+            }
+            DavResource::Item(item) => {
+                DavResource::Item(item.under_version_path(dandiset_id, version))
+            }
         }
     }
 }
@@ -392,16 +374,20 @@ impl DavResourceWithChildren {
         }
     }
 
-    fn with_href_prefix(self, mut prefix: String) -> DavResourceWithChildren {
+    fn under_version_path(
+        self,
+        dandiset_id: &DandisetId,
+        version: &VersionSpec,
+    ) -> DavResourceWithChildren {
         match self {
             DavResourceWithChildren::Collection { col, children } => {
                 DavResourceWithChildren::Collection {
-                    col: col.with_href_prefix(prefix),
+                    col: col.under_version_path(dandiset_id, version),
                     children,
                 }
             }
             DavResourceWithChildren::Item(item) => {
-                DavResourceWithChildren::Item(item.with_href_prefix(prefix))
+                DavResourceWithChildren::Item(item.under_version_path(dandiset_id, version))
             }
         }
     }
@@ -415,8 +401,7 @@ impl From<DavItem> for DavResourceWithChildren {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DavCollection {
-    name: Option<String>, // None for root collection
-    href: String,
+    path: Option<PureDirPath>, // None for root collection
     created: Option<OffsetDateTime>,
     modified: Option<OffsetDateTime>,
     size: Option<i64>,
@@ -424,16 +409,34 @@ struct DavCollection {
 }
 
 impl DavCollection {
-    fn with_href_prefix(mut self, mut prefix: String) -> DavCollection {
-        prefix.push_str(&self.href);
-        self.href = prefix;
+    pub(crate) fn name(&self) -> Option<&str> {
+        self.path.as_ref().map(PureDirPath::name)
+    }
+
+    pub(crate) fn href(&self) -> String {
+        match self.path {
+            Some(ref p) => format!("/{p}"),
+            None => "/".to_owned(),
+        }
+    }
+
+    fn under_version_path(
+        mut self,
+        dandiset_id: &DandisetId,
+        version: &VersionSpec,
+    ) -> DavCollection {
+        let vpath = version_path(dandiset_id, version);
+        let path = match self.path {
+            Some(p) => vpath.join_dir(&p),
+            None => vpath,
+        };
+        self.path = Some(path);
         self
     }
 
     fn root() -> Self {
         DavCollection {
-            name: None,
-            href: "/".to_owned(),
+            path: None,
             created: None,
             modified: None,
             size: None,
@@ -443,8 +446,11 @@ impl DavCollection {
 
     fn dandiset_index() -> Self {
         DavCollection {
-            name: Some("dandisets".to_owned()),
-            href: "/dandisets/".to_owned(),
+            path: Some(
+                "dandisets/"
+                    .parse::<PureDirPath>()
+                    .expect(r#""dandisets/" should be a valid dir path"#),
+            ),
             created: None,
             modified: None,
             size: None,
@@ -454,8 +460,11 @@ impl DavCollection {
 
     fn dandiset_releases(dandiset_id: &DandisetId) -> Self {
         DavCollection {
-            name: Some("releases".to_owned()),
-            href: format!("/dandisets/{dandiset_id}/releases/"),
+            path: Some(
+                format!("dandisets/{dandiset_id}/releases/")
+                    .parse::<PureDirPath>()
+                    .expect("should be a valid dir path"),
+            ),
             created: None,
             modified: None,
             size: None,
@@ -463,12 +472,9 @@ impl DavCollection {
         }
     }
 
-    fn dandiset_version(v: DandisetVersion, href: String) -> Self {
+    fn dandiset_version(v: DandisetVersion, path: PureDirPath) -> Self {
         DavCollection {
-            // TODO: Determine `name` from `href` so that it doesn't have to be
-            // externally overwritten for "latest":
-            name: Some(v.version.to_string()),
-            href,
+            path: Some(path),
             created: Some(v.created),
             modified: Some(v.modified),
             size: Some(v.size),
@@ -480,8 +486,11 @@ impl DavCollection {
 impl From<Dandiset> for DavCollection {
     fn from(ds: Dandiset) -> DavCollection {
         DavCollection {
-            name: Some(ds.identifier.to_string()),
-            href: format!("/dandisets/{}/", ds.identifier),
+            path: Some(
+                format!("dandisets/{}", ds.identifier)
+                    .parse::<PureDirPath>()
+                    .expect("should be a valid dir path"),
+            ),
             created: Some(ds.created),
             modified: Some(ds.modified),
             size: None,
@@ -493,8 +502,7 @@ impl From<Dandiset> for DavCollection {
 impl From<AssetFolder> for DavCollection {
     fn from(AssetFolder { path }: AssetFolder) -> DavCollection {
         DavCollection {
-            name: Some(path.name().to_owned()),
-            href: format!("/{path}"),
+            path: Some(path),
             created: None,
             modified: None,
             size: None,
@@ -506,8 +514,7 @@ impl From<AssetFolder> for DavCollection {
 impl From<ZarrAsset> for DavCollection {
     fn from(zarr: ZarrAsset) -> DavCollection {
         DavCollection {
-            name: Some(zarr.path.name().to_owned()),
-            href: format!("/{}/", zarr.path),
+            path: Some(zarr.path.to_dir_path()),
             created: Some(zarr.created),
             modified: Some(zarr.modified),
             size: Some(zarr.size),
@@ -519,8 +526,7 @@ impl From<ZarrAsset> for DavCollection {
 impl From<ZarrFolder> for DavCollection {
     fn from(ZarrFolder { path }: ZarrFolder) -> DavCollection {
         DavCollection {
-            name: Some(path.name().to_owned()),
-            href: format!("/{path}"),
+            path: Some(path),
             created: None,
             modified: None,
             size: None,
@@ -531,8 +537,7 @@ impl From<ZarrFolder> for DavCollection {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DavItem {
-    name: String,
-    href: String,
+    path: PurePath,
     created: Option<OffsetDateTime>,
     modified: Option<OffsetDateTime>,
     content_type: String,
@@ -543,9 +548,9 @@ struct DavItem {
 }
 
 impl DavItem {
-    fn with_href_prefix(mut self, mut prefix: String) -> DavItem {
-        prefix.push_str(&self.href);
-        self.href = prefix;
+    fn under_version_path(mut self, dandiset_id: &DandisetId, version: &VersionSpec) -> DavItem {
+        let path = version_path(dandiset_id, version).join(&self.path);
+        self.path = path;
         self
     }
 }
@@ -555,8 +560,9 @@ impl From<VersionMetadata> for DavItem {
         let len = value.len();
         let blob = Vec::<u8>::from(value);
         DavItem {
-            name: "dandiset.yaml".to_owned(),
-            href: "/dandiset.yaml".to_owned(),
+            path: "dandiset.yaml"
+                .parse::<PurePath>()
+                .expect(r#""dandiset.yaml" should be a valid path"#),
             created: None,
             modified: None,
             content_type: YAML_CONTENT_TYPE.to_owned(),
@@ -570,23 +576,26 @@ impl From<VersionMetadata> for DavItem {
 
 impl From<BlobAsset> for DavItem {
     fn from(blob: BlobAsset) -> DavItem {
+        // Call methods before moving out `path` field:
+        let content_type = blob
+            .content_type()
+            .unwrap_or(DEFAULT_CONTENT_TYPE)
+            .to_owned();
+        let etag = blob.etag().map(String::from);
+        let content = match blob.download_url() {
+            Some(url) => DavContent::Redirect(url.clone()),
+            // TODO: Log a warning when asset doesn't have a download URL?
+            None => DavContent::Missing,
+        };
         DavItem {
-            name: blob.path.name().to_owned(),
-            href: format!("/{}", blob.path),
+            path: blob.path,
             created: Some(blob.created),
             modified: Some(blob.modified),
-            content_type: blob
-                .content_type()
-                .unwrap_or(DEFAULT_CONTENT_TYPE)
-                .to_owned(),
+            content_type,
             size: Some(blob.size),
-            etag: blob.etag().map(String::from),
+            etag,
             kind: ResourceKind::Blob,
-            content: match blob.download_url() {
-                Some(url) => DavContent::Redirect(url.clone()),
-                // TODO: Log a warning when asset doesn't have a download URL?
-                None => DavContent::Missing,
-            },
+            content,
         }
     }
 }
@@ -594,8 +603,7 @@ impl From<BlobAsset> for DavItem {
 impl From<ZarrEntry> for DavItem {
     fn from(entry: ZarrEntry) -> DavItem {
         DavItem {
-            name: entry.path.name().to_owned(),
-            href: format!("/{}", entry.path),
+            path: entry.path,
             created: None,
             modified: Some(entry.modified),
             content_type: DEFAULT_CONTENT_TYPE.to_owned(),
@@ -671,3 +679,21 @@ impl DavError {
 }
 
 pub(crate) struct Propfind; // TODO
+
+fn version_path(dandiset_id: &DandisetId, version: &VersionSpec) -> PureDirPath {
+    fn writer(s: &mut String, dandiset_id: &DandisetId, version: &VersionSpec) -> fmt::Result {
+        write!(s, "dandisets/{dandiset_id}/")?;
+        match version {
+            VersionSpec::Draft => write!(s, "draft")?,
+            VersionSpec::Published(v) => write!(s, "releases/{v}")?,
+            VersionSpec::Latest => write!(s, "latest")?,
+        }
+        write!(s, "/")?;
+        Ok(())
+    }
+
+    let mut s = String::new();
+    writer(&mut s, dandiset_id, version).expect("writing to a String shouldn't fail");
+    s.parse::<PureDirPath>()
+        .expect("should be a valid dir path")
+}

@@ -343,8 +343,27 @@ impl DavResource {
                 size: Some(zarr.size),
                 kind: ResourceKind::Zarr,
             }),
-            DandiResource::ZarrFolder(ZarrFolder { path }) => todo!(),
-            DandiResource::ZarrEntry(entry) => todo!(),
+            DandiResource::ZarrFolder(ZarrFolder { path }) => {
+                DavResource::Collection(DavCollection {
+                    name: Some(path.name().to_owned()),
+                    href,
+                    created: None,
+                    modified: None,
+                    size: None,
+                    kind: ResourceKind::ZarrFolder,
+                })
+            }
+            DandiResource::ZarrEntry(entry) => DavResource::Item(DavItem {
+                name: entry.path.name().to_owned(),
+                href,
+                created: None,
+                modified: Some(entry.modified),
+                content_type: DEFAULT_CONTENT_TYPE.to_owned(),
+                size: Some(entry.size),
+                etag: Some(entry.etag),
+                kind: ResourceKind::ZarrEntry,
+                content: DavContent::Redirect(entry.url),
+            }),
         }
     }
 }

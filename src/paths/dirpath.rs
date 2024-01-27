@@ -16,6 +16,14 @@ use thiserror::Error;
 pub(crate) struct PureDirPath(pub(super) String);
 
 impl PureDirPath {
+    pub(crate) fn name(&self) -> &str {
+        self.0
+            .trim_end_matches('/')
+            .split('/')
+            .next_back()
+            .expect("path should be nonempty")
+    }
+
     pub(crate) fn join(&self, path: &PurePath) -> PurePath {
         PurePath(format!("{self}{path}"))
     }

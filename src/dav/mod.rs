@@ -1,7 +1,9 @@
 mod html;
+mod path;
 mod types;
 mod util;
 use self::html::*;
+use self::path::*;
 use self::types::*;
 use self::util::*;
 use crate::consts::HTML_CONTENT_TYPE;
@@ -283,44 +285,6 @@ impl DandiDav {
             }
         }
     }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum DavPath {
-    Root,
-    DandisetIndex,
-    Dandiset {
-        dandiset_id: DandisetId,
-    },
-    DandisetReleases {
-        dandiset_id: DandisetId,
-    },
-    Version {
-        dandiset_id: DandisetId,
-        version: VersionSpec,
-    },
-    DandisetYaml {
-        dandiset_id: DandisetId,
-        version: VersionSpec,
-    },
-    DandiResource {
-        dandiset_id: DandisetId,
-        version: VersionSpec,
-        path: PurePath,
-    },
-}
-
-impl DavPath {
-    fn parse_uri_path(s: &str) -> Option<DavPath> {
-        todo!()
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum VersionSpec {
-    Draft,
-    Published(PublishedVersionId),
-    Latest,
 }
 
 #[derive(Debug, Error)]

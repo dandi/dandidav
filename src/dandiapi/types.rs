@@ -64,7 +64,7 @@ pub(crate) enum FolderEntry {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct AssetFolder {
-    pub(crate) path: PurePath,
+    pub(crate) path: PureDirPath,
 }
 
 impl From<RawFolderEntry> for FolderEntry {
@@ -75,7 +75,9 @@ impl From<RawFolderEntry> for FolderEntry {
                 id: asset.asset_id,
             }
         } else {
-            FolderEntry::Folder(AssetFolder { path: entry.path })
+            FolderEntry::Folder(AssetFolder {
+                path: entry.path.to_dir_path(),
+            })
         }
     }
 }

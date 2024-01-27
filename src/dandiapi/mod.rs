@@ -264,7 +264,7 @@ impl<'a> VersionEndpoint<'a> {
 
     fn get_entries_under_path(
         &self,
-        path: Option<&PurePath>,
+        path: Option<&PureDirPath>,
     ) -> impl Stream<Item = Result<FolderEntry, ApiError>> + '_ {
         let mut url = self.client.get_url([
             "dandisets",
@@ -275,10 +275,6 @@ impl<'a> VersionEndpoint<'a> {
             "paths",
         ]);
         if let Some(path) = path {
-            // Experimentation has shown that adding a trailing slash to the
-            // `path_prefix` is superfluous, and the Archive will do the right
-            // thing (namely, treat the prefix as a full folder path) even if
-            // `path_prefix=foo` and there exists a `foobar.txt`.
             url.query_pairs_mut()
                 .append_pair("path_prefix", path.as_ref());
         }
@@ -297,15 +293,15 @@ impl<'a> VersionEndpoint<'a> {
             .append_pair("path", path.as_ref())
             .append_pair("metadata", "1")
             .append_pair("order", "path");
-        let cutoff = format!("{path}/");
+        let dirpath = path.to_dir_path();
         let stream = self.client.paginate::<Asset>(url.clone());
         tokio::pin!(stream);
         while let Some(asset) = stream.try_next().await? {
             if asset.path() == path {
                 return Ok(AtAssetPath::Asset(asset));
-            } else if asset.path().is_strictly_under(path) {
-                return Ok(AtAssetPath::Folder(AssetFolder { path: path.clone() }));
-            } else if **asset.path() > *cutoff {
+            } else if asset.path().is_strictly_under(&dirpath) {
+                return Ok(AtAssetPath::Folder(AssetFolder { path: dirpath }));
+            } else if **asset.path() > *dirpath {
                 break;
             }
         }

@@ -33,11 +33,8 @@ impl PurePath {
         PurePath(format!("{self}/{subpath}"))
     }
 
-    pub(crate) fn is_strictly_under(&self, other: &PurePath) -> bool {
-        let Some(rest) = self.0.strip_prefix(&other.0) else {
-            return false;
-        };
-        rest.starts_with('/')
+    pub(crate) fn is_strictly_under(&self, other: &PureDirPath) -> bool {
+        self.0.starts_with(&other.0)
     }
 
     /// For each non-final component in the path that has an extension of
@@ -54,6 +51,10 @@ impl PurePath {
             "{self:?} relative to {dirpath:?} should not be empty"
         );
         Some(PurePath(s.to_owned()))
+    }
+
+    pub(crate) fn to_dir_path(&self) -> PureDirPath {
+        PureDirPath(format!("{}/", self.0))
     }
 }
 
@@ -225,13 +226,13 @@ mod tests {
     }
 
     #[rstest]
-    #[case("foo/bar/baz", "foo/bar/baz", false)]
-    #[case("foo/bar/baz", "foo/bar", true)]
-    #[case("foo/bar/baz", "foo", true)]
-    #[case("foo/bar", "foo/bar/baz", false)]
-    #[case("foo", "foo/bar/baz", false)]
-    #[case("foobar", "foo", false)]
-    fn test_is_strictly_under(#[case] p1: PurePath, #[case] p2: PurePath, #[case] r: bool) {
+    #[case("foo/bar/baz", "foo/bar/baz/", false)]
+    #[case("foo/bar/baz", "foo/bar/", true)]
+    #[case("foo/bar/baz", "foo/", true)]
+    #[case("foo/bar", "foo/bar/baz/", false)]
+    #[case("foo", "foo/bar/baz/", false)]
+    #[case("foobar", "foo/", false)]
+    fn test_is_strictly_under(#[case] p1: PurePath, #[case] p2: PureDirPath, #[case] r: bool) {
         assert_eq!(p1.is_strictly_under(&p2), r);
     }
 

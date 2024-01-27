@@ -86,7 +86,7 @@ impl S3Client {
             let stream = self.list_entry_pages(key_prefix.as_ref());
             tokio::pin!(stream);
             while let Some(page) = stream.try_next().await? {
-                for entry in page.flatten() {
+                for entry in page {
                     yield entry;
                 }
             }
@@ -265,13 +265,38 @@ struct S3EntryPage {
     objects: Vec<S3Object>,
 }
 
-impl S3EntryPage {
-    // TODO: Make this return an iterator instead
-    fn flatten(self) -> Vec<S3Entry> {
-        let mut output = Vec::with_capacity(self.folders.len().saturating_add(self.objects.len()));
-        output.extend(self.folders.into_iter().map(S3Entry::Folder));
-        output.extend(self.objects.into_iter().map(S3Entry::Object));
-        output
+impl IntoIterator for S3EntryPage {
+    type Item = S3Entry;
+    type IntoIter = S3EntryPageIter;
+
+    fn into_iter(self) -> S3EntryPageIter {
+        S3EntryPageIter::new(self)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct S3EntryPageIter {
+    folders_iter: std::vec::IntoIter<S3Folder>,
+    objects_iter: std::vec::IntoIter<S3Object>,
+}
+
+impl S3EntryPageIter {
+    fn new(page: S3EntryPage) -> S3EntryPageIter {
+        S3EntryPageIter {
+            folders_iter: page.folders.into_iter(),
+            objects_iter: page.objects.into_iter(),
+        }
+    }
+}
+
+impl Iterator for S3EntryPageIter {
+    type Item = S3Entry;
+
+    fn next(&mut self) -> Option<S3Entry> {
+        self.folders_iter
+            .next()
+            .map(S3Entry::Folder)
+            .or_else(|| self.objects_iter.next().map(S3Entry::Object))
     }
 }
 
@@ -393,6 +418,7 @@ pub(crate) enum S3Error {
         prefix: String,
         source: SdkError<ListObjectsV2Error, HttpResponse>,
     },
+    // TODO: Include bucket and lookup prefix in these errors:
     #[error("invalid object found in bucket")]
     BadObject(#[from] TryFromAwsObjectError),
     #[error("invalid common prefix found in bucket")]

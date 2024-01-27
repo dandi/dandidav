@@ -35,6 +35,8 @@ thiserror = "1.0.56"
 time = { version = "0.3.31", features = ["formatting", "macros", "parsing", "serde"] }
 tokio = { version = "1.35.1", features = ["macros", "net", "rt-multi-thread", "sync"] }
 tower = "0.4.13"
+tower-http = { version = "0.5.1", features = ["trace"] }
+tracing-subscriber = "0.3.18"
 url = { version = "2.5.0", features = ["serde"] }
 
 [dev-dependencies]

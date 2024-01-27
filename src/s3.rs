@@ -43,17 +43,15 @@ impl S3Client {
     }
 
     // `key_prefix` may or may not end with `/`; it is used as-is
-    fn list_entry_pages(
-        &self,
-        key_prefix: &str,
-    ) -> impl Stream<Item = Result<S3EntryPage, S3Error>> {
-        let this = self.clone();
-        let key_prefix = key_prefix.to_owned();
+    fn list_entry_pages<'a>(
+        &'a self,
+        key_prefix: &'a str,
+    ) -> impl Stream<Item = Result<S3EntryPage, S3Error>> + 'a {
         try_stream! {
-            let mut stream = this.inner
+            let mut stream = self.inner
                 .list_objects_v2()
-                .bucket(&*this.bucket)
-                .prefix(&key_prefix)
+                .bucket(&*self.bucket)
+                .prefix(key_prefix)
                 .delimiter("/")
                 .into_paginator()
                 .send();
@@ -62,8 +60,8 @@ impl S3Client {
                     Ok(page) => page,
                     Err(source) => Err(
                         S3Error::ListObjects {
-                            bucket: this.bucket.clone(),
-                            prefix: key_prefix.clone(),
+                            bucket: self.bucket.clone(),
+                            prefix: key_prefix.to_owned(),
                             source,
                         }
                     )?,
@@ -83,7 +81,7 @@ impl S3Client {
                     let key = key.strip_prefix('/').unwrap_or(&key);
                     // TODO: Handle this error!
                     let key = key.parse::<PurePath>().expect("S3 key should be normalized relative path");
-                    let download_url = format!("https://{}.s3.amazonaws.com/{}", this.bucket, key);
+                    let download_url = format!("https://{}.s3.amazonaws.com/{}", self.bucket, key);
                     // TODO: Handle this error!
                     let download_url = Url::parse(&download_url).expect("download URL should be valid URL");
                     // TODO: Handle this error!
@@ -114,12 +112,12 @@ impl S3Client {
         }
     }
 
-    pub(crate) fn get_folder_entries(
-        &self,
-        key_prefix: &PureDirPath,
-    ) -> impl Stream<Item = Result<S3Entry, S3Error>> {
-        let stream = self.list_entry_pages(key_prefix.as_ref());
+    pub(crate) fn get_folder_entries<'a>(
+        &'a self,
+        key_prefix: &'a PureDirPath,
+    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + 'a {
         try_stream! {
+            let stream = self.list_entry_pages(key_prefix.as_ref());
             tokio::pin!(stream);
             while let Some(page) = stream.try_next().await? {
                 for entry in page.flatten() {
@@ -191,13 +189,13 @@ impl PrefixedS3Client {
         }
     }
 
-    pub(crate) fn get_folder_entries(
-        &self,
-        dirpath: &PureDirPath,
-    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + '_ {
-        let key_prefix = self.prefix.join_dir(dirpath);
-        let stream = self.inner.get_folder_entries(&key_prefix);
+    pub(crate) fn get_folder_entries<'a>(
+        &'a self,
+        dirpath: &'a PureDirPath,
+    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + 'a {
         try_stream! {
+            let key_prefix = self.prefix.join_dir(dirpath);
+            let stream = self.inner.get_folder_entries(&key_prefix);
             tokio::pin!(stream);
             while let Some(entry) = stream.try_next().await? {
                 if let Some(entry) = entry.relative_to(&self.prefix) {

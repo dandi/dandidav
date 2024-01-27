@@ -10,7 +10,7 @@ static COLLECTION_TEMPLATE: &str = include_str!("templates/collection.html.tera"
 pub(crate) struct Templater(Tera);
 
 impl Templater {
-    pub(super) fn load() -> Result<Self, TemplateError> {
+    pub(crate) fn load() -> Result<Self, TemplateError> {
         let mut engine = Tera::default();
         engine
             .add_raw_template("collection.html", COLLECTION_TEMPLATE)

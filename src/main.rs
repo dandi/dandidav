@@ -4,27 +4,46 @@ mod dandi;
 mod dav;
 mod paths;
 mod s3;
+use crate::consts::DEFAULT_API_URL;
+use crate::dandi::Client;
+use crate::dav::{DandiDav, Templater};
 use anyhow::Context;
-use axum::{body::Body, extract::Request, Router};
+use axum::{body::Body, extract::Request, response::IntoResponse, Router};
 use clap::Parser;
 use http::response::Response;
 use std::convert::Infallible;
 use std::net::IpAddr;
+use std::sync::Arc;
 use tower::service_fn;
 
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 struct Arguments {
+    #[arg(long, default_value = DEFAULT_API_URL)]
+    api_url: url::Url,
+
     #[arg(long, default_value = "127.0.0.1")]
     ip_addr: IpAddr,
 
     #[arg(short, long, default_value_t = 8080)]
     port: u16,
+
+    #[arg(short = 'T', long, default_value = env!("CARGO_PKG_NAME"))]
+    title: String,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Arguments::parse();
-    let app = Router::new().nest_service("/", service_fn(handle_request));
+    let client = Client::new(args.api_url)?;
+    let templater = Templater::load()?;
+    let dav = Arc::new(DandiDav::new(client, templater, args.title));
+    let app = Router::new().nest_service(
+        "/",
+        service_fn(move |req: Request| {
+            let dav = Arc::clone(&dav);
+            async move { Ok::<_, Infallible>(dav.handle_request(req).await.into_response()) }
+        }),
+    );
     let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
         .await
         .context("failed to bind listener")?;
@@ -32,9 +51,4 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("failed to serve application")?;
     Ok(())
-}
-
-async fn handle_request(_req: Request) -> Result<Response<Body>, Infallible> {
-    // Ok(dav.handle_request(req).await.into_response())
-    todo!()
 }

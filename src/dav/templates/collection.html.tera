@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>{{title}}</title>
+    <link rel="stylesheet" type="text/css" href="/.static/styles.css"/>
+</head>
+<body>
+    <table class="collection" border="1">
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Size</th>
+            <th>Created</th>
+            <th>Modified</th>
+        </tr>
+        {% for r in rows %}
+        <tr>
+            <td class="name{% if r.is_dir %} dir{% endif %}">{{r.name}}{% if r.is_dir %}/{% endif %}</td>
+
+            <td class="type">{{r.kind}}</td>
+
+            {% if r.size is defined %}
+            <td class="size">{{r.size}}</td>
+            {% else %}
+            <td class="null">&#x2014;</td>
+            {% endif %}
+
+            {% if r.created is defined %}
+            <td class="created">{{r.created}}</td>
+            {% else %}
+            <td class="null">&#x2014;</td>
+            {% endif %}
+
+            {% if r.modified is defined %}
+            <td class="modified">{{r.modified}}</td>
+            {% else %}
+            <td class="null">&#x2014;</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </table>
+    <footer>
+        <a href="{{package_url}}">dandidav</a>, v{{package_version}}, commit {{package_commit}}
+    </footer>
+</body>
+</html>

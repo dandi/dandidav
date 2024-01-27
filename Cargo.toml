@@ -30,8 +30,9 @@ serde = { version = "1.0.195", features = ["derive"] }
 serde_json = { version = "1.0.111", features = ["preserve_order"] }
 serde_yaml = "0.9.30"
 smartstring = "1.0.1"
+tera = { version = "1.19.1", default-features = false }
 thiserror = "1.0.56"
-time = { version = "0.3.31", features = ["formatting", "parsing", "serde"] }
+time = { version = "0.3.31", features = ["formatting", "macros", "parsing", "serde"] }
 tokio = { version = "1.35.1", features = ["macros", "net", "rt-multi-thread", "sync"] }
 tower = "0.4.13"
 url = { version = "2.5.0", features = ["serde"] }

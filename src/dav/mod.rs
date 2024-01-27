@@ -1,3 +1,4 @@
+mod html;
 mod types;
 mod util;
 use self::types::*;

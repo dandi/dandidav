@@ -3,7 +3,7 @@ use super::VersionSpec;
 use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
 use crate::dandi::*;
 use crate::paths::{PureDirPath, PurePath};
-use std::fmt;
+use serde::{ser::Serializer, Serialize};
 use time::OffsetDateTime;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -372,9 +372,9 @@ pub(super) enum ResourceKind {
     ZarrFolder,
 }
 
-impl fmt::Display for ResourceKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
+impl ResourceKind {
+    pub(super) fn as_str(&self) -> &'static str {
+        match self {
             ResourceKind::Root => "Root", // Not actually shown
             ResourceKind::DandisetIndex => "Dandisets",
             ResourceKind::Dandiset => "Dandiset",
@@ -386,7 +386,15 @@ impl fmt::Display for ResourceKind {
             ResourceKind::Zarr => "Zarr asset",
             ResourceKind::ZarrEntry => "Zarr entry",
             ResourceKind::ZarrFolder => "Directory",
-        };
-        write!(f, "{s}")
+        }
+    }
+}
+
+impl Serialize for ResourceKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_str())
     }
 }

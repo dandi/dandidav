@@ -1,4 +1,5 @@
 use std::num::NonZeroUsize;
+use time::{format_description::FormatItem, macros::format_description};
 
 pub(crate) static USER_AGENT: &str = concat!(
     env!("CARGO_PKG_NAME"),
@@ -31,3 +32,7 @@ pub(crate) const S3CLIENT_CACHE_SIZE: NonZeroUsize = {
 pub(crate) static YAML_CONTENT_TYPE: &str = "text/yaml; charset=utf-8";
 
 pub(crate) static DEFAULT_CONTENT_TYPE: &str = "application/octet-stream";
+
+pub(crate) static HTML_TIMESTAMP_FORMAT: &[FormatItem<'_>] = format_description!(
+    "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour sign:mandatory]:[offset_minute]"
+);

@@ -646,7 +646,7 @@ impl fmt::Display for ResourceKind {
 #[derive(Debug, Error)]
 pub(crate) enum DavError {
     #[error("failed to fetch data from Archive")]
-    DandiApi(#[from] ApiError),
+    DandiApi(#[from] DandiError),
     #[error(
         "latest version was requested for Dandiset {dandiset_id}, but it has not been published"
     )]
@@ -657,7 +657,7 @@ impl DavError {
     pub(crate) fn is_404(&self) -> bool {
         matches!(
             self,
-            DavError::DandiApi(ApiError::NotFound { .. } | ApiError::ZarrEntryNotFound { .. })
+            DavError::DandiApi(DandiError::NotFound { .. } | DandiError::ZarrEntryNotFound { .. })
                 | DavError::NoLatestVersion { .. }
         )
     }

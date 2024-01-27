@@ -46,33 +46,33 @@ impl Client {
         urljoin(&self.api_url, segments)
     }
 
-    async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, ApiError> {
+    async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, DandiError> {
         let r = self
             .inner
             .get(url.clone())
             .send()
             .await
-            .map_err(|source| ApiError::Send {
+            .map_err(|source| DandiError::Send {
                 url: url.clone(),
                 source,
             })?;
         if r.status() == StatusCode::NOT_FOUND {
-            return Err(ApiError::NotFound { url: url.clone() });
+            return Err(DandiError::NotFound { url: url.clone() });
         }
         r.error_for_status()
-            .map_err(|source| ApiError::Status {
+            .map_err(|source| DandiError::Status {
                 url: url.clone(),
                 source,
             })?
             .json::<T>()
             .await
-            .map_err(move |source| ApiError::Deserialize { url, source })
+            .map_err(move |source| DandiError::Deserialize { url, source })
     }
 
     fn paginate<T: DeserializeOwned + 'static>(
         &self,
         url: Url,
-    ) -> impl Stream<Item = Result<T, ApiError>> + '_ {
+    ) -> impl Stream<Item = Result<T, DandiError>> + '_ {
         try_stream! {
             let mut url = Some(url);
             while let Some(u) = url {
@@ -80,15 +80,15 @@ impl Client {
                     .get(u.clone())
                     .send()
                     .await
-                    .map_err(|source| ApiError::Send {url: u.clone(), source})?;
+                    .map_err(|source| DandiError::Send {url: u.clone(), source})?;
                 if resp.status() == StatusCode::NOT_FOUND {
-                    Err(ApiError::NotFound {url: u.clone() })?;
+                    Err(DandiError::NotFound {url: u.clone() })?;
                 }
                 let page = resp.error_for_status()
-                    .map_err(|source| ApiError::Status {url: u.clone(), source})?
+                    .map_err(|source| DandiError::Status {url: u.clone(), source})?
                     .json::<Page<T>>()
                     .await
-                    .map_err(move |source| ApiError::Deserialize {url: u, source})?;
+                    .map_err(move |source| DandiError::Deserialize {url: u, source})?;
                 for r in page.results {
                     yield r;
                 }
@@ -131,22 +131,27 @@ impl Client {
         Ok(client.with_prefix(prefix))
     }
 
-    async fn get_s3client_for_zarr(&self, zarr: &ZarrAsset) -> Result<PrefixedS3Client, ApiError> {
+    async fn get_s3client_for_zarr(
+        &self,
+        zarr: &ZarrAsset,
+    ) -> Result<PrefixedS3Client, DandiError> {
         let Some(s3loc) = zarr.s3location() else {
-            return Err(ApiError::ZarrToS3Error {
+            return Err(DandiError::ZarrToS3Error {
                 asset_id: zarr.asset_id.clone(),
                 source: ZarrToS3Error::ZarrLacksS3Url,
             });
         };
         self.get_s3client(s3loc)
             .await
-            .map_err(|source| ApiError::ZarrToS3Error {
+            .map_err(|source| DandiError::ZarrToS3Error {
                 asset_id: zarr.asset_id.clone(),
                 source,
             })
     }
 
-    pub(crate) fn get_all_dandisets(&self) -> impl Stream<Item = Result<Dandiset, ApiError>> + '_ {
+    pub(crate) fn get_all_dandisets(
+        &self,
+    ) -> impl Stream<Item = Result<Dandiset, DandiError>> + '_ {
         self.paginate(self.get_url(["dandisets"]))
     }
 
@@ -173,7 +178,7 @@ impl<'a> DandisetEndpoint<'a> {
         VersionEndpoint::new(self, version_id)
     }
 
-    pub(crate) async fn get(&self) -> Result<Dandiset, ApiError> {
+    pub(crate) async fn get(&self) -> Result<Dandiset, DandiError> {
         self.client
             .get(
                 self.client
@@ -184,7 +189,7 @@ impl<'a> DandisetEndpoint<'a> {
 
     pub(crate) fn get_all_versions(
         &self,
-    ) -> impl Stream<Item = Result<DandisetVersion, ApiError>> + '_ {
+    ) -> impl Stream<Item = Result<DandisetVersion, DandiError>> + '_ {
         self.client.paginate(self.client.get_url([
             "dandisets",
             self.dandiset_id.as_ref(),
@@ -209,7 +214,7 @@ impl<'a> VersionEndpoint<'a> {
         }
     }
 
-    pub(crate) async fn get(&self) -> Result<DandisetVersion, ApiError> {
+    pub(crate) async fn get(&self) -> Result<DandisetVersion, DandiError> {
         self.client
             .get(self.client.get_url([
                 "dandisets",
@@ -221,7 +226,7 @@ impl<'a> VersionEndpoint<'a> {
             .await
     }
 
-    pub(crate) async fn get_metadata(&self) -> Result<VersionMetadata, ApiError> {
+    pub(crate) async fn get_metadata(&self) -> Result<VersionMetadata, DandiError> {
         let data = self
             .client
             .get::<serde_json::Value>(self.client.get_url([
@@ -234,7 +239,7 @@ impl<'a> VersionEndpoint<'a> {
         Ok(VersionMetadata(dump_json_as_yaml(data).into_bytes()))
     }
 
-    pub(crate) async fn get_asset_by_id(&self, id: &str) -> Result<Asset, ApiError> {
+    pub(crate) async fn get_asset_by_id(&self, id: &str) -> Result<Asset, DandiError> {
         self.client
             .get(self.client.get_url([
                 "dandisets",
@@ -250,7 +255,7 @@ impl<'a> VersionEndpoint<'a> {
 
     pub(crate) fn get_root_children(
         &self,
-    ) -> impl Stream<Item = Result<DandiResource, ApiError>> + '_ {
+    ) -> impl Stream<Item = Result<DandiResource, DandiError>> + '_ {
         try_stream! {
             let stream = self.get_entries_under_path(None);
             tokio::pin!(stream);
@@ -259,8 +264,8 @@ impl<'a> VersionEndpoint<'a> {
                     FolderEntry::Folder(subf) => yield DandiResource::Folder(subf),
                     FolderEntry::Asset { id, path } => match self.get_asset_by_id(&id).await {
                         Ok(asset) => yield DandiResource::Asset(asset),
-                        Err(ApiError::NotFound { .. }) => {
-                            Err(ApiError::DisappearingAsset { asset_id: id, path })?;
+                        Err(DandiError::NotFound { .. }) => {
+                            Err(DandiError::DisappearingAsset { asset_id: id, path })?;
                         }
                         Err(e) => Err(e)?,
                     },
@@ -272,14 +277,14 @@ impl<'a> VersionEndpoint<'a> {
     fn get_folder_entries(
         &self,
         path: &AssetFolder,
-    ) -> impl Stream<Item = Result<FolderEntry, ApiError>> + '_ {
+    ) -> impl Stream<Item = Result<FolderEntry, DandiError>> + '_ {
         self.get_entries_under_path(Some(&path.path))
     }
 
     fn get_entries_under_path(
         &self,
         path: Option<&PureDirPath>,
-    ) -> impl Stream<Item = Result<FolderEntry, ApiError>> + '_ {
+    ) -> impl Stream<Item = Result<FolderEntry, DandiError>> + '_ {
         let mut url = self.client.get_url([
             "dandisets",
             self.dandiset_id.as_ref(),
@@ -295,7 +300,7 @@ impl<'a> VersionEndpoint<'a> {
         self.client.paginate(url)
     }
 
-    pub(crate) async fn get_path(&self, path: &PurePath) -> Result<AtAssetPath, ApiError> {
+    pub(crate) async fn get_path(&self, path: &PurePath) -> Result<AtAssetPath, DandiError> {
         let mut url = self.client.get_url([
             "dandisets",
             self.dandiset_id.as_ref(),
@@ -319,10 +324,13 @@ impl<'a> VersionEndpoint<'a> {
                 break;
             }
         }
-        Err(ApiError::NotFound { url })
+        Err(DandiError::NotFound { url })
     }
 
-    async fn get_resource_with_s3(&self, path: &PurePath) -> Result<DandiResourceWithS3, ApiError> {
+    async fn get_resource_with_s3(
+        &self,
+        path: &PurePath,
+    ) -> Result<DandiResourceWithS3, DandiError> {
         /*
         Algorithm for efficiently (yet not always correctly) splitting `path`
         into an asset path and an optional Zarr entry path (cf.
@@ -349,13 +357,13 @@ impl<'a> VersionEndpoint<'a> {
                         "assets",
                     ]);
                     url.query_pairs_mut().append_pair("path", path.as_ref());
-                    return Err(ApiError::NotFound { url });
+                    return Err(DandiError::NotFound { url });
                 }
                 AtAssetPath::Asset(Asset::Zarr(zarr)) => {
                     let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
                     return match s3.get_path(&entry_path).await? {
                         Some(entry) => Ok(DandiResource::from(entry).with_s3(s3)),
-                        None => Err(ApiError::ZarrEntryNotFound {
+                        None => Err(DandiError::ZarrEntryNotFound {
                             zarr_path,
                             entry_path,
                         }),
@@ -366,14 +374,14 @@ impl<'a> VersionEndpoint<'a> {
         self.get_path(path).await.map(Into::into)
     }
 
-    pub(crate) async fn get_resource(&self, path: &PurePath) -> Result<DandiResource, ApiError> {
+    pub(crate) async fn get_resource(&self, path: &PurePath) -> Result<DandiResource, DandiError> {
         self.get_resource_with_s3(path).await.map(Into::into)
     }
 
     pub(crate) async fn get_resource_with_children(
         &self,
         path: &PurePath,
-    ) -> Result<DandiResourceWithChildren, ApiError> {
+    ) -> Result<DandiResourceWithChildren, DandiError> {
         match self.get_resource_with_s3(path).await? {
             DandiResourceWithS3::Folder(folder) => {
                 let mut children = Vec::new();
@@ -384,8 +392,8 @@ impl<'a> VersionEndpoint<'a> {
                         FolderEntry::Folder(subf) => DandiResource::Folder(subf),
                         FolderEntry::Asset { id, path } => match self.get_asset_by_id(&id).await {
                             Ok(asset) => DandiResource::Asset(asset),
-                            Err(ApiError::NotFound { .. }) => {
-                                return Err(ApiError::DisappearingAsset { asset_id: id, path })
+                            Err(DandiError::NotFound { .. }) => {
+                                return Err(DandiError::DisappearingAsset { asset_id: id, path })
                             }
                             Err(e) => return Err(e),
                         },
@@ -428,7 +436,7 @@ impl<'a> VersionEndpoint<'a> {
 pub(crate) struct BuildClientError(#[from] reqwest::Error);
 
 #[derive(Debug, Error)]
-pub(crate) enum ApiError {
+pub(crate) enum DandiError {
     #[error("failed to make request to {url}")]
     Send { url: Url, source: reqwest::Error },
     #[error("no such resource: {url}")]

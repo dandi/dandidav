@@ -388,12 +388,14 @@ impl S3Object {
                 key: key.clone(),
                 source,
             })?;
-        let url = format!("https://{bucket}.s3.amazonaws.com/{key}");
-        let download_url = Url::parse(&url).map_err(|source| TryFromAwsObjectError::BadUrl {
-            key: key.clone(),
-            url,
-            source,
-        })?;
+        let mut download_url = Url::parse(&format!("https://{bucket}.s3.amazonaws.com"))
+            .expect("bucket should be a valid hostname component");
+        // Adding the key this way is necessary in order for URL-unsafe
+        // characters to be percent-encoded:
+        download_url
+            .path_segments_mut()
+            .expect("HTTPS URL should be able to be a base")
+            .extend(key.split('/'));
         let modified = modified
             .to_time()
             .map_err(|source| TryFromAwsObjectError::BadModified {
@@ -471,12 +473,6 @@ pub(crate) enum TryFromAwsObjectError {
     BadKey {
         key: String,
         source: ParsePurePathError,
-    },
-    #[error("URL {url:?} computed for S3 key {key:?} is invalid")]
-    BadUrl {
-        key: String,
-        url: String,
-        source: url::ParseError,
     },
     #[error(
         "last_modified value {modified} for S3 object {key:?} is outside time library's range"

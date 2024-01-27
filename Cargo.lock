@@ -782,6 +782,7 @@ dependencies = [
  "http 1.0.0",
  "indoc",
  "lru",
+ "percent-encoding",
  "reqwest",
  "rstest",
  "serde",

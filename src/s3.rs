@@ -251,14 +251,18 @@ impl S3Location {
         } else {
             return Err(e);
         };
-        let key = url.path();
-        let key = key.strip_prefix('/').unwrap_or(key);
+        let path = url.path();
+        let path = path.strip_prefix('/').unwrap_or(path);
+        let key = percent_encoding::percent_decode_str(path)
+            .decode_utf8()
+            .map_err(S3UrlError::BadPath)?
+            .into_owned();
         Ok(S3Location {
             bucket_spec: BucketSpec {
                 bucket: bucket.into(),
                 region: region.map(String::from),
             },
-            key: key.to_owned(),
+            key,
         })
     }
 }
@@ -271,6 +275,8 @@ pub(crate) enum S3UrlError {
     NoDomain,
     #[error("domain in URL is not S3")]
     InvalidDomain,
+    #[error("URL path does not decode to UTF-8")]
+    BadPath(#[source] std::str::Utf8Error),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -534,6 +540,12 @@ mod tests {
     )]
     #[case("https://dandiarchive.s3.us-west-2.amazonaws.com/zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/", "dandiarchive", Some("us-west-2"), "zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/")]
     #[case("https://dandiarchive.s3-us-west-2.amazonaws.com/zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/", "dandiarchive", Some("us-west-2"), "zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/")]
+    #[case(
+        "https://dandiarchive.s3.amazonaws.com/zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/foo%20bar.txt",
+        "dandiarchive",
+        None,
+        "zarr/bf47be1a-4fed-4105-bcb4-c52534a45b82/foo bar.txt"
+    )]
     fn test_good_s3location_urls(
         #[case] url: Url,
         #[case] bucket: &str,

@@ -31,6 +31,8 @@ pub(crate) const S3CLIENT_CACHE_SIZE: NonZeroUsize = {
 
 pub(crate) static HTML_CONTENT_TYPE: &str = "text/html; charset=utf-8";
 
+pub(crate) static CSS_CONTENT_TYPE: &str = "text/css; charset=utf-8";
+
 pub(crate) static YAML_CONTENT_TYPE: &str = "text/yaml; charset=utf-8";
 
 pub(crate) static DEFAULT_CONTENT_TYPE: &str = "application/octet-stream";

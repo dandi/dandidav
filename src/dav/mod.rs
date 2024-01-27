@@ -7,7 +7,7 @@ use self::html::*;
 use self::path::*;
 use self::types::*;
 use self::util::*;
-use crate::consts::HTML_CONTENT_TYPE;
+use crate::consts::{CSS_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
 use crate::paths::PurePath;
 use axum::{
@@ -21,6 +21,8 @@ use http::response::Response;
 use thiserror::Error;
 
 static ALLOW_HEADER_VALUE: &str = "GET, HEAD, PROPFIND, OPTIONS";
+
+static STYLESHEET: &str = include_str!("static/styles.css");
 
 pub(crate) struct DandiDav {
     client: Client,
@@ -42,6 +44,9 @@ impl DandiDav {
         req: Request<Body>,
     ) -> Result<Response<Body>, DavError> {
         match req.method() {
+            &Method::GET if req.uri().path() == "/.static/styles.css" => {
+                Ok(([("Content-Type", CSS_CONTENT_TYPE)], STYLESHEET).into_response())
+            }
             &Method::GET => {
                 let Some(path) = DavPath::parse_uri_path(req.uri().path()) else {
                     return Ok(StatusCode::NOT_FOUND.into_response());

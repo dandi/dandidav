@@ -1,5 +1,5 @@
 use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
-use crate::dandiapi::*;
+use crate::dandi::*;
 use crate::paths::{PureDirPath, PurePath};
 use axum::{
     body::Body,

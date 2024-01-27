@@ -1,6 +1,6 @@
 #![allow(unused)]
 mod consts;
-mod dandiapi;
+mod dandi;
 mod dav;
 mod paths;
 mod s3;

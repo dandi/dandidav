@@ -425,6 +425,18 @@ impl DavResource {
     }
 }
 
+impl From<DavCollection> for DavResource {
+    fn from(value: DavCollection) -> DavResource {
+        DavResource::Collection(value)
+    }
+}
+
+impl From<DavItem> for DavResource {
+    fn from(value: DavItem) -> DavResource {
+        DavResource::Item(value)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DavResourceWithChildren {
     Collection {
@@ -454,6 +466,12 @@ impl DavResourceWithChildren {
                 DavResourceWithChildren::Item(item.with_href_prefix(prefix))
             }
         }
+    }
+}
+
+impl From<DavItem> for DavResourceWithChildren {
+    fn from(value: DavItem) -> DavResourceWithChildren {
+        DavResourceWithChildren::Item(value)
     }
 }
 

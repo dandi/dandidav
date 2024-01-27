@@ -1,7 +1,7 @@
 use super::consts::USER_AGENT;
-use super::paths::{ParsePurePathError, PureDirPath, PurePath};
+use super::paths::{ParsePureDirPathError, ParsePurePathError, PureDirPath, PurePath};
 use async_stream::try_stream;
-use aws_sdk_s3::{operation::list_objects_v2::ListObjectsV2Error, Client};
+use aws_sdk_s3::{operation::list_objects_v2::ListObjectsV2Error, types::CommonPrefix, Client};
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
 use aws_smithy_types_convert::date_time::DateTimeExt;
 use futures_util::{Stream, TryStreamExt};
@@ -72,16 +72,7 @@ impl S3Client {
                 let folders = page.common_prefixes
                     .unwrap_or_default()
                     .into_iter()
-                    .filter_map(|compre| {
-                        // TODO on None: Error?  Emit a warning?
-                        compre.prefix.map(|key_prefix| {
-                            // TODO: Handle this error!
-                            let key_prefix = key_prefix
-                                .parse::<PureDirPath>()
-                                .expect("S3 key common prefix should be normalized relative dir path");
-                            S3Folder {key_prefix}
-                        })
-                    }).collect::<Vec<_>>();
+                    .map(S3Folder::try_from).collect::<Result<Vec<_>, _>>()?;
                 yield S3EntryPage {folders, objects};
             }
         }
@@ -312,6 +303,20 @@ impl S3Folder {
     }
 }
 
+impl TryFrom<CommonPrefix> for S3Folder {
+    type Error = TryFromCommonPrefixError;
+
+    fn try_from(value: CommonPrefix) -> Result<S3Folder, Self::Error> {
+        let Some(prefix) = value.prefix else {
+            return Err(TryFromCommonPrefixError::NoPrefix);
+        };
+        let key_prefix = prefix
+            .parse::<PureDirPath>()
+            .map_err(|source| TryFromCommonPrefixError::BadPrefix { prefix, source })?;
+        Ok(S3Folder { key_prefix })
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct S3Object {
     pub(crate) key: PurePath,
@@ -390,6 +395,19 @@ pub(crate) enum S3Error {
     },
     #[error("invalid object found in bucket")]
     BadObject(#[from] TryFromAwsObjectError),
+    #[error("invalid common prefix found in bucket")]
+    BadPrefix(#[from] TryFromCommonPrefixError),
+}
+
+#[derive(Clone, Debug, Error, Eq, PartialEq)]
+pub(crate) enum TryFromCommonPrefixError {
+    #[error(r#"CommonPrefix lacks "prefix" field"#)]
+    NoPrefix,
+    #[error("CommonPrefix {prefix:?} is not a well-formed directory path")]
+    BadPrefix {
+        prefix: String,
+        source: ParsePureDirPathError,
+    },
 }
 
 #[derive(Debug, Error)]

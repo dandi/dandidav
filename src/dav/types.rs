@@ -1,5 +1,5 @@
+use super::multistatus::{PropValue, Property};
 use super::util::{format_creationdate, format_modifieddate, urlencode, version_path};
-use super::xml::{PropValue, Property};
 use super::VersionSpec;
 use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
 use crate::dandi::*;

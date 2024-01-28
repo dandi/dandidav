@@ -9,7 +9,7 @@ use self::path::*;
 use self::types::*;
 use self::util::*;
 use self::xml::*;
-use crate::consts::{CSS_CONTENT_TYPE, HTML_CONTENT_TYPE};
+use crate::consts::{CSS_CONTENT_TYPE, DAV_XML_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
 use crate::paths::PurePath;
 use axum::{
@@ -138,7 +138,7 @@ impl DandiDav {
             .collect::<Vec<_>>();
         Ok((
             StatusCode::MULTI_STATUS,
-            [("Content-Type", "text/xml; charset=utf-8")],
+            [("Content-Type", DAV_XML_CONTENT_TYPE)],
             (Multistatus { response }).to_xml()?,
         )
             .into_response())

@@ -1,4 +1,5 @@
 use super::VersionSpec;
+use crate::consts::DAV_XML_CONTENT_TYPE;
 use crate::dandi::DandisetId;
 use crate::paths::PureDirPath;
 use axum::{
@@ -85,7 +86,7 @@ impl<S: Send + Sync> FromRequestParts<S> for FiniteDepth {
             Some("1") => Ok(FiniteDepth::One),
             Some("infinity") | None => Err((
                 StatusCode::FORBIDDEN,
-                [("Content-Type", "text/xml; charset=utf-8")],
+                [("Content-Type", DAV_XML_CONTENT_TYPE)],
                 INFINITE_DEPTH_RESPONSE,
             )
                 .into_response()),

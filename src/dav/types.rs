@@ -289,7 +289,13 @@ impl DavItem {
     }
 
     pub(super) fn href(&self) -> String {
-        urlencode(&format!("/{}", self.path))
+        if let DavContent::Redirect(ref url) = self.content {
+            // Link directly to the download URL in the web view in order to
+            // save a request
+            url.to_string()
+        } else {
+            urlencode(&format!("/{}", self.path))
+        }
     }
 
     pub(super) fn under_version_path(

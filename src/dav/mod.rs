@@ -15,11 +15,10 @@ use crate::paths::PurePath;
 use axum::{
     body::Body,
     extract::Request,
-    http::{Method, StatusCode},
+    http::{response::Response, Method, StatusCode},
     response::{IntoResponse, Redirect},
 };
 use futures_util::TryStreamExt;
-use http::response::Response;
 use std::collections::BTreeMap;
 use thiserror::Error;
 

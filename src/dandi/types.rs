@@ -115,34 +115,6 @@ impl Asset {
             Asset::Zarr(a) => &a.path,
         }
     }
-
-    pub(crate) fn size(&self) -> i64 {
-        match self {
-            Asset::Blob(a) => a.size,
-            Asset::Zarr(a) => a.size,
-        }
-    }
-
-    pub(crate) fn created(&self) -> OffsetDateTime {
-        match self {
-            Asset::Blob(a) => a.created,
-            Asset::Zarr(a) => a.created,
-        }
-    }
-
-    pub(crate) fn modified(&self) -> OffsetDateTime {
-        match self {
-            Asset::Blob(a) => a.modified,
-            Asset::Zarr(a) => a.modified,
-        }
-    }
-
-    pub(crate) fn metadata(&self) -> &AssetMetadata {
-        match self {
-            Asset::Blob(a) => &a.metadata,
-            Asset::Zarr(a) => &a.metadata,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

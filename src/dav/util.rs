@@ -80,7 +80,7 @@ pub(super) enum FiniteDepth {
 impl<S: Send + Sync> FromRequestParts<S> for FiniteDepth {
     type Rejection = Response<Body>;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         match parts.headers.get("Depth").and_then(|v| v.to_str().ok()) {
             Some("0") => Ok(FiniteDepth::Zero),
             Some("1") => Ok(FiniteDepth::One),

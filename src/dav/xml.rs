@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::io::{Cursor, Write};
 use thiserror::Error;
 use xml::writer::{events::XmlEvent, EmitterConfig, Error as WriteError, EventWriter};
 
@@ -85,7 +84,11 @@ pub(super) enum Property {
     ResourceType,
     //LockDiscovery,
     //SupportedLock,
-    Custom { namespace: String, name: String },
+    #[allow(dead_code)]
+    Custom {
+        namespace: String,
+        name: String,
+    },
 }
 
 impl Property {

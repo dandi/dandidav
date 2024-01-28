@@ -29,10 +29,6 @@ impl PurePath {
             .expect("path should be nonempty")
     }
 
-    pub(crate) fn join(&self, subpath: &PurePath) -> PurePath {
-        PurePath(format!("{self}/{subpath}"))
-    }
-
     pub(crate) fn is_strictly_under(&self, other: &PureDirPath) -> bool {
         self.0.starts_with(&other.0)
     }

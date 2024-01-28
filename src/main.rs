@@ -1,4 +1,3 @@
-#![allow(unused)]
 mod consts;
 mod dandi;
 mod dav;

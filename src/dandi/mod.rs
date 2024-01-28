@@ -7,7 +7,7 @@ pub(crate) use self::version_id::*;
 use crate::consts::{S3CLIENT_CACHE_SIZE, USER_AGENT};
 use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
 use crate::s3::{
-    BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Entry, S3Error, S3Location,
+    BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Error, S3Location,
 };
 use async_stream::try_stream;
 use futures_util::{Stream, TryStreamExt};

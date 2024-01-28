@@ -5,9 +5,8 @@ use aws_sdk_s3::{operation::list_objects_v2::ListObjectsV2Error, types::CommonPr
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
 use aws_smithy_types_convert::date_time::DateTimeExt;
 use futures_util::{Stream, TryStreamExt};
-use reqwest::{ClientBuilder, StatusCode};
+use reqwest::ClientBuilder;
 use smartstring::alias::CompactString;
-use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::sync::Arc;
 use thiserror::Error;

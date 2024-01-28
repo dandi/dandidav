@@ -26,7 +26,7 @@ impl PureDirPath {
 
     pub(crate) fn parent(&self) -> Option<PureDirPath> {
         let i = self.0.trim_end_matches('/').rfind('/')?;
-        Some(PureDirPath(self.0[..i].to_owned()))
+        Some(PureDirPath(self.0[..=i].to_owned()))
     }
 
     pub(crate) fn join(&self, path: &PurePath) -> PurePath {
@@ -130,5 +130,19 @@ mod tests {
     fn test_bad_paths(#[case] s: &str) {
         let r = s.parse::<PureDirPath>();
         assert_matches!(r, Err(_));
+    }
+
+    #[test]
+    fn test_parent() {
+        let p = "foo/bar/baz/".parse::<PureDirPath>().unwrap();
+        assert_matches!(p.parent(), Some(pp) => {
+            assert_eq!(pp, "foo/bar/");
+        });
+    }
+
+    #[test]
+    fn test_noparent() {
+        let p = "foo/".parse::<PureDirPath>().unwrap();
+        assert_matches!(p.parent(), None);
     }
 }

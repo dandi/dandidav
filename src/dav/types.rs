@@ -1,11 +1,45 @@
-use super::util::{urlencode, version_path};
+use super::util::{format_creationdate, format_modifieddate, urlencode, version_path};
+use super::xml::{PropValue, Property};
 use super::VersionSpec;
 use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
 use crate::dandi::*;
 use crate::paths::{PureDirPath, PurePath};
+use enum_dispatch::enum_dispatch;
 use serde::{ser::Serializer, Serialize};
 use time::OffsetDateTime;
 
+#[enum_dispatch]
+pub(super) trait HasProperties {
+    fn href(&self) -> String;
+    fn creationdate(&self) -> Option<String>;
+    fn displayname(&self) -> Option<String>;
+    fn getcontentlength(&self) -> Option<i64>;
+    fn getcontenttype(&self) -> Option<String>;
+    fn getetag(&self) -> Option<String>;
+    fn getlastmodified(&self) -> Option<String>;
+    fn is_collection(&self) -> bool;
+
+    fn property(&self, prop: &Property) -> Option<PropValue> {
+        match prop {
+            Property::CreationDate => self.creationdate().map(Into::into),
+            Property::DisplayName => self.displayname().map(Into::into),
+            Property::GetContentLength => self.getcontentlength().map(Into::into),
+            Property::GetContentType => self.getcontenttype().map(Into::into),
+            Property::GetETag => self.getetag().map(Into::into),
+            Property::GetLastModified => self.getlastmodified().map(Into::into),
+            Property::ResourceType => {
+                if self.is_collection() {
+                    Some(PropValue::Collection)
+                } else {
+                    Some(PropValue::Empty)
+                }
+            }
+            Property::Custom { .. } => None,
+        }
+    }
+}
+
+#[enum_dispatch(HasProperties)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DavResource {
     Collection(DavCollection),
@@ -30,18 +64,6 @@ impl DavResource {
                 DavResource::Item(item.under_version_path(dandiset_id, version))
             }
         }
-    }
-}
-
-impl From<DavCollection> for DavResource {
-    fn from(value: DavCollection) -> DavResource {
-        DavResource::Collection(value)
-    }
-}
-
-impl From<DavItem> for DavResource {
-    fn from(value: DavItem) -> DavResource {
-        DavResource::Item(value)
     }
 }
 
@@ -142,14 +164,14 @@ impl DavCollection {
         self.path.as_ref().map(PureDirPath::name)
     }
 
-    pub(super) fn href(&self) -> String {
+    pub(super) fn web_link(&self) -> String {
         match self.path {
             Some(ref p) => urlencode(&format!("/{p}")),
             None => "/".to_owned(),
         }
     }
 
-    pub(super) fn parent_href(&self) -> String {
+    pub(super) fn parent_web_link(&self) -> String {
         match self.path.as_ref().and_then(PureDirPath::parent) {
             Some(ref p) => urlencode(&format!("/{p}")),
             None => "/".to_owned(),
@@ -216,6 +238,40 @@ impl DavCollection {
             size: Some(v.size),
             kind: ResourceKind::Version,
         }
+    }
+}
+
+impl HasProperties for DavCollection {
+    fn href(&self) -> String {
+        self.web_link()
+    }
+
+    fn creationdate(&self) -> Option<String> {
+        self.created.map(format_creationdate)
+    }
+
+    fn displayname(&self) -> Option<String> {
+        self.name().map(String::from)
+    }
+
+    fn getcontentlength(&self) -> Option<i64> {
+        self.size
+    }
+
+    fn getcontenttype(&self) -> Option<String> {
+        None
+    }
+
+    fn getetag(&self) -> Option<String> {
+        None
+    }
+
+    fn getlastmodified(&self) -> Option<String> {
+        self.modified.map(format_modifieddate)
+    }
+
+    fn is_collection(&self) -> bool {
+        true
     }
 }
 
@@ -288,7 +344,7 @@ impl DavItem {
         self.path.name()
     }
 
-    pub(super) fn href(&self) -> String {
+    pub(super) fn web_link(&self) -> String {
         if let DavContent::Redirect(ref url) = self.content {
             // Link directly to the download URL in the web view in order to
             // save a request
@@ -306,6 +362,41 @@ impl DavItem {
         let path = version_path(dandiset_id, version).join(&self.path);
         self.path = path;
         self
+    }
+}
+
+impl HasProperties for DavItem {
+    fn href(&self) -> String {
+        // TODO: Should this match DavItem::web_link?
+        urlencode(&format!("/{}", self.path))
+    }
+
+    fn creationdate(&self) -> Option<String> {
+        self.created.map(format_creationdate)
+    }
+
+    fn displayname(&self) -> Option<String> {
+        Some(self.name().to_owned())
+    }
+
+    fn getcontentlength(&self) -> Option<i64> {
+        self.size
+    }
+
+    fn getcontenttype(&self) -> Option<String> {
+        Some(self.content_type.clone())
+    }
+
+    fn getetag(&self) -> Option<String> {
+        self.etag.as_ref().map(String::from)
+    }
+
+    fn getlastmodified(&self) -> Option<String> {
+        self.modified.map(format_modifieddate)
+    }
+
+    fn is_collection(&self) -> bool {
+        false
     }
 }
 

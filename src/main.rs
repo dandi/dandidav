@@ -11,13 +11,12 @@ use anyhow::Context;
 use axum::{
     body::Body,
     extract::Request,
-    http::Method,
+    http::{response::Response, Method},
     middleware::{self, Next},
     response::IntoResponse,
     Router,
 };
 use clap::Parser;
-use http::response::Response;
 use std::convert::Infallible;
 use std::net::IpAddr;
 use std::sync::Arc;

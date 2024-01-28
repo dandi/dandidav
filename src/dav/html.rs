@@ -95,7 +95,7 @@ impl From<DavCollection> for ColRow {
     fn from(col: DavCollection) -> ColRow {
         ColRow {
             name: col.name().unwrap_or("/").to_owned(),
-            href: col.href(),
+            href: col.web_link(),
             is_dir: true,
             kind: col.kind,
             size: col.size,
@@ -109,7 +109,7 @@ impl From<DavItem> for ColRow {
     fn from(item: DavItem) -> ColRow {
         ColRow {
             name: item.name().to_owned(),
-            href: item.href(),
+            href: item.web_link(),
             is_dir: false,
             kind: item.kind,
             size: item.size,

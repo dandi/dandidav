@@ -197,6 +197,31 @@ impl ZarrAsset {
             .iter()
             .find_map(|url| S3Location::parse_url(url).ok())
     }
+
+    pub(crate) fn make_resource(&self, value: S3Entry) -> DandiResource {
+        match value {
+            S3Entry::Folder(folder) => DandiResource::ZarrFolder(self.make_folder(folder)),
+            S3Entry::Object(obj) => DandiResource::ZarrEntry(self.make_entry(obj)),
+        }
+    }
+
+    pub(crate) fn make_folder(&self, folder: S3Folder) -> ZarrFolder {
+        ZarrFolder {
+            zarr_path: self.path.clone(),
+            path: folder.key_prefix,
+        }
+    }
+
+    pub(crate) fn make_entry(&self, obj: S3Object) -> ZarrEntry {
+        ZarrEntry {
+            zarr_path: self.path.clone(),
+            path: obj.key,
+            size: obj.size,
+            modified: obj.modified,
+            etag: obj.etag,
+            url: obj.download_url,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
@@ -287,40 +312,30 @@ impl DandiResource {
     }
 }
 
-impl From<S3Entry> for DandiResource {
-    fn from(value: S3Entry) -> DandiResource {
-        match value {
-            S3Entry::Folder(folder) => DandiResource::ZarrFolder(folder.into()),
-            S3Entry::Object(obj) => DandiResource::ZarrEntry(obj.into()),
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ZarrFolder {
+    pub(crate) zarr_path: PurePath,
     pub(crate) path: PureDirPath,
 }
 
-impl From<S3Folder> for ZarrFolder {
-    fn from(value: S3Folder) -> ZarrFolder {
-        ZarrFolder {
-            path: value.key_prefix,
+impl ZarrFolder {
+    pub(crate) fn make_resource(&self, value: S3Entry) -> DandiResource {
+        match value {
+            S3Entry::Folder(folder) => DandiResource::ZarrFolder(self.make_folder(folder)),
+            S3Entry::Object(obj) => DandiResource::ZarrEntry(self.make_entry(obj)),
         }
     }
-}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ZarrEntry {
-    pub(crate) path: PurePath,
-    pub(crate) size: i64,
-    pub(crate) modified: OffsetDateTime,
-    pub(crate) etag: String,
-    pub(crate) url: Url,
-}
+    pub(crate) fn make_folder(&self, folder: S3Folder) -> ZarrFolder {
+        ZarrFolder {
+            zarr_path: self.zarr_path.clone(),
+            path: folder.key_prefix,
+        }
+    }
 
-impl From<S3Object> for ZarrEntry {
-    fn from(obj: S3Object) -> ZarrEntry {
+    pub(crate) fn make_entry(&self, obj: S3Object) -> ZarrEntry {
         ZarrEntry {
+            zarr_path: self.zarr_path.clone(),
             path: obj.key,
             size: obj.size,
             modified: obj.modified,
@@ -328,6 +343,16 @@ impl From<S3Object> for ZarrEntry {
             url: obj.download_url,
         }
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ZarrEntry {
+    pub(crate) zarr_path: PurePath,
+    pub(crate) path: PurePath,
+    pub(crate) size: i64,
+    pub(crate) modified: OffsetDateTime,
+    pub(crate) etag: String,
+    pub(crate) url: Url,
 }
 
 #[derive(Clone, Debug)]

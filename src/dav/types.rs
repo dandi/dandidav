@@ -260,9 +260,9 @@ impl From<ZarrAsset> for DavCollection {
 }
 
 impl From<ZarrFolder> for DavCollection {
-    fn from(ZarrFolder { path }: ZarrFolder) -> DavCollection {
+    fn from(ZarrFolder { zarr_path, path }: ZarrFolder) -> DavCollection {
         DavCollection {
-            path: Some(path),
+            path: Some(zarr_path.to_dir_path().join_dir(&path)),
             created: None,
             modified: None,
             size: None,
@@ -357,7 +357,7 @@ impl From<BlobAsset> for DavItem {
 impl From<ZarrEntry> for DavItem {
     fn from(entry: ZarrEntry) -> DavItem {
         DavItem {
-            path: entry.path,
+            path: entry.zarr_path.to_dir_path().join(&entry.path),
             created: None,
             modified: Some(entry.modified),
             content_type: DEFAULT_CONTENT_TYPE.to_owned(),

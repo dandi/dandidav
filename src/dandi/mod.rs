@@ -362,7 +362,7 @@ impl<'a> VersionEndpoint<'a> {
                 AtAssetPath::Asset(Asset::Zarr(zarr)) => {
                     let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
                     return match s3.get_path(&entry_path).await? {
-                        Some(entry) => Ok(DandiResource::from(entry).with_s3(s3)),
+                        Some(entry) => Ok(zarr.make_resource(entry).with_s3(s3)),
                         None => Err(DandiError::ZarrEntryNotFound {
                             zarr_path,
                             entry_path,
@@ -410,7 +410,7 @@ impl<'a> VersionEndpoint<'a> {
                     let stream = s3.get_root_entries();
                     tokio::pin!(stream);
                     while let Some(child) = stream.try_next().await? {
-                        children.push(DandiResource::from(child));
+                        children.push(zarr.make_resource(child));
                     }
                 }
                 Ok(DandiResourceWithChildren::Zarr { zarr, children })
@@ -421,7 +421,7 @@ impl<'a> VersionEndpoint<'a> {
                     let stream = s3.get_folder_entries(&folder.path);
                     tokio::pin!(stream);
                     while let Some(child) = stream.try_next().await? {
-                        children.push(DandiResource::from(child));
+                        children.push(folder.make_resource(child));
                     }
                 }
                 Ok(DandiResourceWithChildren::ZarrFolder { folder, children })

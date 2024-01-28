@@ -339,13 +339,38 @@ enum PropFind {
 }
 
 impl PropFind {
-    fn find<P: HasProperties>(&self, res: P) -> DavResponse {
-        let found = BTreeMap::new();
-        let missing = BTreeMap::new();
+    fn find<P: HasProperties>(&self, res: &P) -> DavResponse {
+        let mut found = BTreeMap::new();
+        let mut missing = BTreeMap::new();
         match self {
-            PropFind::AllProp { include } => todo!(),
-            PropFind::Prop(props) => todo!(),
-            PropFind::PropName => todo!(),
+            PropFind::AllProp { include } => {
+                for prop in Property::iter_standard() {
+                    if let Some(value) = res.property(&prop) {
+                        found.insert(prop, value);
+                    }
+                }
+                for prop in include {
+                    if let Some(value) = res.property(prop) {
+                        found.insert(prop.clone(), value);
+                    } else {
+                        missing.insert(prop.clone(), PropValue::Empty);
+                    }
+                }
+            }
+            PropFind::Prop(props) => {
+                for prop in props {
+                    if let Some(value) = res.property(prop) {
+                        found.insert(prop.clone(), value);
+                    } else {
+                        missing.insert(prop.clone(), PropValue::Empty);
+                    }
+                }
+            }
+            PropFind::PropName => {
+                for prop in Property::iter_standard() {
+                    found.insert(prop, PropValue::Empty);
+                }
+            }
         }
         let mut propstat = Vec::with_capacity(2);
         if !found.is_empty() || missing.is_empty() {

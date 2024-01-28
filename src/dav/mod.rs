@@ -20,7 +20,11 @@ use futures_util::TryStreamExt;
 use http::response::Response;
 use thiserror::Error;
 
-static ALLOW_HEADER_VALUE: &str = "GET, HEAD, PROPFIND, OPTIONS";
+const WEBDAV_RESPONSE_HEADERS: [(&str, &str); 2] = [
+    ("Allow", "GET, HEAD, OPTIONS, PROPFIND"),
+    // <http://www.webdav.org/specs/rfc4918.html#HEADER_DAV>
+    ("DAV", "1, 3"),
+];
 
 static STYLESHEET: &str = include_str!("static/styles.css");
 
@@ -43,27 +47,23 @@ impl DandiDav {
         &self,
         req: Request<Body>,
     ) -> Result<Response<Body>, DavError> {
-        match req.method() {
+        let resp = match req.method() {
             &Method::GET if req.uri().path() == "/.static/styles.css" => {
-                Ok(([("Content-Type", CSS_CONTENT_TYPE)], STYLESHEET).into_response())
+                // Don't add WebDAV headers
+                return Ok(([("Content-Type", CSS_CONTENT_TYPE)], STYLESHEET).into_response());
             }
             &Method::GET => {
                 let uri_path = req.uri().path();
                 let Some(path) = DavPath::parse_uri_path(uri_path) else {
                     return Ok(not_found());
                 };
-                self.get(&path, uri_path).await
+                self.get(&path, uri_path).await?
             }
-            &Method::OPTIONS => {
-                Ok(([("Allow", ALLOW_HEADER_VALUE)], StatusCode::NO_CONTENT).into_response())
-            }
+            &Method::OPTIONS => StatusCode::NO_CONTENT.into_response(),
             m if m.as_str().eq_ignore_ascii_case("PROPFIND") => todo!(),
-            _ => Ok((
-                [("Allow", ALLOW_HEADER_VALUE)],
-                StatusCode::METHOD_NOT_ALLOWED,
-            )
-                .into_response()),
-        }
+            _ => StatusCode::METHOD_NOT_ALLOWED.into_response(),
+        };
+        Ok((WEBDAV_RESPONSE_HEADERS, resp).into_response())
     }
 
     async fn get(&self, path: &DavPath, uri_path: &str) -> Result<Response<Body>, DavError> {

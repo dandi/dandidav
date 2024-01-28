@@ -17,6 +17,7 @@ use axum::{
     extract::Request,
     http::{response::Response, Method, StatusCode},
     response::{IntoResponse, Redirect},
+    RequestExt,
 };
 use futures_util::TryStreamExt;
 use std::collections::BTreeMap;
@@ -47,22 +48,33 @@ impl DandiDav {
 
     pub(crate) async fn handle_request(
         &self,
-        req: Request<Body>,
+        mut req: Request<Body>,
     ) -> Result<Response<Body>, DavError> {
+        let uri_path = req.uri().path();
         let resp = match req.method() {
-            &Method::GET if req.uri().path() == "/.static/styles.css" => {
+            &Method::GET if uri_path == "/.static/styles.css" => {
                 // Don't add WebDAV headers
                 return Ok(([("Content-Type", CSS_CONTENT_TYPE)], STYLESHEET).into_response());
             }
             &Method::GET => {
-                let uri_path = req.uri().path();
                 let Some(path) = DavPath::parse_uri_path(uri_path) else {
                     return Ok(not_found());
                 };
                 self.get(&path, uri_path).await?
             }
             &Method::OPTIONS => StatusCode::NO_CONTENT.into_response(),
-            m if m.as_str().eq_ignore_ascii_case("PROPFIND") => todo!(),
+            m if m.as_str().eq_ignore_ascii_case("PROPFIND") => {
+                let Some(path) = DavPath::parse_uri_path(uri_path) else {
+                    return Ok(not_found());
+                };
+                match req.extract_parts::<FiniteDepth>().await {
+                    Ok(depth) => {
+                        // TODO: Extract request body
+                        self.propfind(&path, depth, PropFind::default()).await?
+                    }
+                    Err(r) => r,
+                }
+            }
             _ => StatusCode::METHOD_NOT_ALLOWED.into_response(),
         };
         Ok((WEBDAV_RESPONSE_HEADERS, resp).into_response())
@@ -102,14 +114,34 @@ impl DandiDav {
         }
     }
 
-    #[allow(clippy::unused_async)]
     async fn propfind(
         &self,
         path: &DavPath,
-        depth1: bool,
-        body: Option<PropFind>,
+        depth: FiniteDepth,
+        query: PropFind,
     ) -> Result<Response<Body>, DavError> {
-        todo!()
+        let resources = match depth {
+            FiniteDepth::Zero => vec![self.resolve(path).await?],
+            FiniteDepth::One => match self.resolve_with_children(path).await? {
+                DavResourceWithChildren::Collection { col, children } => {
+                    let mut reses = Vec::with_capacity(children.len().saturating_add(1));
+                    reses.push(DavResource::from(col));
+                    reses.extend(children);
+                    reses
+                }
+                DavResourceWithChildren::Item(item) => vec![DavResource::Item(item)],
+            },
+        };
+        let response = resources
+            .into_iter()
+            .map(|r| query.find(&r))
+            .collect::<Vec<_>>();
+        Ok((
+            StatusCode::MULTI_STATUS,
+            [("Content-Type", "text/xml; charset=utf-8")],
+            (Multistatus { response }).to_xml()?,
+        )
+            .into_response())
     }
 
     async fn get_version_endpoint(
@@ -306,6 +338,8 @@ pub(crate) enum DavError {
     NoLatestVersion { dandiset_id: DandisetId },
     #[error(transparent)]
     Template(#[from] TemplateError),
+    #[error(transparent)]
+    Xml(#[from] ToXmlError),
 }
 
 impl DavError {
@@ -402,5 +436,5 @@ impl Default for PropFind {
 }
 
 fn not_found() -> Response<Body> {
-    (StatusCode::NOT_FOUND, "404\n").into_response()
+    (StatusCode::NOT_FOUND, WEBDAV_RESPONSE_HEADERS, "404\n").into_response()
 }

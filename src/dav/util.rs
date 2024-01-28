@@ -70,19 +70,19 @@ pub(super) fn format_modifieddate(dt: OffsetDateTime) -> String {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub(super) enum Depth {
+pub(super) enum FiniteDepth {
     Zero,
     One,
 }
 
 #[async_trait]
-impl<S: Send + Sync> FromRequestParts<S> for Depth {
+impl<S: Send + Sync> FromRequestParts<S> for FiniteDepth {
     type Rejection = Response<Body>;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         match parts.headers.get("Depth").and_then(|v| v.to_str().ok()) {
-            Some("0") => Ok(Depth::Zero),
-            Some("1") => Ok(Depth::One),
+            Some("0") => Ok(FiniteDepth::Zero),
+            Some("1") => Ok(FiniteDepth::One),
             Some("infinity") | None => Err((
                 StatusCode::FORBIDDEN,
                 [("Content-Type", "text/xml; charset=utf-8")],

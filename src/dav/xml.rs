@@ -5,7 +5,7 @@ use xml::writer::{events::XmlEvent, EmitterConfig, Error as WriteError, EventWri
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct Multistatus {
-    response: Vec<DavResponse>,
+    pub(super) response: Vec<DavResponse>,
     //responsedescription
 }
 
@@ -222,7 +222,7 @@ impl XmlWriter {
 }
 
 #[derive(Debug, Error)]
-pub(super) enum ToXmlError {
+pub(crate) enum ToXmlError {
     #[error("failed to generate XML")]
     Xml(#[from] WriteError),
     #[error("generated XML was not valid UTF-8")]

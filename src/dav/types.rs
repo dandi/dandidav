@@ -19,24 +19,22 @@ pub(super) trait HasProperties {
     fn getlastmodified(&self) -> Option<String>;
     fn is_collection(&self) -> bool;
 
-    fn property(&self, prop: Property) -> Option<PropValue> {
-        if prop.namespace.is_some() {
-            return None;
-        }
-        match &*prop.name {
-            "creationdate" => self.creationdate().map(Into::into),
-            "displayname" => self.displayname().map(Into::into),
-            "getcontentlength" => self.getcontentlength().map(Into::into),
-            "getetag" => self.getetag().map(Into::into),
-            "getlastmodified" => self.getlastmodified().map(Into::into),
-            "resourcetype" => {
+    fn property(&self, prop: &Property) -> Option<PropValue> {
+        match prop {
+            Property::CreationDate => self.creationdate().map(Into::into),
+            Property::DisplayName => self.displayname().map(Into::into),
+            Property::GetContentLength => self.getcontentlength().map(Into::into),
+            Property::GetContentType => self.getcontenttype().map(Into::into),
+            Property::GetETag => self.getetag().map(Into::into),
+            Property::GetLastModified => self.getlastmodified().map(Into::into),
+            Property::ResourceType => {
                 if self.is_collection() {
                     Some(PropValue::Collection)
                 } else {
                     Some(PropValue::Empty)
                 }
             }
-            _ => None,
+            Property::Custom { .. } => None,
         }
     }
 }

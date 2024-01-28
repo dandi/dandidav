@@ -63,16 +63,7 @@ impl PropStat {
         writer.tag("propstat", |writer| {
             writer.tag("prop", |writer| {
                 for (k, v) in &self.prop {
-                    match k {
-                        Property {
-                            namespace: Some(ns),
-                            name,
-                        } => writer.tag_xmlns(name, ns, |writer| v.write_xml(writer))?,
-                        Property {
-                            namespace: None,
-                            name,
-                        } => writer.tag(name, |writer| v.write_xml(writer))?,
-                    }
+                    k.write_xml(writer, v)?;
                 }
                 Ok(())
             })?;
@@ -83,18 +74,48 @@ impl PropStat {
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(super) struct Property {
-    // None means the "DAV:" namespace
-    pub(super) namespace: Option<String>,
-    pub(super) name: String,
+pub(super) enum Property {
+    CreationDate,
+    DisplayName,
+    //GetContentLanguage,
+    GetContentLength,
+    GetContentType,
+    GetETag,
+    GetLastModified,
+    ResourceType,
+    //LockDiscovery,
+    //SupportedLock,
+    Custom { namespace: String, name: String },
 }
 
-impl From<&'static str> for Property {
-    fn from(s: &'static str) -> Property {
-        Property {
-            namespace: None,
-            name: s.into(),
+impl Property {
+    pub(super) fn iter_standard() -> impl Iterator<Item = Property> {
+        [
+            Property::CreationDate,
+            Property::DisplayName,
+            Property::GetContentLength,
+            Property::GetContentType,
+            Property::GetETag,
+            Property::GetLastModified,
+            Property::ResourceType,
+        ]
+        .into_iter()
+    }
+
+    fn write_xml(&self, writer: &mut XmlWriter, value: &PropValue) -> Result<(), WriteError> {
+        match self {
+            Property::CreationDate => writer.start_tag("creationdate")?,
+            Property::DisplayName => writer.start_tag("displayname")?,
+            Property::GetContentLength => writer.start_tag("getcontentlength")?,
+            Property::GetContentType => writer.start_tag("getcontenttype")?,
+            Property::GetETag => writer.start_tag("getetag")?,
+            Property::GetLastModified => writer.start_tag("getlastmodified")?,
+            Property::ResourceType => writer.start_tag("resourcetype")?,
+            Property::Custom { namespace, name } => writer.start_tag_ns(name, namespace)?,
         }
+        value.write_xml(writer)?;
+        writer.end_tag()?;
+        Ok(())
     }
 }
 
@@ -154,7 +175,7 @@ impl XmlWriter {
     where
         F: FnOnce(&mut Self) -> Result<(), WriteError>,
     {
-        self.0.write(XmlEvent::start_element(name).default_ns(ns))?;
+        self.start_tag_ns(name, ns)?;
         func(self)?;
         self.end_tag()?;
         Ok(())
@@ -172,6 +193,10 @@ impl XmlWriter {
 
     fn start_tag(&mut self, name: &str) -> Result<(), WriteError> {
         self.0.write(XmlEvent::start_element(name))
+    }
+
+    fn start_tag_ns(&mut self, name: &str, ns: &str) -> Result<(), WriteError> {
+        self.0.write(XmlEvent::start_element(name).default_ns(ns))
     }
 
     fn end_tag(&mut self) -> Result<(), WriteError> {
@@ -218,8 +243,8 @@ mod tests {
                     href: "/foo/".into(),
                     propstat: vec![PropStat {
                         prop: BTreeMap::from([
-                            ("resourcetype".into(), PropValue::Collection),
-                            ("displayname".into(), PropValue::String("foo".into())),
+                            (Property::ResourceType, PropValue::Collection),
+                            (Property::DisplayName, PropValue::String("foo".into())),
                         ]),
                         status: "HTTP/1.1 200 OK".into(),
                     }],
@@ -230,24 +255,24 @@ mod tests {
                     propstat: vec![PropStat {
                         prop: BTreeMap::from([
                             (
-                                "creationdate".into(),
+                                Property::CreationDate,
                                 PropValue::String("2024-01-28T13:36:54+05:00".into()),
                             ),
-                            ("displayname".into(), PropValue::String("bar.txt".into())),
-                            ("getcontentlength".into(), PropValue::Int(42)),
+                            (Property::DisplayName, PropValue::String("bar.txt".into())),
+                            (Property::GetContentLength, PropValue::Int(42)),
                             (
-                                "getcontenttype".into(),
+                                Property::GetContentType,
                                 PropValue::String("text/plain; charset=us-ascii".into()),
                             ),
                             (
-                                "getetag".into(),
+                                Property::GetETag,
                                 PropValue::String(r#""0123456789abcdef""#.into()),
                             ),
                             (
-                                "getlastmodified".into(),
+                                Property::GetLastModified,
                                 PropValue::String("2024-01-28T13:38:10+05:00".into()),
                             ),
-                            ("resourcetype".into(), PropValue::Empty),
+                            (Property::ResourceType, PropValue::Empty),
                         ]),
                         status: "HTTP/1.1 200 OK".into(),
                     }],
@@ -257,21 +282,21 @@ mod tests {
                     href: "/foo/quux.dat".into(),
                     propstat: vec![PropStat {
                         prop: BTreeMap::from([
-                            ("displayname".into(), PropValue::String("quux.dat".into())),
-                            ("getcontentlength".into(), PropValue::Int(65535)),
+                            (Property::DisplayName, PropValue::String("quux.dat".into())),
+                            (Property::GetContentLength, PropValue::Int(65535)),
                             (
-                                "getcontenttype".into(),
+                                Property::GetContentType,
                                 PropValue::String("application/octet-stream".into()),
                             ),
                             (
-                                "getetag".into(),
+                                Property::GetETag,
                                 PropValue::String(r#""ABCDEFGHIJKLMNOPQRSTUVWXYZ""#.into()),
                             ),
                             (
-                                "getlastmodified".into(),
+                                Property::GetLastModified,
                                 PropValue::String("2024-01-28T13:39:25+05:00".into()),
                             ),
-                            ("resourcetype".into(), PropValue::Empty),
+                            (Property::ResourceType, PropValue::Empty),
                         ]),
                         status: "HTTP/1.1 307 TEMPORARY REDIRECT".into(),
                     }],

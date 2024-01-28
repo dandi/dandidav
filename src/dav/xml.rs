@@ -43,7 +43,7 @@ impl Response {
             writer.text_tag("href", &self.href)?;
             self.propstat.write_xml(writer)?;
             if let Some(ref loc) = self.location {
-                writer.text_tag("location", loc)?;
+                writer.tag("location", |writer| writer.text_tag("href", loc))?;
             }
             Ok(())
         })
@@ -286,7 +286,9 @@ mod tests {
                         </prop>
                         <status>HTTP/1.1 307 TEMPORARY REDIRECT</status>
                     </propstat>
-                    <location>https://www.example.com/data/quux.dat</location>
+                    <location>
+                        <href>https://www.example.com/data/quux.dat</href>
+                    </location>
                 </response>
             </multistatus>
         "#}

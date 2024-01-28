@@ -499,7 +499,7 @@ pub(crate) async fn get_bucket_region(bucket: &str) -> Result<String, GetBucketR
         .build()
         .map_err(GetBucketRegionError::BuildClient)?;
     let r = client
-        .head(format!("https://{bucket}.amazonaws.com"))
+        .head(format!("https://{bucket}.s3.amazonaws.com"))
         .send()
         .await
         .map_err(GetBucketRegionError::Send)?

@@ -8,6 +8,7 @@ use self::html::*;
 use self::path::*;
 use self::types::*;
 use self::util::*;
+use self::xml::Property;
 use crate::consts::{CSS_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
 use crate::paths::PurePath;
@@ -73,7 +74,7 @@ impl DandiDav {
                 let mut rows = children.into_iter().map(ColRow::from).collect::<Vec<_>>();
                 rows.sort_unstable();
                 if path != &DavPath::Root {
-                    rows.insert(0, ColRow::parentdir(col.parent_href()));
+                    rows.insert(0, ColRow::parentdir(col.parent_web_link()));
                 }
                 let context = CollectionContext {
                     title: format!("{} — {}", self.title, uri_path),
@@ -106,7 +107,7 @@ impl DandiDav {
         &self,
         path: &DavPath,
         depth1: bool,
-        body: Option<Propfind>,
+        body: Option<PropFind>,
     ) -> Result<Response<Body>, DavError> {
         todo!()
     }
@@ -329,7 +330,20 @@ impl IntoResponse for DavError {
     }
 }
 
-pub(crate) struct Propfind; // TODO
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum PropFind {
+    AllProp { include: Vec<Property> },
+    Prop(Vec<Property>),
+    PropName,
+}
+
+impl Default for PropFind {
+    fn default() -> PropFind {
+        PropFind::AllProp {
+            include: Vec::new(),
+        }
+    }
+}
 
 fn not_found() -> Response<Body> {
     (StatusCode::NOT_FOUND, "404\n").into_response()

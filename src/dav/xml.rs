@@ -84,6 +84,7 @@ impl PropStat {
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(super) struct Property {
+    // None means the "DAV:" namespace
     namespace: Option<String>,
     name: String,
 }

@@ -1,4 +1,4 @@
-use super::util::version_path;
+use super::util::{urlencode, version_path};
 use super::VersionSpec;
 use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
 use crate::dandi::*;
@@ -144,14 +144,14 @@ impl DavCollection {
 
     pub(super) fn href(&self) -> String {
         match self.path {
-            Some(ref p) => format!("/{p}"),
+            Some(ref p) => urlencode(&format!("/{p}")),
             None => "/".to_owned(),
         }
     }
 
     pub(super) fn parent_href(&self) -> String {
         match self.path.as_ref().and_then(PureDirPath::parent) {
-            Some(ref p) => format!("/{p}"),
+            Some(ref p) => urlencode(&format!("/{p}")),
             None => "/".to_owned(),
         }
     }
@@ -289,7 +289,7 @@ impl DavItem {
     }
 
     pub(super) fn href(&self) -> String {
-        format!("/{}", self.path)
+        urlencode(&format!("/{}", self.path))
     }
 
     pub(super) fn under_version_path(

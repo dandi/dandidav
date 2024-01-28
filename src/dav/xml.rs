@@ -52,7 +52,7 @@ impl Response {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct PropStat {
-    prop: BTreeMap<String, PropValue>,
+    prop: BTreeMap<Property, PropValue>,
     status: String,
     //error
     //responsedescription
@@ -63,13 +63,37 @@ impl PropStat {
         writer.tag("propstat", |writer| {
             writer.tag("prop", |writer| {
                 for (k, v) in &self.prop {
-                    writer.tag(k, |writer| v.write_xml(writer))?;
+                    match k {
+                        Property {
+                            namespace: Some(ns),
+                            name,
+                        } => writer.tag_xmlns(name, ns, |writer| v.write_xml(writer))?,
+                        Property {
+                            namespace: None,
+                            name,
+                        } => writer.tag(name, |writer| v.write_xml(writer))?,
+                    }
                 }
                 Ok(())
             })?;
             writer.text_tag("status", &self.status)?;
             Ok(())
         })
+    }
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(super) struct Property {
+    namespace: Option<String>,
+    name: String,
+}
+
+impl From<&'static str> for Property {
+    fn from(s: &'static str) -> Property {
+        Property {
+            namespace: None,
+            name: s.into(),
+        }
     }
 }
 

@@ -29,9 +29,7 @@ pub(super) struct Response {
     href: String,
     // TODO: RFC 4918 says <response> can contain (href*, status) as an
     // alternative to propstat.  When does that apply?
-    // TODO: RFC 4918 says a <response> can contain multiple <propstat>s.  When
-    // does that apply?
-    propstat: PropStat,
+    propstat: Vec<PropStat>,
     //error
     //responsedescription
     location: Option<String>,
@@ -41,7 +39,9 @@ impl Response {
     fn write_xml(&self, writer: &mut XmlWriter) -> Result<(), WriteError> {
         writer.tag("response", |writer| {
             writer.text_tag("href", &self.href)?;
-            self.propstat.write_xml(writer)?;
+            for p in &self.propstat {
+                p.write_xml(writer)?;
+            }
             if let Some(ref loc) = self.location {
                 writer.tag("location", |writer| writer.text_tag("href", loc))?;
             }
@@ -100,8 +100,10 @@ impl From<&'static str> for Property {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum PropValue {
-    // Used for <resourcetype> of non-collections and for <propname> responses
+    // Used for <resourcetype> of non-collections, requested properties that
+    // aren't present, and <propname> responses
     Empty,
+    // `<resourcetype>` value for collections
     Collection,
     String(String),
     Int(i64),
@@ -202,18 +204,18 @@ mod tests {
             response: vec![
                 Response {
                     href: "/foo/".into(),
-                    propstat: PropStat {
+                    propstat: vec![PropStat {
                         prop: BTreeMap::from([
                             ("resourcetype".into(), PropValue::Collection),
                             ("displayname".into(), PropValue::String("foo".into())),
                         ]),
                         status: "HTTP/1.1 200 OK".into(),
-                    },
+                    }],
                     location: None,
                 },
                 Response {
                     href: "/foo/bar.txt".into(),
-                    propstat: PropStat {
+                    propstat: vec![PropStat {
                         prop: BTreeMap::from([
                             (
                                 "creationdate".into(),
@@ -236,12 +238,12 @@ mod tests {
                             ("resourcetype".into(), PropValue::Empty),
                         ]),
                         status: "HTTP/1.1 200 OK".into(),
-                    },
+                    }],
                     location: None,
                 },
                 Response {
                     href: "/foo/quux.dat".into(),
-                    propstat: PropStat {
+                    propstat: vec![PropStat {
                         prop: BTreeMap::from([
                             ("displayname".into(), PropValue::String("quux.dat".into())),
                             ("getcontentlength".into(), PropValue::Int(65535)),
@@ -260,7 +262,7 @@ mod tests {
                             ("resourcetype".into(), PropValue::Empty),
                         ]),
                         status: "HTTP/1.1 307 TEMPORARY REDIRECT".into(),
-                    },
+                    }],
                     location: Some("https://www.example.com/data/quux.dat".into()),
                 },
             ],

@@ -8,7 +8,14 @@ use crate::consts::DEFAULT_API_URL;
 use crate::dandi::Client;
 use crate::dav::{DandiDav, Templater};
 use anyhow::Context;
-use axum::{body::Body, extract::Request, response::IntoResponse, Router};
+use axum::{
+    body::Body,
+    extract::Request,
+    http::Method,
+    middleware::{self, Next},
+    response::IntoResponse,
+    Router,
+};
 use clap::Parser;
 use http::response::Response;
 use std::convert::Infallible;
@@ -51,6 +58,7 @@ async fn main() -> anyhow::Result<()> {
                 async move { Ok::<_, Infallible>(dav.handle_request(req).await.into_response()) }
             }),
         )
+        .layer(middleware::from_fn(handle_head))
         .layer(TraceLayer::new_for_http());
     let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
         .await
@@ -59,4 +67,15 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("failed to serve application")?;
     Ok(())
+}
+
+async fn handle_head(method: Method, mut request: Request<Body>, next: Next) -> Response<Body> {
+    if method == Method::HEAD {
+        *request.method_mut() = Method::GET;
+        let mut resp = next.run(request).await;
+        *resp.body_mut() = Body::empty();
+        resp
+    } else {
+        next.run(request).await
+    }
 }

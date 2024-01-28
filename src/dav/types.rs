@@ -1,4 +1,5 @@
 use super::util::{format_creationdate, format_modifieddate, urlencode, version_path};
+use super::xml::{PropValue, Property};
 use super::VersionSpec;
 use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
 use crate::dandi::*;
@@ -8,7 +9,7 @@ use serde::{ser::Serializer, Serialize};
 use time::OffsetDateTime;
 
 #[enum_dispatch]
-trait HasProperties {
+pub(super) trait HasProperties {
     fn href(&self) -> String;
     fn creationdate(&self) -> Option<String>;
     fn displayname(&self) -> Option<String>;
@@ -17,6 +18,27 @@ trait HasProperties {
     fn getetag(&self) -> Option<String>;
     fn getlastmodified(&self) -> Option<String>;
     fn is_collection(&self) -> bool;
+
+    fn property(&self, prop: Property) -> Option<PropValue> {
+        if prop.namespace.is_some() {
+            return None;
+        }
+        match &*prop.name {
+            "creationdate" => self.creationdate().map(Into::into),
+            "displayname" => self.displayname().map(Into::into),
+            "getcontentlength" => self.getcontentlength().map(Into::into),
+            "getetag" => self.getetag().map(Into::into),
+            "getlastmodified" => self.getlastmodified().map(Into::into),
+            "resourcetype" => {
+                if self.is_collection() {
+                    Some(PropValue::Collection)
+                } else {
+                    Some(PropValue::Empty)
+                }
+            }
+            _ => None,
+        }
+    }
 }
 
 #[enum_dispatch(HasProperties)]

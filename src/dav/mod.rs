@@ -8,7 +8,7 @@ use self::html::*;
 use self::path::*;
 use self::types::*;
 use self::util::*;
-use self::xml::Property;
+use self::xml::*;
 use crate::consts::{CSS_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
 use crate::paths::PurePath;
@@ -20,6 +20,7 @@ use axum::{
 };
 use futures_util::TryStreamExt;
 use http::response::Response;
+use std::collections::BTreeMap;
 use thiserror::Error;
 
 const WEBDAV_RESPONSE_HEADERS: [(&str, &str); 2] = [
@@ -335,6 +336,37 @@ enum PropFind {
     AllProp { include: Vec<Property> },
     Prop(Vec<Property>),
     PropName,
+}
+
+impl PropFind {
+    fn find<P: HasProperties>(&self, res: P) -> DavResponse {
+        let found = BTreeMap::new();
+        let missing = BTreeMap::new();
+        match self {
+            PropFind::AllProp { include } => todo!(),
+            PropFind::Prop(props) => todo!(),
+            PropFind::PropName => todo!(),
+        }
+        let mut propstat = Vec::with_capacity(2);
+        if !found.is_empty() || missing.is_empty() {
+            propstat.push(PropStat {
+                prop: found,
+                status: "HTTP/1.1 200 OK".into(),
+            });
+        }
+        if !missing.is_empty() {
+            propstat.push(PropStat {
+                prop: missing,
+                status: "HTTP/1.1 404 NOT FOUND".into(),
+            });
+        }
+        DavResponse {
+            href: res.href(),
+            propstat,
+            // TODO: Should `location` be set to redirect URLs?
+            location: None,
+        }
+    }
 }
 
 impl Default for PropFind {

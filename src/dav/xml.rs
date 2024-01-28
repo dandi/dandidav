@@ -5,7 +5,7 @@ use xml::writer::{events::XmlEvent, EmitterConfig, Error as WriteError, EventWri
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct Multistatus {
-    response: Vec<Response>,
+    response: Vec<DavResponse>,
     //responsedescription
 }
 
@@ -25,17 +25,17 @@ impl Multistatus {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct Response {
-    href: String,
+pub(super) struct DavResponse {
+    pub(super) href: String,
     // TODO: RFC 4918 says <response> can contain (href*, status) as an
     // alternative to propstat.  When does that apply?
-    propstat: Vec<PropStat>,
+    pub(super) propstat: Vec<PropStat>,
     //error
     //responsedescription
-    location: Option<String>,
+    pub(super) location: Option<String>,
 }
 
-impl Response {
+impl DavResponse {
     fn write_xml(&self, writer: &mut XmlWriter) -> Result<(), WriteError> {
         writer.tag("response", |writer| {
             writer.text_tag("href", &self.href)?;
@@ -52,8 +52,8 @@ impl Response {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct PropStat {
-    prop: BTreeMap<Property, PropValue>,
-    status: String,
+    pub(super) prop: BTreeMap<Property, PropValue>,
+    pub(super) status: String,
     //error
     //responsedescription
 }
@@ -85,8 +85,8 @@ impl PropStat {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(super) struct Property {
     // None means the "DAV:" namespace
-    namespace: Option<String>,
-    name: String,
+    pub(super) namespace: Option<String>,
+    pub(super) name: String,
 }
 
 impl From<&'static str> for Property {
@@ -117,6 +117,18 @@ impl PropValue {
             PropValue::String(s) => writer.text(s),
             PropValue::Int(i) => writer.text(&format!("{i}")),
         }
+    }
+}
+
+impl From<String> for PropValue {
+    fn from(value: String) -> PropValue {
+        PropValue::String(value)
+    }
+}
+
+impl From<i64> for PropValue {
+    fn from(value: i64) -> PropValue {
+        PropValue::Int(value)
     }
 }
 
@@ -202,7 +214,7 @@ mod tests {
     fn multistatus_to_xml() {
         let value = Multistatus {
             response: vec![
-                Response {
+                DavResponse {
                     href: "/foo/".into(),
                     propstat: vec![PropStat {
                         prop: BTreeMap::from([
@@ -213,7 +225,7 @@ mod tests {
                     }],
                     location: None,
                 },
-                Response {
+                DavResponse {
                     href: "/foo/bar.txt".into(),
                     propstat: vec![PropStat {
                         prop: BTreeMap::from([
@@ -241,7 +253,7 @@ mod tests {
                     }],
                     location: None,
                 },
-                Response {
+                DavResponse {
                     href: "/foo/quux.dat".into(),
                     propstat: vec![PropStat {
                         prop: BTreeMap::from([

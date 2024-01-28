@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::io::{Cursor, Write};
 use thiserror::Error;
 use xml::writer::{events::XmlEvent, EmitterConfig, Error as WriteError, EventWriter};
@@ -51,7 +52,7 @@ impl Response {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct PropStat {
-    prop: Prop,
+    prop: BTreeMap<String, PropValue>,
     status: String,
     //error
     //responsedescription
@@ -60,7 +61,12 @@ pub(super) struct PropStat {
 impl PropStat {
     fn write_xml(&self, writer: &mut XmlWriter) -> Result<(), WriteError> {
         writer.tag("propstat", |writer| {
-            self.prop.write_xml(writer)?;
+            writer.tag("prop", |writer| {
+                for (k, v) in &self.prop {
+                    writer.tag(k, |writer| v.write_xml(writer))?;
+                }
+                Ok(())
+            })?;
             writer.text_tag("status", &self.status)?;
             Ok(())
         })
@@ -68,45 +74,22 @@ impl PropStat {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct Prop {
-    creationdate: Option<String>,
-    displayname: Option<String>,
-    getcontentlength: Option<i64>,
-    getetag: Option<String>,
-    getcontenttype: Option<String>,
-    getlastmodified: Option<String>,
-    is_collection: bool,
+pub(super) enum PropValue {
+    // Used for <resourcetype> of non-collections and for <propname> responses
+    Empty,
+    Collection,
+    String(String),
+    Int(i64),
 }
 
-impl Prop {
+impl PropValue {
     fn write_xml(&self, writer: &mut XmlWriter) -> Result<(), WriteError> {
-        writer.tag("prop", |writer| {
-            writer.tag("resourcetype", |writer| {
-                if self.is_collection {
-                    writer.empty_tag("collection")?;
-                }
-                Ok(())
-            })?;
-            if let Some(ref s) = self.creationdate {
-                writer.text_tag("creationdate", s)?;
-            }
-            if let Some(ref s) = self.displayname {
-                writer.text_tag("displayname", s)?;
-            }
-            if let Some(size) = self.getcontentlength {
-                writer.text_tag("getcontentlength", &format!("{size}"))?;
-            }
-            if let Some(ref s) = self.getetag {
-                writer.text_tag("getetag", s)?;
-            }
-            if let Some(ref s) = self.getcontenttype {
-                writer.text_tag("getcontenttype", s)?;
-            }
-            if let Some(ref s) = self.getlastmodified {
-                writer.text_tag("getlastmodified", s)?;
-            }
-            Ok(())
-        })
+        match self {
+            PropValue::Empty => Ok(()),
+            PropValue::Collection => writer.empty_tag("collection"),
+            PropValue::String(s) => writer.text(s),
+            PropValue::Int(i) => writer.text(&format!("{i}")),
+        }
     }
 }
 
@@ -195,15 +178,10 @@ mod tests {
                 Response {
                     href: "/foo/".into(),
                     propstat: PropStat {
-                        prop: Prop {
-                            creationdate: None,
-                            displayname: Some("foo".into()),
-                            getcontentlength: None,
-                            getetag: None,
-                            getcontenttype: None,
-                            getlastmodified: None,
-                            is_collection: true,
-                        },
+                        prop: BTreeMap::from([
+                            ("resourcetype".into(), PropValue::Collection),
+                            ("displayname".into(), PropValue::String("foo".into())),
+                        ]),
                         status: "HTTP/1.1 200 OK".into(),
                     },
                     location: None,
@@ -211,15 +189,27 @@ mod tests {
                 Response {
                     href: "/foo/bar.txt".into(),
                     propstat: PropStat {
-                        prop: Prop {
-                            creationdate: Some("2024-01-28T13:36:54+05:00".into()),
-                            displayname: Some("bar.txt".into()),
-                            getcontentlength: Some(42),
-                            getetag: Some(r#""0123456789abcdef""#.into()),
-                            getcontenttype: Some("text/plain; charset=us-ascii".into()),
-                            getlastmodified: Some("2024-01-28T13:38:10+05:00".into()),
-                            is_collection: false,
-                        },
+                        prop: BTreeMap::from([
+                            (
+                                "creationdate".into(),
+                                PropValue::String("2024-01-28T13:36:54+05:00".into()),
+                            ),
+                            ("displayname".into(), PropValue::String("bar.txt".into())),
+                            ("getcontentlength".into(), PropValue::Int(42)),
+                            (
+                                "getcontenttype".into(),
+                                PropValue::String("text/plain; charset=us-ascii".into()),
+                            ),
+                            (
+                                "getetag".into(),
+                                PropValue::String(r#""0123456789abcdef""#.into()),
+                            ),
+                            (
+                                "getlastmodified".into(),
+                                PropValue::String("2024-01-28T13:38:10+05:00".into()),
+                            ),
+                            ("resourcetype".into(), PropValue::Empty),
+                        ]),
                         status: "HTTP/1.1 200 OK".into(),
                     },
                     location: None,
@@ -227,15 +217,23 @@ mod tests {
                 Response {
                     href: "/foo/quux.dat".into(),
                     propstat: PropStat {
-                        prop: Prop {
-                            creationdate: None,
-                            displayname: Some("quux.dat".into()),
-                            getcontentlength: Some(65535),
-                            getetag: Some(r#""ABCDEFGHIJKLMNOPQRSTUVWXYZ""#.into()),
-                            getcontenttype: Some("application/octet-stream".into()),
-                            getlastmodified: Some("2024-01-28T13:39:25+05:00".into()),
-                            is_collection: false,
-                        },
+                        prop: BTreeMap::from([
+                            ("displayname".into(), PropValue::String("quux.dat".into())),
+                            ("getcontentlength".into(), PropValue::Int(65535)),
+                            (
+                                "getcontenttype".into(),
+                                PropValue::String("application/octet-stream".into()),
+                            ),
+                            (
+                                "getetag".into(),
+                                PropValue::String(r#""ABCDEFGHIJKLMNOPQRSTUVWXYZ""#.into()),
+                            ),
+                            (
+                                "getlastmodified".into(),
+                                PropValue::String("2024-01-28T13:39:25+05:00".into()),
+                            ),
+                            ("resourcetype".into(), PropValue::Empty),
+                        ]),
                         status: "HTTP/1.1 307 TEMPORARY REDIRECT".into(),
                     },
                     location: Some("https://www.example.com/data/quux.dat".into()),
@@ -252,10 +250,10 @@ mod tests {
                     <href>/foo/</href>
                     <propstat>
                         <prop>
+                            <displayname>foo</displayname>
                             <resourcetype>
                                 <collection />
                             </resourcetype>
-                            <displayname>foo</displayname>
                         </prop>
                         <status>HTTP/1.1 200 OK</status>
                     </propstat>
@@ -264,13 +262,13 @@ mod tests {
                     <href>/foo/bar.txt</href>
                     <propstat>
                         <prop>
-                            <resourcetype />
                             <creationdate>2024-01-28T13:36:54+05:00</creationdate>
                             <displayname>bar.txt</displayname>
                             <getcontentlength>42</getcontentlength>
-                            <getetag>"0123456789abcdef"</getetag>
                             <getcontenttype>text/plain; charset=us-ascii</getcontenttype>
+                            <getetag>"0123456789abcdef"</getetag>
                             <getlastmodified>2024-01-28T13:38:10+05:00</getlastmodified>
+                            <resourcetype />
                         </prop>
                         <status>HTTP/1.1 200 OK</status>
                     </propstat>
@@ -279,12 +277,12 @@ mod tests {
                     <href>/foo/quux.dat</href>
                     <propstat>
                         <prop>
-                            <resourcetype />
                             <displayname>quux.dat</displayname>
                             <getcontentlength>65535</getcontentlength>
-                            <getetag>"ABCDEFGHIJKLMNOPQRSTUVWXYZ"</getetag>
                             <getcontenttype>application/octet-stream</getcontenttype>
+                            <getetag>"ABCDEFGHIJKLMNOPQRSTUVWXYZ"</getetag>
                             <getlastmodified>2024-01-28T13:39:25+05:00</getlastmodified>
+                            <resourcetype />
                         </prop>
                         <status>HTTP/1.1 307 TEMPORARY REDIRECT</status>
                     </propstat>

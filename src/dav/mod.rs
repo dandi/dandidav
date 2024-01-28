@@ -48,10 +48,11 @@ impl DandiDav {
                 Ok(([("Content-Type", CSS_CONTENT_TYPE)], STYLESHEET).into_response())
             }
             &Method::GET => {
-                let Some(path) = DavPath::parse_uri_path(req.uri().path()) else {
+                let uri_path = req.uri().path();
+                let Some(path) = DavPath::parse_uri_path(uri_path) else {
                     return Ok(not_found());
                 };
-                self.get(&path).await
+                self.get(&path, uri_path).await
             }
             &Method::OPTIONS => {
                 Ok(([("Allow", ALLOW_HEADER_VALUE)], StatusCode::NO_CONTENT).into_response())
@@ -65,7 +66,7 @@ impl DandiDav {
         }
     }
 
-    async fn get(&self, path: &DavPath) -> Result<Response<Body>, DavError> {
+    async fn get(&self, path: &DavPath, uri_path: &str) -> Result<Response<Body>, DavError> {
         match self.resolve_with_children(path).await? {
             DavResourceWithChildren::Collection { col, children } => {
                 let mut rows = children.into_iter().map(ColRow::from).collect::<Vec<_>>();
@@ -74,7 +75,7 @@ impl DandiDav {
                     rows.insert(0, ColRow::parentdir(col.parent_href()));
                 }
                 let context = CollectionContext {
-                    title: self.title.clone(),
+                    title: format!("{} — {}", self.title, uri_path),
                     rows,
                     package_url: env!("CARGO_PKG_REPOSITORY"),
                     package_version: env!("CARGO_PKG_VERSION"),

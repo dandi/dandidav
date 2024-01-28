@@ -49,7 +49,7 @@ impl DandiDav {
             }
             &Method::GET => {
                 let Some(path) = DavPath::parse_uri_path(req.uri().path()) else {
-                    return Ok(StatusCode::NOT_FOUND.into_response());
+                    return Ok(not_found());
                 };
                 self.get(&path).await
             }
@@ -95,7 +95,7 @@ impl DandiDav {
             DavResourceWithChildren::Item(DavItem {
                 content: DavContent::Missing,
                 ..
-            }) => Ok(StatusCode::NOT_FOUND.into_response()),
+            }) => Ok(not_found()),
         }
     }
 
@@ -318,13 +318,17 @@ impl DavError {
 impl IntoResponse for DavError {
     fn into_response(self) -> Response<Body> {
         if self.is_404() {
-            StatusCode::NOT_FOUND
+            not_found()
         } else {
+            let traceback = format!("{:?}\n", anyhow::Error::from(self));
             // TODO: Log error details
-            StatusCode::INTERNAL_SERVER_ERROR
+            (StatusCode::INTERNAL_SERVER_ERROR, traceback).into_response()
         }
-        .into_response()
     }
 }
 
 pub(crate) struct Propfind; // TODO
+
+fn not_found() -> Response<Body> {
+    (StatusCode::NOT_FOUND, "404\n").into_response()
+}

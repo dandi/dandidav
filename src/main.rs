@@ -19,6 +19,7 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::filter::LevelFilter;
 
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
+#[command(version = env!("VERSION_WITH_GIT"))]
 struct Arguments {
     #[arg(long, default_value = DEFAULT_API_URL)]
     api_url: url::Url,

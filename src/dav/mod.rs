@@ -15,7 +15,7 @@ use crate::paths::PurePath;
 use axum::{
     body::Body,
     extract::Request,
-    http::{response::Response, Method, StatusCode},
+    http::{header::CONTENT_TYPE, response::Response, Method, StatusCode},
     response::{IntoResponse, Redirect},
     RequestExt,
 };
@@ -54,7 +54,7 @@ impl DandiDav {
         let resp = match req.method() {
             &Method::GET if uri_path == "/.static/styles.css" => {
                 // Don't add WebDAV headers
-                return Ok(([("Content-Type", CSS_CONTENT_TYPE)], STYLESHEET).into_response());
+                return Ok(([(CONTENT_TYPE, CSS_CONTENT_TYPE)], STYLESHEET).into_response());
             }
             &Method::GET => {
                 let Some(path) = DavPath::parse_uri_path(uri_path) else {
@@ -96,13 +96,13 @@ impl DandiDav {
                     package_commit: option_env!("GIT_COMMIT"),
                 };
                 let html = self.templater.render_collection(context)?;
-                Ok(([("Content-Type", HTML_CONTENT_TYPE)], html).into_response())
+                Ok(([(CONTENT_TYPE, HTML_CONTENT_TYPE)], html).into_response())
             }
             DavResourceWithChildren::Item(DavItem {
                 content_type,
                 content: DavContent::Blob(blob),
                 ..
-            }) => Ok(([("Content-Type", content_type)], blob).into_response()),
+            }) => Ok(([(CONTENT_TYPE, content_type)], blob).into_response()),
             DavResourceWithChildren::Item(DavItem {
                 content: DavContent::Redirect(url),
                 ..
@@ -138,7 +138,7 @@ impl DandiDav {
             .collect::<Vec<_>>();
         Ok((
             StatusCode::MULTI_STATUS,
-            [("Content-Type", DAV_XML_CONTENT_TYPE)],
+            [(CONTENT_TYPE, DAV_XML_CONTENT_TYPE)],
             (Multistatus { response }).to_xml()?,
         )
             .into_response())

@@ -6,7 +6,7 @@ use axum::{
     async_trait,
     body::Body,
     extract::FromRequestParts,
-    http::{request::Parts, response::Response, StatusCode},
+    http::{header::CONTENT_TYPE, request::Parts, response::Response, StatusCode},
     response::IntoResponse,
 };
 use indoc::indoc;
@@ -86,7 +86,7 @@ impl<S: Send + Sync> FromRequestParts<S> for FiniteDepth {
             Some("1") => Ok(FiniteDepth::One),
             Some("infinity") | None => Err((
                 StatusCode::FORBIDDEN,
-                [("Content-Type", DAV_XML_CONTENT_TYPE)],
+                [(CONTENT_TYPE, DAV_XML_CONTENT_TYPE)],
                 INFINITE_DEPTH_RESPONSE,
             )
                 .into_response()),

@@ -38,10 +38,12 @@ tower = "0.4.13"
 tower-http = { version = "0.5.1", features = ["trace"] }
 tracing-subscriber = "0.3.18"
 url = { version = "2.5.0", features = ["serde"] }
+xml-rs = "0.8.19"
 
 [dev-dependencies]
 assert_matches = "1.5.0"
 indoc = "2.0.4"
+pretty_assertions = "1.4.0"
 rstest = { version = "0.18.2", default-features = false }
 
 [build-dependencies]

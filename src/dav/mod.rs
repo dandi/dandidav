@@ -2,6 +2,7 @@ mod html;
 mod path;
 mod types;
 mod util;
+mod xml;
 pub(crate) use self::html::Templater;
 use self::html::*;
 use self::path::*;

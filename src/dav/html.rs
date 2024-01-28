@@ -51,19 +51,28 @@ pub(super) struct CollectionContext {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub(super) struct ColRow {
     name: String,
+    href: String,
     is_dir: bool,
     kind: ResourceKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
     size: Option<i64>,
-    #[serde(serialize_with = "maybe_timestamp")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "maybe_timestamp"
+    )]
     created: Option<OffsetDateTime>,
-    #[serde(serialize_with = "maybe_timestamp")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "maybe_timestamp"
+    )]
     modified: Option<OffsetDateTime>,
 }
 
 impl ColRow {
-    pub(super) fn parentdir() -> ColRow {
+    pub(super) fn parentdir(href: String) -> ColRow {
         ColRow {
             name: "..".to_owned(),
+            href,
             is_dir: true,
             kind: ResourceKind::Parent,
             size: None,
@@ -86,6 +95,7 @@ impl From<DavCollection> for ColRow {
     fn from(col: DavCollection) -> ColRow {
         ColRow {
             name: col.name().unwrap_or("/").to_owned(),
+            href: col.href(),
             is_dir: true,
             kind: col.kind,
             size: col.size,
@@ -99,6 +109,7 @@ impl From<DavItem> for ColRow {
     fn from(item: DavItem) -> ColRow {
         ColRow {
             name: item.name().to_owned(),
+            href: item.href(),
             is_dir: false,
             kind: item.kind,
             size: item.size,

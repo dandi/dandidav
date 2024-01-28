@@ -24,6 +24,11 @@ impl PureDirPath {
             .expect("path should be nonempty")
     }
 
+    pub(crate) fn parent(&self) -> Option<PureDirPath> {
+        let i = self.0.trim_end_matches('/').rfind('/')?;
+        Some(PureDirPath(self.0[..i].to_owned()))
+    }
+
     pub(crate) fn join(&self, path: &PurePath) -> PurePath {
         PurePath(format!("{self}{path}"))
     }

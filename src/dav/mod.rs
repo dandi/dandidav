@@ -67,11 +67,11 @@ impl DandiDav {
 
     async fn get(&self, path: &DavPath) -> Result<Response<Body>, DavError> {
         match self.resolve_with_children(path).await? {
-            DavResourceWithChildren::Collection { children, .. } => {
+            DavResourceWithChildren::Collection { col, children } => {
                 let mut rows = children.into_iter().map(ColRow::from).collect::<Vec<_>>();
                 rows.sort_unstable();
                 if path != &DavPath::Root {
-                    rows.insert(0, ColRow::parentdir());
+                    rows.insert(0, ColRow::parentdir(col.parent_href()));
                 }
                 let context = CollectionContext {
                     title: self.title.clone(),

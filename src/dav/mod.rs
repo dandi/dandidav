@@ -1,16 +1,14 @@
 mod html;
-mod multistatus;
 mod path;
-mod propfind;
 mod types;
 mod util;
+mod xml;
 pub(crate) use self::html::Templater;
 use self::html::*;
-use self::multistatus::*;
 use self::path::*;
-use self::propfind::*;
 use self::types::*;
 use self::util::*;
+use self::xml::*;
 use crate::consts::{CSS_CONTENT_TYPE, DAV_XML_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
 use axum::{

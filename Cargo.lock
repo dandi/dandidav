@@ -811,6 +811,7 @@ dependencies = [
  "aws-smithy-runtime-api",
  "aws-smithy-types-convert",
  "axum",
+ "bytes",
  "clap",
  "derive_more",
  "enum_dispatch",

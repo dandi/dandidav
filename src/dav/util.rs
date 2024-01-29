@@ -90,7 +90,7 @@ impl<S: Send + Sync> FromRequestParts<S> for FiniteDepth {
                 INFINITE_DEPTH_RESPONSE,
             )
                 .into_response()),
-            _ => Err((StatusCode::BAD_REQUEST, r#"Invalid "Depth" header\n"#).into_response()),
+            _ => Err((StatusCode::BAD_REQUEST, "Invalid \"Depth\" header\n").into_response()),
         }
     }
 }

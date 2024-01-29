@@ -294,3 +294,123 @@ pub(crate) enum PropFindError {
     #[error("too many end tags")]
     TooManyEnds,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use indoc::indoc;
+
+    #[test]
+    fn parse_prop() {
+        let s = indoc! {r#"
+            <?xml version="1.0" encoding="utf-8" ?>
+            <D:propfind xmlns:D="DAV:">
+                <D:prop xmlns:R="http://ns.example.com/boxschema/">
+                    <R:bigbox/>
+                    <R:author/>
+                    <R:DingALing/>
+                    <R:Random/>
+                </D:prop>
+            </D:propfind>
+        "#};
+        let propfind = PropFind::from_xml(Bytes::from(s)).unwrap();
+        assert_eq!(
+            propfind,
+            PropFind::Prop(vec![
+                Property::Custom {
+                    namespace: "http://ns.example.com/boxschema/".into(),
+                    name: "bigbox".into()
+                },
+                Property::Custom {
+                    namespace: "http://ns.example.com/boxschema/".into(),
+                    name: "author".into()
+                },
+                Property::Custom {
+                    namespace: "http://ns.example.com/boxschema/".into(),
+                    name: "DingALing".into()
+                },
+                Property::Custom {
+                    namespace: "http://ns.example.com/boxschema/".into(),
+                    name: "Random".into()
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn parse_prop_std() {
+        let s = indoc! {r#"
+            <?xml version="1.0" encoding="utf-8" ?>
+            <D:propfind xmlns:D="DAV:">
+                <D:prop>
+                    <D:getcontentlength/>
+                    <D:getcontenttype/>
+                </D:prop>
+            </D:propfind>
+        "#};
+        let propfind = PropFind::from_xml(Bytes::from(s)).unwrap();
+        assert_eq!(
+            propfind,
+            PropFind::Prop(vec![Property::GetContentLength, Property::GetContentType])
+        );
+    }
+
+    #[test]
+    fn parse_propname() {
+        let s = indoc! {r#"
+            <?xml version="1.0" encoding="utf-8" ?>
+            <propfind xmlns="DAV:">
+                <propname/>
+            </propfind>
+        "#};
+        let propfind = PropFind::from_xml(Bytes::from(s)).unwrap();
+        assert_eq!(propfind, PropFind::PropName);
+    }
+
+    #[test]
+    fn parse_allprop() {
+        let s = indoc! {r#"
+            <?xml version="1.0" encoding="utf-8" ?>
+            <D:propfind xmlns:D="DAV:">
+                <D:allprop/>
+            </D:propfind>
+        "#};
+        let propfind = PropFind::from_xml(Bytes::from(s)).unwrap();
+        assert_eq!(
+            propfind,
+            PropFind::AllProp {
+                include: Vec::new()
+            }
+        );
+    }
+
+    #[test]
+    fn parse_allprop_include() {
+        let s = indoc! {r#"
+            <?xml version="1.0" encoding="utf-8" ?>
+            <D:propfind xmlns:D="DAV:">
+                <D:allprop/>
+                <D:include>
+                    <D:supported-live-property-set/>
+                    <D:supported-report-set/>
+                </D:include>
+            </D:propfind>
+        "#};
+        let propfind = PropFind::from_xml(Bytes::from(s)).unwrap();
+        assert_eq!(
+            propfind,
+            PropFind::AllProp {
+                include: vec![
+                    Property::Custom {
+                        namespace: "DAV:".into(),
+                        name: "supported-live-property-set".into()
+                    },
+                    Property::Custom {
+                        namespace: "DAV:".into(),
+                        name: "supported-report-set".into()
+                    },
+                ]
+            }
+        );
+    }
+}

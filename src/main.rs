@@ -23,18 +23,25 @@ use tower::service_fn;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::filter::LevelFilter;
 
+/// WebDAV view to DANDI Archive
+///
+/// See <https://github.com/jwodder/dandidav> for more information.
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 #[command(version = env!("VERSION_WITH_GIT"))]
 struct Arguments {
-    #[arg(long, default_value = DEFAULT_API_URL)]
+    /// API URL of the DANDI Archive instance to serve
+    #[arg(long, default_value = DEFAULT_API_URL, value_name = "URL")]
     api_url: url::Url,
 
+    /// IP address to listen on
     #[arg(long, default_value = "127.0.0.1")]
     ip_addr: IpAddr,
 
+    /// Port to listen on
     #[arg(short, long, default_value_t = 8080)]
     port: u16,
 
+    /// Site name to include in HTML page titles
     #[arg(short = 'T', long, default_value = env!("CARGO_PKG_NAME"))]
     title: String,
 }

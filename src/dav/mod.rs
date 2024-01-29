@@ -19,7 +19,6 @@ use axum::{
     RequestExt,
 };
 use futures_util::TryStreamExt;
-use std::collections::BTreeMap;
 use thiserror::Error;
 
 const WEBDAV_RESPONSE_HEADERS: [(&str, &str); 2] = [
@@ -47,7 +46,7 @@ impl DandiDav {
 
     pub(crate) async fn handle_request(
         &self,
-        mut req: Request<Body>,
+        req: Request<Body>,
     ) -> Result<Response<Body>, DavError> {
         let uri_path = req.uri().path();
         let resp = match req.method() {
@@ -66,11 +65,8 @@ impl DandiDav {
                 let Some(path) = DavPath::parse_uri_path(uri_path) else {
                     return Ok(not_found());
                 };
-                match req.extract_parts::<FiniteDepth>().await {
-                    Ok(depth) => {
-                        // TODO: Extract request body
-                        self.propfind(&path, depth, PropFind::default()).await?
-                    }
+                match req.extract::<(FiniteDepth, PropFind), _>().await {
+                    Ok((depth, pf)) => self.propfind(&path, depth, pf).await?,
                     Err(r) => r,
                 }
             }
@@ -359,81 +355,6 @@ impl IntoResponse for DavError {
             let traceback = format!("{:?}\n", anyhow::Error::from(self));
             // TODO: Log error details
             (StatusCode::INTERNAL_SERVER_ERROR, traceback).into_response()
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum PropFind {
-    AllProp {
-        include: Vec<Property>,
-    },
-    #[allow(dead_code)]
-    Prop(Vec<Property>),
-    #[allow(dead_code)]
-    PropName,
-}
-
-impl PropFind {
-    fn find<P: HasProperties>(&self, res: &P) -> DavResponse {
-        let mut found = BTreeMap::new();
-        let mut missing = BTreeMap::new();
-        match self {
-            PropFind::AllProp { include } => {
-                for prop in Property::iter_standard() {
-                    if let Some(value) = res.property(&prop) {
-                        found.insert(prop, value);
-                    }
-                }
-                for prop in include {
-                    if let Some(value) = res.property(prop) {
-                        found.insert(prop.clone(), value);
-                    } else {
-                        missing.insert(prop.clone(), PropValue::Empty);
-                    }
-                }
-            }
-            PropFind::Prop(props) => {
-                for prop in props {
-                    if let Some(value) = res.property(prop) {
-                        found.insert(prop.clone(), value);
-                    } else {
-                        missing.insert(prop.clone(), PropValue::Empty);
-                    }
-                }
-            }
-            PropFind::PropName => {
-                for prop in Property::iter_standard() {
-                    found.insert(prop, PropValue::Empty);
-                }
-            }
-        }
-        let mut propstat = Vec::with_capacity(2);
-        if !found.is_empty() || missing.is_empty() {
-            propstat.push(PropStat {
-                prop: found,
-                status: "HTTP/1.1 200 OK".into(),
-            });
-        }
-        if !missing.is_empty() {
-            propstat.push(PropStat {
-                prop: missing,
-                status: "HTTP/1.1 404 NOT FOUND".into(),
-            });
-        }
-        DavResponse {
-            href: res.href(),
-            propstat,
-            // TODO: Should `location` be set to redirect URLs?
-            location: None,
-        }
-    }
-}
-
-impl Default for PropFind {
-    fn default() -> PropFind {
-        PropFind::AllProp {
-            include: Vec::new(),
         }
     }
 }

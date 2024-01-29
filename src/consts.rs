@@ -39,6 +39,8 @@ pub(crate) static DEFAULT_CONTENT_TYPE: &str = "application/octet-stream";
 
 pub(crate) static DAV_XML_CONTENT_TYPE: &str = "text/xml; charset=utf-8";
 
+pub(crate) static DAV_XMLNS: &str = "DAV:";
+
 pub(crate) static HTML_TIMESTAMP_FORMAT: &[FormatItem<'_>] = format_description!(
     "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour sign:mandatory]:[offset_minute]"
 );

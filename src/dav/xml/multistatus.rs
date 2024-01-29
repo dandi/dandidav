@@ -1,17 +1,19 @@
+use super::*;
+use crate::consts::DAV_XMLNS;
 use std::collections::BTreeMap;
 use thiserror::Error;
 use xml::writer::{events::XmlEvent, EmitterConfig, Error as WriteError, EventWriter};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct Multistatus {
-    pub(super) response: Vec<DavResponse>,
+pub(in crate::dav) struct Multistatus {
+    pub(in crate::dav) response: Vec<DavResponse>,
     //responsedescription
 }
 
 impl Multistatus {
-    pub(super) fn to_xml(&self) -> Result<String, ToXmlError> {
+    pub(in crate::dav) fn to_xml(&self) -> Result<String, ToXmlError> {
         let mut writer = XmlWriter::new();
-        writer.tag_xmlns("multistatus", "DAV:", |writer| {
+        writer.tag_xmlns("multistatus", DAV_XMLNS, |writer| {
             for r in &self.response {
                 r.write_xml(writer)?;
             }
@@ -24,14 +26,14 @@ impl Multistatus {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct DavResponse {
-    pub(super) href: String,
+pub(in crate::dav) struct DavResponse {
+    pub(in crate::dav) href: String,
     // TODO: RFC 4918 says <response> can contain (href*, status) as an
     // alternative to propstat.  When does that apply?
-    pub(super) propstat: Vec<PropStat>,
+    pub(in crate::dav) propstat: Vec<PropStat>,
     //error
     //responsedescription
-    pub(super) location: Option<String>,
+    pub(in crate::dav) location: Option<String>,
 }
 
 impl DavResponse {
@@ -50,9 +52,9 @@ impl DavResponse {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct PropStat {
-    pub(super) prop: BTreeMap<Property, PropValue>,
-    pub(super) status: String,
+pub(in crate::dav) struct PropStat {
+    pub(in crate::dav) prop: BTreeMap<Property, PropValue>,
+    pub(in crate::dav) status: String,
     //error
     //responsedescription
 }
@@ -72,91 +74,7 @@ impl PropStat {
     }
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(super) enum Property {
-    CreationDate,
-    DisplayName,
-    //GetContentLanguage,
-    GetContentLength,
-    GetContentType,
-    GetETag,
-    GetLastModified,
-    ResourceType,
-    //LockDiscovery,
-    //SupportedLock,
-    #[allow(dead_code)]
-    Custom {
-        namespace: String,
-        name: String,
-    },
-}
-
-impl Property {
-    pub(super) fn iter_standard() -> impl Iterator<Item = Property> {
-        [
-            Property::CreationDate,
-            Property::DisplayName,
-            Property::GetContentLength,
-            Property::GetContentType,
-            Property::GetETag,
-            Property::GetLastModified,
-            Property::ResourceType,
-        ]
-        .into_iter()
-    }
-
-    fn write_xml(&self, writer: &mut XmlWriter, value: &PropValue) -> Result<(), WriteError> {
-        match self {
-            Property::CreationDate => writer.start_tag("creationdate")?,
-            Property::DisplayName => writer.start_tag("displayname")?,
-            Property::GetContentLength => writer.start_tag("getcontentlength")?,
-            Property::GetContentType => writer.start_tag("getcontenttype")?,
-            Property::GetETag => writer.start_tag("getetag")?,
-            Property::GetLastModified => writer.start_tag("getlastmodified")?,
-            Property::ResourceType => writer.start_tag("resourcetype")?,
-            Property::Custom { namespace, name } => writer.start_tag_ns(name, namespace)?,
-        }
-        value.write_xml(writer)?;
-        writer.end_tag()?;
-        Ok(())
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) enum PropValue {
-    // Used for <resourcetype> of non-collections, requested properties that
-    // aren't present, and <propname> responses
-    Empty,
-    // `<resourcetype>` value for collections
-    Collection,
-    String(String),
-    Int(i64),
-}
-
-impl PropValue {
-    fn write_xml(&self, writer: &mut XmlWriter) -> Result<(), WriteError> {
-        match self {
-            PropValue::Empty => Ok(()),
-            PropValue::Collection => writer.empty_tag("collection"),
-            PropValue::String(s) => writer.text(s),
-            PropValue::Int(i) => writer.text(&format!("{i}")),
-        }
-    }
-}
-
-impl From<String> for PropValue {
-    fn from(value: String) -> PropValue {
-        PropValue::String(value)
-    }
-}
-
-impl From<i64> for PropValue {
-    fn from(value: i64) -> PropValue {
-        PropValue::Int(value)
-    }
-}
-
-struct XmlWriter(EventWriter<Vec<u8>>);
+pub(in crate::dav) struct XmlWriter(EventWriter<Vec<u8>>);
 
 impl XmlWriter {
     fn new() -> Self {
@@ -194,25 +112,25 @@ impl XmlWriter {
         Ok(())
     }
 
-    fn start_tag(&mut self, name: &str) -> Result<(), WriteError> {
+    pub(super) fn start_tag(&mut self, name: &str) -> Result<(), WriteError> {
         self.0.write(XmlEvent::start_element(name))
     }
 
-    fn start_tag_ns(&mut self, name: &str, ns: &str) -> Result<(), WriteError> {
+    pub(super) fn start_tag_ns(&mut self, name: &str, ns: &str) -> Result<(), WriteError> {
         self.0.write(XmlEvent::start_element(name).default_ns(ns))
     }
 
-    fn end_tag(&mut self) -> Result<(), WriteError> {
+    pub(super) fn end_tag(&mut self) -> Result<(), WriteError> {
         self.0.write(XmlEvent::end_element())
     }
 
-    fn empty_tag(&mut self, name: &str) -> Result<(), WriteError> {
+    pub(super) fn empty_tag(&mut self, name: &str) -> Result<(), WriteError> {
         self.start_tag(name)?;
         self.end_tag()?;
         Ok(())
     }
 
-    fn text(&mut self, text: &str) -> Result<(), WriteError> {
+    pub(super) fn text(&mut self, text: &str) -> Result<(), WriteError> {
         self.0.write(XmlEvent::characters(text))
     }
 

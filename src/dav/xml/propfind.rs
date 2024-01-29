@@ -33,10 +33,9 @@ impl PropFind {
         for event in reader {
             use XmlEvent::*;
             match event? {
-                StartElement { name, .. } => parser.start_tag(Tag {
-                    name: name.local_name,
-                    namespace: name.namespace,
-                })?,
+                StartElement { name, .. } => {
+                    parser.start_tag(Tag::new(name.local_name, name.namespace))?;
+                }
                 EndElement { .. } => parser.end_tag()?,
                 StartDocument { .. } | EndDocument | Comment(..) | Whitespace(..) => (),
                 ProcessingInstruction { .. } | CData(..) | Characters(..) => {
@@ -216,30 +215,30 @@ enum PropFindTag {
 
 impl PropFindTag {
     fn accept(&self, tag: Tag, state: &mut State) -> Option<PropFindTag> {
-        match (self, &*tag.name, tag.is_dav()) {
-            (PropFindTag::Root, "propfind", true) => Some(PropFindTag::PropFind),
-            (PropFindTag::Root, _, _) => None,
-            (PropFindTag::PropFind, "propname", true) => {
+        match (self, tag.dav_name()) {
+            (PropFindTag::Root, Some("propfind")) => Some(PropFindTag::PropFind),
+            (PropFindTag::Root, _) => None,
+            (PropFindTag::PropFind, Some("propname")) => {
                 state.mode = Some(Mode::PropName);
                 Some(PropFindTag::PropName)
             }
-            (PropFindTag::PropFind, "allprop", true) => {
+            (PropFindTag::PropFind, Some("allprop")) => {
                 state.mode = Some(Mode::AllProp);
                 Some(PropFindTag::AllProp)
             }
-            (PropFindTag::PropFind, "prop", true) => {
+            (PropFindTag::PropFind, Some("prop")) => {
                 state.mode = Some(Mode::Prop);
                 Some(PropFindTag::Prop)
             }
-            (PropFindTag::PropFind, "include", true) if state.mode.is_some() => {
+            (PropFindTag::PropFind, Some("include")) if state.mode.is_some() => {
                 Some(PropFindTag::Include)
             }
-            (PropFindTag::PropFind, _, _) => None,
-            (PropFindTag::PropName, _, _) => None,
-            (PropFindTag::AllProp, _, _) => None,
-            (PropFindTag::Include, _, _) => Some(PropFindTag::Property(tag)),
-            (PropFindTag::Prop, _, _) => Some(PropFindTag::Property(tag)),
-            (PropFindTag::Property(_), _, _) => None,
+            (PropFindTag::PropFind, _) => None,
+            (PropFindTag::PropName, _) => None,
+            (PropFindTag::AllProp, _) => None,
+            (PropFindTag::Include, _) => Some(PropFindTag::Property(tag)),
+            (PropFindTag::Prop, _) => Some(PropFindTag::Property(tag)),
+            (PropFindTag::Property(_), _) => None,
         }
     }
 
@@ -319,22 +318,22 @@ mod tests {
         assert_eq!(
             propfind,
             PropFind::Prop(vec![
-                Property::Custom {
+                Property::Custom(Tag {
                     namespace: "http://ns.example.com/boxschema/".into(),
                     name: "bigbox".into()
-                },
-                Property::Custom {
+                }),
+                Property::Custom(Tag {
                     namespace: "http://ns.example.com/boxschema/".into(),
                     name: "author".into()
-                },
-                Property::Custom {
+                }),
+                Property::Custom(Tag {
                     namespace: "http://ns.example.com/boxschema/".into(),
                     name: "DingALing".into()
-                },
-                Property::Custom {
+                }),
+                Property::Custom(Tag {
                     namespace: "http://ns.example.com/boxschema/".into(),
                     name: "Random".into()
-                },
+                }),
             ])
         );
     }
@@ -403,14 +402,14 @@ mod tests {
             propfind,
             PropFind::AllProp {
                 include: vec![
-                    Property::Custom {
+                    Property::Custom(Tag {
                         namespace: "DAV:".into(),
                         name: "supported-live-property-set".into()
-                    },
-                    Property::Custom {
+                    }),
+                    Property::Custom(Tag {
                         namespace: "DAV:".into(),
                         name: "supported-report-set".into()
-                    },
+                    }),
                 ]
             }
         );

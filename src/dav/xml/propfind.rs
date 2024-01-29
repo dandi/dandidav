@@ -76,7 +76,9 @@ impl PropFind {
             }
             PropFind::PropName => {
                 for prop in Property::iter_standard() {
-                    found.insert(prop, PropValue::Empty);
+                    if res.property(&prop).is_some() {
+                        found.insert(prop, PropValue::Empty);
+                    }
                 }
             }
         }

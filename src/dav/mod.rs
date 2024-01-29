@@ -46,7 +46,7 @@ impl DandiDav {
 
     pub(crate) async fn handle_request(
         &self,
-        mut req: Request<Body>,
+        req: Request<Body>,
     ) -> Result<Response<Body>, DavError> {
         let uri_path = req.uri().path();
         let resp = match req.method() {
@@ -65,11 +65,8 @@ impl DandiDav {
                 let Some(path) = DavPath::parse_uri_path(uri_path) else {
                     return Ok(not_found());
                 };
-                match req.extract_parts::<FiniteDepth>().await {
-                    Ok(depth) => {
-                        // TODO: Extract request body
-                        self.propfind(&path, depth, PropFind::default()).await?
-                    }
+                match req.extract::<(FiniteDepth, PropFind), _>().await {
+                    Ok((depth, pf)) => self.propfind(&path, depth, pf).await?,
                     Err(r) => r,
                 }
             }

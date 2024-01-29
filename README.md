@@ -6,8 +6,44 @@
 
 [GitHub](https://github.com/jwodder/dandidav) | [Issues](https://github.com/jwodder/dandidav/issues)
 
-This is a [Rust](https://www.rust-lang.org) implementation of a readonly WebDAV
-interface to [DANDI Archive](https://dandiarchive.org).
+This is a [Rust](https://www.rust-lang.org) implementation of a readonly
+[WebDAV](https://webdav.org) interface to [DANDI
+Archive](https://dandiarchive.org), intended as a replacement for the Python
+implementation [dandi-webdav](https://github.com/dandi/dandi-webdav).
+
+Features
+========
+
+- Support for readonly operations from [RFC
+  4918](http://www.webdav.org/specs/rfc4918.html), [DAV compliance
+  classes](http://www.webdav.org/specs/rfc4918.html#dav.compliance.classes) 1
+  and 3.
+    - Not supported: Locking, mutating requests
+
+- Accessing a non-collection resource results in a 307 redirect to S3.
+
+    - Note that HTML pages for collections link directly to S3 URLs, but this
+      is just to save on a request; if you directly access, say,
+      <http://localhost:8080/dandisets/000027/draft/sub-RAT123/sub-RAT123.nwb>,
+      either by editing the browser address bar or via the command line, you
+      will see the redirect.
+
+    - Note that redirects first go to Archive API `/download` URLs, which
+      redirect again to S3.  This is necessary in order to obtain a signed S3
+      URL that specifies the download file name so that downloaded asset blobs
+      will be given the file name of their asset instead of the blob ID.
+
+- The Archive instance to serve can be specified on the command line.
+
+- Paths to resources under Dandiset versions are resolved all at once, rather
+  than component-by-component as in dandi-webdav; cf.
+  [dandi-webdav#5](https://github.com/dandi/dandi-webdav/issues/5).
+
+- The S3 bucket used for Zarrs is determined by parsing Zarrs' `contentUrls`
+  rather than having to be hardcoded.
+
+- The S3 client is cached rather than being reinitialized for every Zarr.
+
 
 Building & Running
 ==================
@@ -32,6 +68,7 @@ Building & Running
 5. If necessary, the actual binary can be found in `target/debug/dandidav` (or
    `target/release/dandidav` if built with `--release`).  It should run on any
    system with the same OS and architecture as it was built on.
+
 
 Usage
 =====

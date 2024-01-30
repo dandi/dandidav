@@ -49,7 +49,10 @@ impl DandiDav {
         req: Request<Body>,
     ) -> Result<Response<Body>, DavError> {
         let uri_path = req.uri().path();
-        let resp = match req.method() {
+        // Performing this assignment outside the `match` magically makes this
+        // compile on pre-1.74 Rusts:
+        let m = req.method();
+        let resp = match m {
             &Method::GET if uri_path == "/.static/styles.css" => {
                 // Don't add WebDAV headers
                 return Ok(([(CONTENT_TYPE, CSS_CONTENT_TYPE)], STYLESHEET).into_response());

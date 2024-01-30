@@ -2,7 +2,7 @@
 name = "dandidav"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.70"
 description = "WebDAV view to DANDI Archive"
 authors = ["John Thorvald Wodder II <dandidav@varonathe.org>"]
 repository = "https://github.com/jwodder/dandidav"

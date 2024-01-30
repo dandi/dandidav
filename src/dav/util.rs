@@ -11,6 +11,7 @@ use axum::{
 };
 use indoc::indoc;
 use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
+use serde::{ser::Serializer, Serialize};
 use std::fmt::{self, Write};
 use time::{
     format_description::{well_known::Rfc3339, FormatItem},
@@ -55,10 +56,6 @@ pub(super) fn version_path(dandiset_id: &DandisetId, version: &VersionSpec) -> P
         .expect("should be a valid dir path")
 }
 
-pub(super) fn urlencode(s: &str) -> String {
-    percent_encode(s.as_ref(), PERCENT_ESCAPED).to_string()
-}
-
 pub(super) fn format_creationdate(dt: OffsetDateTime) -> String {
     dt.format(&Rfc3339)
         .expect("formatting an OffsetDateTime in RFC 3339 format should not fail")
@@ -95,16 +92,55 @@ impl<S: Send + Sync> FromRequestParts<S> for FiniteDepth {
     }
 }
 
+/// A percent-encoded URI or URI path, for use in the `href` attribute of an
+/// HTML `<a>` tag or in a `<DAV:href>` tag in a `PROPFIND` response
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(super) struct Href(String);
+
+impl Href {
+    /// Construct an `Href` from a non-percent-encoded URI path
+    pub(super) fn from_path(path: &str) -> Href {
+        Href(percent_encode(path.as_ref(), PERCENT_ESCAPED).to_string())
+    }
+}
+
+impl AsRef<str> for Href {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl From<url::Url> for Href {
+    fn from(value: url::Url) -> Href {
+        Href(value.into())
+    }
+}
+
+impl From<&url::Url> for Href {
+    fn from(value: &url::Url) -> Href {
+        Href(value.to_string())
+    }
+}
+
+impl Serialize for Href {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_ref())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use time::macros::datetime;
 
     #[test]
-    fn test_urlencode() {
+    fn test_href_from_path() {
         let s = "/~cleesh/foo bar/baz_quux.gnusto/red&green?blue";
         assert_eq!(
-            urlencode(s),
+            Href::from_path(s).as_ref(),
             "/~cleesh/foo%20bar/baz_quux.gnusto/red%26green%3Fblue"
         );
     }

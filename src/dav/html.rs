@@ -1,3 +1,4 @@
+use super::util::Href;
 use super::{DavCollection, DavItem, DavResource, ResourceKind};
 use crate::consts::HTML_TIMESTAMP_FORMAT;
 use serde::{ser::Serializer, Serialize};
@@ -51,7 +52,7 @@ pub(super) struct CollectionContext {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub(super) struct ColRow {
     name: String,
-    href: String,
+    href: Href,
     is_dir: bool,
     kind: ResourceKind,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -69,7 +70,7 @@ pub(super) struct ColRow {
 }
 
 impl ColRow {
-    pub(super) fn parentdir(href: String) -> ColRow {
+    pub(super) fn parentdir(href: Href) -> ColRow {
         ColRow {
             name: "..".to_owned(),
             href,

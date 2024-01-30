@@ -1,5 +1,6 @@
 use super::*;
 use crate::consts::DAV_XMLNS;
+use crate::dav::util::Href;
 use std::collections::BTreeMap;
 use thiserror::Error;
 use xml::writer::{events::XmlEvent, EmitterConfig, Error as WriteError, EventWriter};
@@ -27,24 +28,24 @@ impl Multistatus {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(in crate::dav) struct DavResponse {
-    pub(in crate::dav) href: String,
+    pub(in crate::dav) href: Href,
     // TODO: RFC 4918 says <response> can contain (href*, status) as an
     // alternative to propstat.  When does that apply?
     pub(in crate::dav) propstat: Vec<PropStat>,
     //error
     //responsedescription
-    pub(in crate::dav) location: Option<String>,
+    pub(in crate::dav) location: Option<Href>,
 }
 
 impl DavResponse {
     fn write_xml(&self, writer: &mut XmlWriter) -> Result<(), WriteError> {
         writer.tag("response", |writer| {
-            writer.text_tag("href", &self.href)?;
+            writer.text_tag("href", self.href.as_ref())?;
             for p in &self.propstat {
                 p.write_xml(writer)?;
             }
             if let Some(ref loc) = self.location {
-                writer.tag("location", |writer| writer.text_tag("href", loc))?;
+                writer.tag("location", |writer| writer.text_tag("href", loc.as_ref()))?;
             }
             Ok(())
         })
@@ -161,7 +162,7 @@ mod tests {
         let value = Multistatus {
             response: vec![
                 DavResponse {
-                    href: "/foo/".into(),
+                    href: Href::from_path("/foo/"),
                     propstat: vec![PropStat {
                         prop: BTreeMap::from([
                             (Property::ResourceType, PropValue::Collection),
@@ -172,7 +173,7 @@ mod tests {
                     location: None,
                 },
                 DavResponse {
-                    href: "/foo/bar.txt".into(),
+                    href: Href::from_path("/foo/bar.txt"),
                     propstat: vec![PropStat {
                         prop: BTreeMap::from([
                             (
@@ -200,7 +201,7 @@ mod tests {
                     location: None,
                 },
                 DavResponse {
-                    href: "/foo/quux.dat".into(),
+                    href: Href::from_path("/foo/quux.dat"),
                     propstat: vec![PropStat {
                         prop: BTreeMap::from([
                             (Property::DisplayName, PropValue::String("quux.dat".into())),
@@ -221,7 +222,11 @@ mod tests {
                         ]),
                         status: "HTTP/1.1 307 TEMPORARY REDIRECT".into(),
                     }],
-                    location: Some("https://www.example.com/data/quux.dat".into()),
+                    location: Some(
+                        url::Url::parse("https://www.example.com/data/quux.dat")
+                            .unwrap()
+                            .into(),
+                    ),
                 },
             ],
         };

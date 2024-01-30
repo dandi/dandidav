@@ -1,4 +1,4 @@
-use super::util::{format_creationdate, format_modifieddate, urlencode, version_path};
+use super::util::{format_creationdate, format_modifieddate, version_path, Href};
 use super::xml::{PropValue, Property};
 use super::VersionSpec;
 use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 
 #[enum_dispatch]
 pub(super) trait HasProperties {
-    fn href(&self) -> String;
+    fn href(&self) -> Href;
     fn creationdate(&self) -> Option<String>;
     fn displayname(&self) -> Option<String>;
     fn getcontentlength(&self) -> Option<i64>;
@@ -164,17 +164,17 @@ impl DavCollection {
         self.path.as_ref().map(PureDirPath::name)
     }
 
-    pub(super) fn web_link(&self) -> String {
+    pub(super) fn web_link(&self) -> Href {
         match self.path {
-            Some(ref p) => urlencode(&format!("/{p}")),
-            None => "/".to_owned(),
+            Some(ref p) => Href::from_path(&format!("/{p}")),
+            None => Href::from_path("/"),
         }
     }
 
-    pub(super) fn parent_web_link(&self) -> String {
+    pub(super) fn parent_web_link(&self) -> Href {
         match self.path.as_ref().and_then(PureDirPath::parent) {
-            Some(ref p) => urlencode(&format!("/{p}")),
-            None => "/".to_owned(),
+            Some(ref p) => Href::from_path(&format!("/{p}")),
+            None => Href::from_path("/"),
         }
     }
 
@@ -242,7 +242,7 @@ impl DavCollection {
 }
 
 impl HasProperties for DavCollection {
-    fn href(&self) -> String {
+    fn href(&self) -> Href {
         self.web_link()
     }
 
@@ -344,13 +344,13 @@ impl DavItem {
         self.path.name()
     }
 
-    pub(super) fn web_link(&self) -> String {
+    pub(super) fn web_link(&self) -> Href {
         if let DavContent::Redirect(ref url) = self.content {
             // Link directly to the download URL in the web view in order to
             // save a request
-            url.to_string()
+            url.into()
         } else {
-            urlencode(&format!("/{}", self.path))
+            Href::from_path(&format!("/{}", self.path))
         }
     }
 
@@ -366,9 +366,8 @@ impl DavItem {
 }
 
 impl HasProperties for DavItem {
-    fn href(&self) -> String {
-        // TODO: Should this match DavItem::web_link?
-        urlencode(&format!("/{}", self.path))
+    fn href(&self) -> Href {
+        Href::from_path(&format!("/{}", self.path))
     }
 
     fn creationdate(&self) -> Option<String> {

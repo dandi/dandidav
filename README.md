@@ -20,6 +20,9 @@ Features
   and 3.
     - Not supported: Locking, mutating requests
 
+Advantages over dandi-webdav
+----------------------------
+
 - Accessing a non-collection resource results in a 307 redirect to S3.
 
     - Note that HTML pages for collections link directly to S3 URLs, but this
@@ -36,7 +39,7 @@ Features
 - The Archive instance to serve can be specified on the command line.
 
 - Paths to resources under Dandiset versions are resolved all at once, rather
-  than component-by-component as in dandi-webdav; cf.
+  than component-by-component; cf.
   [dandi-webdav#5](https://github.com/dandi/dandi-webdav/issues/5).
 
 - The S3 bucket used for Zarrs is determined by parsing Zarrs' `contentUrls`

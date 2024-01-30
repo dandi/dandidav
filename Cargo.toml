@@ -27,7 +27,7 @@ futures-util = "0.3.30"
 indoc = "2.0.4"
 lru = "0.12.2"
 percent-encoding = "2.3.1"
-reqwest = { version = "0.11.23", features = ["json"] }
+reqwest = { version = "0.11.23", default-features = false, features = ["json", "rustls-tls-native-roots"] }
 serde = { version = "1.0.196", features = ["derive"] }
 serde_json = { version = "1.0.113", features = ["preserve_order"] }
 serde_yaml = "0.9.31"

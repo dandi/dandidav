@@ -3,14 +3,18 @@ mod dandi;
 mod dav;
 mod paths;
 mod s3;
-use crate::consts::{CSS_CONTENT_TYPE, DEFAULT_API_URL};
+use crate::consts::{CSS_CONTENT_TYPE, DEFAULT_API_URL, SERVER_VALUE};
 use crate::dandi::Client;
 use crate::dav::{DandiDav, Templater};
 use anyhow::Context;
 use axum::{
     body::Body,
     extract::Request,
-    http::{header::CONTENT_TYPE, response::Response, Method},
+    http::{
+        header::{HeaderValue, CONTENT_TYPE, SERVER},
+        response::Response,
+        Method,
+    },
     middleware::{self, Next},
     routing::get,
     Router,
@@ -19,7 +23,7 @@ use clap::Parser;
 use std::net::IpAddr;
 use std::sync::Arc;
 use tower::service_fn;
-use tower_http::trace::TraceLayer;
+use tower_http::{set_header::response::SetResponseHeaderLayer, trace::TraceLayer};
 use tracing_subscriber::filter::LevelFilter;
 
 static STYLESHEET: &str = include_str!("dav/static/styles.css");
@@ -73,6 +77,10 @@ async fn main() -> anyhow::Result<()> {
             }),
         )
         .layer(middleware::from_fn(handle_head))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            SERVER,
+            HeaderValue::from_static(SERVER_VALUE),
+        ))
         .layer(TraceLayer::new_for_http());
     let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
         .await

@@ -3,16 +3,17 @@ mod dandi;
 mod dav;
 mod paths;
 mod s3;
-use crate::consts::DEFAULT_API_URL;
+use crate::consts::{CSS_CONTENT_TYPE, DEFAULT_API_URL};
 use crate::dandi::Client;
 use crate::dav::{DandiDav, Templater};
 use anyhow::Context;
 use axum::{
     body::Body,
     extract::Request,
-    http::{response::Response, Method},
+    http::{header::CONTENT_TYPE, response::Response, Method},
     middleware::{self, Next},
     response::IntoResponse,
+    routing::get,
     Router,
 };
 use clap::Parser;
@@ -22,6 +23,8 @@ use std::sync::Arc;
 use tower::service_fn;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::filter::LevelFilter;
+
+static STYLESHEET: &str = include_str!("dav/static/styles.css");
 
 /// WebDAV view to DANDI Archive
 ///
@@ -56,6 +59,13 @@ async fn main() -> anyhow::Result<()> {
     let templater = Templater::load()?;
     let dav = Arc::new(DandiDav::new(client, templater, args.title));
     let app = Router::new()
+        .route(
+            "/.static/styles.css",
+            get(|| async {
+                // Note: This response should not have WebDAV headers (DAV, Allow)
+                ([(CONTENT_TYPE, CSS_CONTENT_TYPE)], STYLESHEET)
+            }),
+        )
         .nest_service(
             "/",
             service_fn(move |req: Request| {

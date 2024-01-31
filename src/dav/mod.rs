@@ -9,7 +9,7 @@ use self::path::*;
 use self::types::*;
 use self::util::*;
 use self::xml::*;
-use crate::consts::{CSS_CONTENT_TYPE, DAV_XML_CONTENT_TYPE, HTML_CONTENT_TYPE};
+use crate::consts::{DAV_XML_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
 use axum::{
     body::Body,
@@ -26,8 +26,6 @@ const WEBDAV_RESPONSE_HEADERS: [(&str, &str); 2] = [
     // <http://www.webdav.org/specs/rfc4918.html#HEADER_DAV>
     ("DAV", "1, 3"),
 ];
-
-static STYLESHEET: &str = include_str!("static/styles.css");
 
 pub(crate) struct DandiDav {
     client: Client,
@@ -53,10 +51,6 @@ impl DandiDav {
         // compile on pre-1.74 Rusts:
         let m = req.method();
         let resp = match m {
-            &Method::GET if uri_path == "/.static/styles.css" => {
-                // Don't add WebDAV headers
-                return Ok(([(CONTENT_TYPE, CSS_CONTENT_TYPE)], STYLESHEET).into_response());
-            }
             &Method::GET => {
                 let Some(path) = DavPath::parse_uri_path(uri_path) else {
                     return Ok(not_found());

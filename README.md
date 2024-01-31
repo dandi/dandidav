@@ -1,10 +1,10 @@
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
-[![CI Status](https://github.com/jwodder/dandidav/actions/workflows/test.yml/badge.svg)](https://github.com/jwodder/dandidav/actions/workflows/test.yml)
-[![codecov.io](https://codecov.io/gh/jwodder/dandidav/branch/main/graph/badge.svg)](https://codecov.io/gh/jwodder/dandidav)
+[![CI Status](https://github.com/dandi/dandidav/actions/workflows/test.yml/badge.svg)](https://github.com/dandi/dandidav/actions/workflows/test.yml)
+[![codecov.io](https://codecov.io/gh/dandi/dandidav/branch/main/graph/badge.svg)](https://codecov.io/gh/dandi/dandidav)
 [![Minimum Supported Rust Version](https://img.shields.io/badge/MSRV-1.70-orange)](https://www.rust-lang.org)
-[![MIT License](https://img.shields.io/github/license/jwodder/dandidav.svg)](https://opensource.org/licenses/MIT)
+[![MIT License](https://img.shields.io/github/license/dandi/dandidav.svg)](https://opensource.org/licenses/MIT)
 
-[GitHub](https://github.com/jwodder/dandidav) | [Issues](https://github.com/jwodder/dandidav/issues)
+[GitHub](https://github.com/dandi/dandidav) | [Issues](https://github.com/dandi/dandidav/issues)
 
 This is a [Rust](https://www.rust-lang.org) implementation of a readonly
 [WebDAV](https://webdav.org) interface to [DANDI

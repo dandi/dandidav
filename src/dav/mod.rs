@@ -19,6 +19,7 @@ use axum::{
     RequestExt,
 };
 use futures_util::TryStreamExt;
+use std::convert::Infallible;
 use thiserror::Error;
 
 const WEBDAV_RESPONSE_HEADERS: [(&str, &str); 2] = [
@@ -45,31 +46,35 @@ impl DandiDav {
     pub(crate) async fn handle_request(
         &self,
         req: Request<Body>,
-    ) -> Result<Response<Body>, DavError> {
+    ) -> Result<Response<Body>, Infallible> {
+        let resp = self.inner_handle_request(req).await;
+        Ok((WEBDAV_RESPONSE_HEADERS, resp).into_response())
+    }
+
+    async fn inner_handle_request(&self, req: Request<Body>) -> Result<Response<Body>, DavError> {
         let uri_path = req.uri().path();
         // Performing this assignment outside the `match` magically makes this
         // compile on pre-1.74 Rusts:
         let m = req.method();
-        let resp = match m {
+        match m {
             &Method::GET => {
                 let Some(path) = DavPath::parse_uri_path(uri_path) else {
                     return Ok(not_found());
                 };
-                self.get(&path, uri_path).await?
+                self.get(&path, uri_path).await
             }
-            &Method::OPTIONS => StatusCode::NO_CONTENT.into_response(),
+            &Method::OPTIONS => Ok(StatusCode::NO_CONTENT.into_response()),
             m if m.as_str().eq_ignore_ascii_case("PROPFIND") => {
                 let Some(path) = DavPath::parse_uri_path(uri_path) else {
                     return Ok(not_found());
                 };
                 match req.extract::<(FiniteDepth, PropFind), _>().await {
-                    Ok((depth, pf)) => self.propfind(&path, depth, pf).await?,
-                    Err(r) => r,
+                    Ok((depth, pf)) => self.propfind(&path, depth, pf).await,
+                    Err(r) => Ok(r),
                 }
             }
-            _ => StatusCode::METHOD_NOT_ALLOWED.into_response(),
-        };
-        Ok((WEBDAV_RESPONSE_HEADERS, resp).into_response())
+            _ => Ok(StatusCode::METHOD_NOT_ALLOWED.into_response()),
+        }
     }
 
     async fn get(&self, path: &DavPath, uri_path: &str) -> Result<Response<Body>, DavError> {
@@ -357,5 +362,5 @@ impl IntoResponse for DavError {
 }
 
 fn not_found() -> Response<Body> {
-    (StatusCode::NOT_FOUND, WEBDAV_RESPONSE_HEADERS, "404\n").into_response()
+    (StatusCode::NOT_FOUND, "404\n").into_response()
 }

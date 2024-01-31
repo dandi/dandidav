@@ -12,12 +12,10 @@ use axum::{
     extract::Request,
     http::{header::CONTENT_TYPE, response::Response, Method},
     middleware::{self, Next},
-    response::IntoResponse,
     routing::get,
     Router,
 };
 use clap::Parser;
-use std::convert::Infallible;
 use std::net::IpAddr;
 use std::sync::Arc;
 use tower::service_fn;
@@ -70,7 +68,8 @@ async fn main() -> anyhow::Result<()> {
             "/",
             service_fn(move |req: Request| {
                 let dav = Arc::clone(&dav);
-                async move { Ok::<_, Infallible>(dav.handle_request(req).await.into_response()) }
+                // Box the large future:
+                async move { Box::pin(dav.handle_request(req)).await }
             }),
         )
         .layer(middleware::from_fn(handle_head))

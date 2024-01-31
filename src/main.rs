@@ -25,7 +25,7 @@ use tracing_subscriber::filter::LevelFilter;
 
 /// WebDAV view to DANDI Archive
 ///
-/// See <https://github.com/jwodder/dandidav> for more information.
+/// See <https://github.com/dandi/dandidav> for more information.
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 #[command(version = env!("VERSION_WITH_GIT"))]
 struct Arguments {

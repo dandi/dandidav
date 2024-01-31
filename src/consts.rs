@@ -1,6 +1,8 @@
 use std::num::NonZeroUsize;
 use time::{format_description::FormatItem, macros::format_description};
 
+/// The value of the "User-Agent" header sent in requests to the Dandi Archive
+/// and S3
 pub(crate) static USER_AGENT: &str = concat!(
     env!("CARGO_PKG_NAME"),
     "/",
@@ -9,6 +11,10 @@ pub(crate) static USER_AGENT: &str = concat!(
     env!("CARGO_PKG_REPOSITORY"),
     ")",
 );
+
+/// The value of the "Server" header returned in all responses from dandidav
+pub(crate) static SERVER_VALUE: &str =
+    concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 pub(crate) static DEFAULT_API_URL: &str = "https://api.dandiarchive.org/api";
 

@@ -4,7 +4,7 @@
 [![Minimum Supported Rust Version](https://img.shields.io/badge/MSRV-1.70-orange)](https://www.rust-lang.org)
 [![MIT License](https://img.shields.io/github/license/dandi/dandidav.svg)](https://opensource.org/licenses/MIT)
 
-[GitHub](https://github.com/dandi/dandidav) | [Issues](https://github.com/dandi/dandidav/issues)
+[GitHub](https://github.com/dandi/dandidav) | [Issues](https://github.com/dandi/dandidav/issues) | [Changelog](https://github.com/dandi/dandidav/blob/main/CHANGELOG.md)
 
 This is a [Rust](https://www.rust-lang.org) implementation of a readonly
 [WebDAV](https://webdav.org) interface to [DANDI

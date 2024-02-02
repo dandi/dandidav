@@ -11,26 +11,29 @@ use crate::s3::{
 };
 use async_stream::try_stream;
 use futures_util::{Stream, TryStreamExt};
-use lru::LruCache;
+use moka::future::{Cache, CacheBuilder};
 use reqwest::{ClientBuilder, StatusCode};
 use serde::de::DeserializeOwned;
 use smartstring::alias::CompactString;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::Mutex;
 use url::Url;
 
 #[derive(Clone, Debug)]
 pub(crate) struct DandiClient {
     inner: reqwest::Client,
     api_url: Url,
-    s3clients: Arc<Mutex<LruCache<BucketSpec, Arc<S3Client>>>>,
+    s3clients: Arc<Cache<BucketSpec, Arc<S3Client>>>,
 }
 
 impl DandiClient {
     pub(crate) fn new(api_url: Url) -> Result<Self, BuildClientError> {
         let inner = ClientBuilder::new().user_agent(USER_AGENT).build()?;
-        let s3clients = Arc::new(Mutex::new(LruCache::new(S3CLIENT_CACHE_SIZE)));
+        let s3clients = Arc::new(
+            CacheBuilder::new(S3CLIENT_CACHE_SIZE)
+                .name("s3clients")
+                .build(),
+        );
         Ok(DandiClient {
             inner,
             api_url,
@@ -108,27 +111,18 @@ impl DandiClient {
         let prefix = key
             .parse::<PureDirPath>()
             .map_err(|source| ZarrToS3Error::BadS3Key { key, source })?;
-        let client = {
-            let mut cache = self.s3clients.lock().await;
-            if let Some(client) = cache.get(&bucket_spec) {
-                client.clone()
-            } else {
-                match bucket_spec.clone().into_s3client().await {
-                    Ok(client) => {
-                        let client = Arc::new(client);
-                        cache.put(bucket_spec, client.clone());
-                        client
-                    }
-                    Err(source) => {
-                        return Err(ZarrToS3Error::LocateBucket {
-                            bucket: bucket_spec.bucket,
-                            source,
-                        })
-                    }
-                }
-            }
-        };
-        Ok(client.with_prefix(prefix))
+        // Box large future:
+        match Box::pin(self.s3clients.try_get_with_by_ref(&bucket_spec, async {
+            bucket_spec.clone().into_s3client().await.map(Arc::new)
+        }))
+        .await
+        {
+            Ok(client) => Ok(client.with_prefix(prefix)),
+            Err(source) => Err(ZarrToS3Error::LocateBucket {
+                bucket: bucket_spec.bucket,
+                source,
+            }),
+        }
     }
 
     async fn get_s3client_for_zarr(
@@ -473,7 +467,7 @@ pub(crate) enum ZarrToS3Error {
     #[error("failed to determine region for S3 bucket {bucket:?}")]
     LocateBucket {
         bucket: CompactString,
-        source: GetBucketRegionError,
+        source: Arc<GetBucketRegionError>,
     },
 }
 

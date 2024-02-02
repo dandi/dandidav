@@ -28,7 +28,7 @@ derive_more = { version = "0.99.17", default-features = false, features = ["as_r
 enum_dispatch = "0.3.12"
 futures-util = "0.3.30"
 indoc = "2.0.4"
-lru = "0.12.2"
+moka = { version = "0.12.5", features = ["future"] }
 percent-encoding = "2.3.1"
 reqwest = { version = "0.11.24", default-features = false, features = ["json", "rustls-tls-native-roots"] }
 serde = { version = "1.0.196", features = ["derive"] }
@@ -38,7 +38,7 @@ smartstring = "1.0.1"
 tera = { version = "1.19.1", default-features = false }
 thiserror = "1.0.56"
 time = { version = "0.3.34", features = ["formatting", "macros", "parsing", "serde"] }
-tokio = { version = "1.36.0", features = ["macros", "net", "rt-multi-thread", "sync"] }
+tokio = { version = "1.36.0", features = ["macros", "net", "rt-multi-thread"] }
 tower = "0.4.13"
 tower-http = { version = "0.5.1", features = ["set-header", "trace"] }
 tracing-subscriber = "0.3.18"

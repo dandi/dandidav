@@ -52,6 +52,10 @@ impl PurePath {
     pub(crate) fn to_dir_path(&self) -> PureDirPath {
         PureDirPath(format!("{}/", self.0))
     }
+
+    pub(crate) fn components(&self) -> std::str::Split<'_, char> {
+        self.0.split('/')
+    }
 }
 
 impl fmt::Debug for PurePath {

@@ -13,7 +13,7 @@ pub(crate) struct Manifest {
 impl Manifest {
     pub(super) fn get(&self, path: &PurePath) -> Option<EntryRef<'_>> {
         let mut folder = &self.entries;
-        for (pos, p) in path.split('/').with_position() {
+        for (pos, p) in path.components().with_position() {
             match folder.get(p)? {
                 FolderEntry::Folder(f) => folder = f,
                 FolderEntry::Entry(e) if matches!(pos, Position::Last | Position::Only) => {

@@ -3,10 +3,9 @@ mod manifest;
 mod resources;
 use self::index::*;
 pub(crate) use self::resources::*;
-use crate::httputil::{new_client, urljoin_slashed, BuildClientError};
+use crate::httputil::{get_text, new_client, urljoin_slashed, BuildClientError, HttpError};
 use crate::paths::{PureDirPath, PurePath};
 use moka::future::{Cache, CacheBuilder};
-use reqwest::StatusCode;
 use std::sync::Arc;
 use thiserror::Error;
 use url::Url;
@@ -57,30 +56,7 @@ impl ZarrManClient {
         if let Some(p) = path {
             url = urljoin_slashed(&url, p.components());
         }
-        let r = self
-            .inner
-            .get(url.clone())
-            .send()
-            .await
-            .map_err(|source| ZarrManError::Send {
-                url: url.clone(),
-                source,
-            })?;
-        if r.status() == StatusCode::NOT_FOUND {
-            return Err(ZarrManError::NotFound { url: url.clone() });
-        }
-        let txt = r
-            .error_for_status()
-            .map_err(|source| ZarrManError::Status {
-                url: url.clone(),
-                source,
-            })?
-            .text()
-            .await
-            .map_err(|source| ZarrManError::Read {
-                url: url.clone(),
-                source,
-            })?;
+        let txt = get_text(&self.inner, url.clone()).await?;
         parse_apache_index(&txt).map_err(|source| ZarrManError::ParseIndex {
             url: url.clone(),
             source,
@@ -108,14 +84,8 @@ impl ZarrManClient {
 
 #[derive(Debug, Error)]
 pub(crate) enum ZarrManError {
-    #[error("failed to make request to {url}")]
-    Send { url: Url, source: reqwest::Error },
-    #[error("no such resource: {url}")]
-    NotFound { url: Url },
-    #[error("request to {url} returned error")]
-    Status { url: Url, source: reqwest::Error },
-    #[error("failed to read response from {url}")]
-    Read { url: Url, source: reqwest::Error },
+    #[error(transparent)]
+    Http(#[from] HttpError),
     #[error("failed to parse Apache index at {url}")]
     ParseIndex { url: Url, source: ParseIndexError },
     #[error("invalid path requested: {path:?}")]

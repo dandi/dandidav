@@ -1,5 +1,6 @@
 use crate::consts::USER_AGENT;
-use reqwest::ClientBuilder;
+use reqwest::{ClientBuilder, StatusCode};
+use serde::de::DeserializeOwned;
 use thiserror::Error;
 use url::Url;
 
@@ -13,6 +14,57 @@ pub(crate) fn new_client() -> Result<reqwest::Client, BuildClientError> {
 #[derive(Debug, Error)]
 #[error("failed to initialize HTTP client")]
 pub(crate) struct BuildClientError(#[from] reqwest::Error);
+
+async fn get_response(client: &reqwest::Client, url: Url) -> Result<reqwest::Response, HttpError> {
+    let r = client
+        .get(url.clone())
+        .send()
+        .await
+        .map_err(|source| HttpError::Send {
+            url: url.clone(),
+            source,
+        })?;
+    if r.status() == StatusCode::NOT_FOUND {
+        return Err(HttpError::NotFound { url: url.clone() });
+    }
+    r.error_for_status().map_err(|source| HttpError::Status {
+        url: url.clone(),
+        source,
+    })
+}
+
+pub(crate) async fn get_json<T: DeserializeOwned>(
+    client: &reqwest::Client,
+    url: Url,
+) -> Result<T, HttpError> {
+    get_response(client, url.clone())
+        .await?
+        .json::<T>()
+        .await
+        .map_err(move |source| HttpError::Deserialize { url, source })
+}
+
+pub(crate) async fn get_text(client: &reqwest::Client, url: Url) -> Result<String, HttpError> {
+    get_response(client, url.clone())
+        .await?
+        .text()
+        .await
+        .map_err(move |source| HttpError::Read { url, source })
+}
+
+#[derive(Debug, Error)]
+pub(crate) enum HttpError {
+    #[error("failed to make request to {url}")]
+    Send { url: Url, source: reqwest::Error },
+    #[error("no such resource: {url}")]
+    NotFound { url: Url },
+    #[error("request to {url} returned error")]
+    Status { url: Url, source: reqwest::Error },
+    #[error("failed to read response from {url}")]
+    Read { url: Url, source: reqwest::Error },
+    #[error("failed to deserialize response body from {url}")]
+    Deserialize { url: Url, source: reqwest::Error },
+}
 
 pub(crate) fn urljoin_slashed<I>(url: &Url, segments: I) -> Url
 where

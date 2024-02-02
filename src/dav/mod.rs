@@ -11,6 +11,7 @@ use self::util::*;
 use self::xml::*;
 use crate::consts::{DAV_XML_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
+use crate::httputil::HttpError;
 use crate::zarrman::*;
 use axum::{
     body::Body,
@@ -359,11 +360,11 @@ impl DavError {
     pub(crate) fn is_404(&self) -> bool {
         matches!(
             self,
-            DavError::DandiApi(DandiError::NotFound { .. } | DandiError::ZarrEntryNotFound { .. })
-                | DavError::ZarrMan(
-                    ZarrManError::NotFound { .. } | ZarrManError::InvalidPath { .. }
-                )
-                | DavError::NoLatestVersion { .. }
+            DavError::DandiApi(
+                DandiError::Http(HttpError::NotFound { .. }) | DandiError::ZarrEntryNotFound { .. }
+            ) | DavError::ZarrMan(
+                ZarrManError::Http(HttpError::NotFound { .. }) | ZarrManError::InvalidPath { .. }
+            ) | DavError::NoLatestVersion { .. }
         )
     }
 }

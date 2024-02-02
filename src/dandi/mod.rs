@@ -5,7 +5,7 @@ pub(crate) use self::dandiset_id::*;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
 use crate::consts::S3CLIENT_CACHE_SIZE;
-use crate::httputil::{new_client, urljoin_slashed, BuildClientError};
+use crate::httputil::{get_json, new_client, urljoin_slashed, BuildClientError, HttpError};
 use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
 use crate::s3::{
     BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Error, S3Location,
@@ -13,7 +13,6 @@ use crate::s3::{
 use async_stream::try_stream;
 use futures_util::{Stream, TryStreamExt};
 use moka::future::{Cache, CacheBuilder};
-use reqwest::StatusCode;
 use serde::de::DeserializeOwned;
 use smartstring::alias::CompactString;
 use std::sync::Arc;
@@ -51,26 +50,7 @@ impl DandiClient {
     }
 
     async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, DandiError> {
-        let r = self
-            .inner
-            .get(url.clone())
-            .send()
-            .await
-            .map_err(|source| DandiError::Send {
-                url: url.clone(),
-                source,
-            })?;
-        if r.status() == StatusCode::NOT_FOUND {
-            return Err(DandiError::NotFound { url: url.clone() });
-        }
-        r.error_for_status()
-            .map_err(|source| DandiError::Status {
-                url: url.clone(),
-                source,
-            })?
-            .json::<T>()
-            .await
-            .map_err(move |source| DandiError::Deserialize { url, source })
+        get_json(&self.inner, url).await.map_err(Into::into)
     }
 
     fn paginate<T: DeserializeOwned + 'static>(
@@ -80,19 +60,7 @@ impl DandiClient {
         try_stream! {
             let mut url = Some(url);
             while let Some(u) = url {
-                let resp = self.inner
-                    .get(u.clone())
-                    .send()
-                    .await
-                    .map_err(|source| DandiError::Send {url: u.clone(), source})?;
-                if resp.status() == StatusCode::NOT_FOUND {
-                    Err(DandiError::NotFound {url: u.clone() })?;
-                }
-                let page = resp.error_for_status()
-                    .map_err(|source| DandiError::Status {url: u.clone(), source})?
-                    .json::<Page<T>>()
-                    .await
-                    .map_err(move |source| DandiError::Deserialize {url: u, source})?;
+                let page = get_json::<Page<T>>(&self.inner, u).await?;
                 for r in page.results {
                     yield r;
                 }
@@ -259,7 +227,7 @@ impl<'a> VersionEndpoint<'a> {
                     FolderEntry::Folder(subf) => yield DandiResource::Folder(subf),
                     FolderEntry::Asset { id, path } => match self.get_asset_by_id(&id).await {
                         Ok(asset) => yield DandiResource::Asset(asset),
-                        Err(DandiError::NotFound { .. }) => {
+                        Err(DandiError::Http(HttpError::NotFound { .. })) => {
                             Err(DandiError::DisappearingAsset { asset_id: id, path })?;
                         }
                         Err(e) => Err(e)?,
@@ -319,7 +287,7 @@ impl<'a> VersionEndpoint<'a> {
                 break;
             }
         }
-        Err(DandiError::NotFound { url })
+        Err(DandiError::Http(HttpError::NotFound { url }))
     }
 
     async fn get_resource_with_s3(
@@ -352,7 +320,7 @@ impl<'a> VersionEndpoint<'a> {
                         "assets",
                     ]);
                     url.query_pairs_mut().append_pair("path", path.as_ref());
-                    return Err(DandiError::NotFound { url });
+                    return Err(DandiError::Http(HttpError::NotFound { url }));
                 }
                 AtAssetPath::Asset(Asset::Zarr(zarr)) => {
                     let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
@@ -387,7 +355,7 @@ impl<'a> VersionEndpoint<'a> {
                         FolderEntry::Folder(subf) => DandiResource::Folder(subf),
                         FolderEntry::Asset { id, path } => match self.get_asset_by_id(&id).await {
                             Ok(asset) => DandiResource::Asset(asset),
-                            Err(DandiError::NotFound { .. }) => {
+                            Err(DandiError::Http(HttpError::NotFound { .. })) => {
                                 return Err(DandiError::DisappearingAsset { asset_id: id, path })
                             }
                             Err(e) => return Err(e),
@@ -428,10 +396,8 @@ impl<'a> VersionEndpoint<'a> {
 
 #[derive(Debug, Error)]
 pub(crate) enum DandiError {
-    #[error("failed to make request to {url}")]
-    Send { url: Url, source: reqwest::Error },
-    #[error("no such resource: {url}")]
-    NotFound { url: Url },
+    #[error(transparent)]
+    Http(#[from] HttpError),
     #[error("entry {entry_path:?} in Zarr {zarr_path:?} not found")]
     ZarrEntryNotFound {
         zarr_path: PurePath,
@@ -439,10 +405,6 @@ pub(crate) enum DandiError {
     },
     #[error("folder listing included asset ID={asset_id} at path {path:?}, but request to asset returned 404")]
     DisappearingAsset { asset_id: String, path: PurePath },
-    #[error("request to {url} returned error")]
-    Status { url: Url, source: reqwest::Error },
-    #[error("failed to deserialize response body from {url}")]
-    Deserialize { url: Url, source: reqwest::Error },
     #[error("failed to acquire S3 client for Zarr with asset ID {asset_id}")]
     ZarrToS3Error {
         asset_id: String,

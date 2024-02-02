@@ -44,14 +44,6 @@ pub(crate) async fn get_json<T: DeserializeOwned>(
         .map_err(move |source| HttpError::Deserialize { url, source })
 }
 
-pub(crate) async fn get_text(client: &reqwest::Client, url: Url) -> Result<String, HttpError> {
-    get_response(client, url.clone())
-        .await?
-        .text()
-        .await
-        .map_err(move |source| HttpError::Read { url, source })
-}
-
 #[derive(Debug, Error)]
 pub(crate) enum HttpError {
     #[error("failed to make request to {url}")]
@@ -60,8 +52,6 @@ pub(crate) enum HttpError {
     NotFound { url: Url },
     #[error("request to {url} returned error")]
     Status { url: Url, source: reqwest::Error },
-    #[error("failed to read response from {url}")]
-    Read { url: Url, source: reqwest::Error },
     #[error("failed to deserialize response body from {url}")]
     Deserialize { url: Url, source: reqwest::Error },
 }

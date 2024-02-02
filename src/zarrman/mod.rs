@@ -1,11 +1,10 @@
-mod index;
 mod manifest;
 mod resources;
-use self::index::*;
 pub(crate) use self::resources::*;
-use crate::httputil::{get_text, new_client, urljoin_slashed, BuildClientError, HttpError};
-use crate::paths::{PureDirPath, PurePath};
+use crate::httputil::{get_json, new_client, urljoin_slashed, BuildClientError, HttpError};
+use crate::paths::{Component, PureDirPath, PurePath};
 use moka::future::{Cache, CacheBuilder};
+use serde::Deserialize;
 use std::sync::Arc;
 use thiserror::Error;
 use url::Url;
@@ -36,31 +35,39 @@ impl ZarrManClient {
     }
 
     pub(crate) async fn get_top_level_dirs(&self) -> Result<Vec<ZarrManResource>, ZarrManError> {
-        let entries = self.get_index_entries(None).await?;
-        Ok(entries
-            .into_iter()
-            .map(|path| {
-                ZarrManResource::WebFolder(WebFolder {
-                    web_path: path.to_dir_path(),
-                })
-            })
-            .collect())
+        self.get_index_entries(None).await
     }
 
     async fn get_index_entries(
         &self,
         path: Option<&PureDirPath>,
-    ) -> Result<Vec<PurePath>, ZarrManError> {
+    ) -> Result<Vec<ZarrManResource>, ZarrManError> {
         let mut url =
             Url::parse(MANIFEST_ROOT_URL).expect("MANIFEST_ROOT_URL should be a valid URL");
         if let Some(p) = path {
             url = urljoin_slashed(&url, p.components());
         }
-        let txt = get_text(&self.inner, url.clone()).await?;
-        parse_apache_index(&txt).map_err(|source| ZarrManError::ParseIndex {
-            url: url.clone(),
-            source,
-        })
+        let index = get_json::<Index>(&self.inner, url).await?;
+        let mut entries =
+            Vec::with_capacity(index.files.len().saturating_add(index.directories.len()));
+        for f in index.files {
+            if f.ends_with(".json") && !f.ends_with(".versionid.json") {
+                let web_path = match path {
+                    Some(p) => p.join_one_dir(&f),
+                    None => PureDirPath::from(f),
+                };
+                entries.push(ZarrManResource::Manifest(Manifest { web_path }));
+            }
+            // else: Ignore
+        }
+        for d in index.directories {
+            let web_path = match path {
+                Some(p) => p.join_one_dir(&d),
+                None => PureDirPath::from(d),
+            };
+            entries.push(ZarrManResource::WebFolder(WebFolder { web_path }));
+        }
+        Ok(entries)
     }
 
     #[allow(clippy::unused_async)]
@@ -86,8 +93,6 @@ impl ZarrManClient {
 pub(crate) enum ZarrManError {
     #[error(transparent)]
     Http(#[from] HttpError),
-    #[error("failed to parse Apache index at {url}")]
-    ParseIndex { url: Url, source: ParseIndexError },
     #[error("invalid path requested: {path:?}")]
     InvalidPath { path: PurePath },
 }
@@ -99,4 +104,11 @@ impl ZarrManError {
             ZarrManError::Http(HttpError::NotFound { .. }) | ZarrManError::InvalidPath { .. }
         )
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+struct Index {
+    //path: String,
+    files: Vec<Component>,
+    directories: Vec<Component>,
 }

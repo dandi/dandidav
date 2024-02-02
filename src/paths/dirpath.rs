@@ -1,4 +1,4 @@
-use super::PurePath;
+use super::{Component, PurePath};
 use derive_more::{AsRef, Deref, Display};
 use std::fmt;
 use thiserror::Error;
@@ -35,6 +35,10 @@ impl PureDirPath {
 
     pub(crate) fn join_dir(&self, path: &PureDirPath) -> PureDirPath {
         PureDirPath(format!("{self}{path}"))
+    }
+
+    pub(crate) fn join_one_dir(&self, c: &Component) -> PureDirPath {
+        PureDirPath(format!("{self}{c}/"))
     }
 
     pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<PureDirPath> {
@@ -84,6 +88,14 @@ impl std::str::FromStr for PureDirPath {
         } else {
             Ok(PureDirPath(s.into()))
         }
+    }
+}
+
+impl From<Component> for PureDirPath {
+    fn from(value: Component) -> PureDirPath {
+        let mut s = value.0;
+        s.push('/');
+        PureDirPath(s)
     }
 }
 

@@ -1,4 +1,4 @@
-use super::PureDirPath;
+use super::{Component, PureDirPath};
 use crate::consts::ZARR_EXTENSIONS;
 use derive_more::{AsRef, Deref, Display};
 use serde::{
@@ -93,6 +93,12 @@ impl std::str::FromStr for PurePath {
         } else {
             Ok(PurePath(s.into()))
         }
+    }
+}
+
+impl From<Component> for PurePath {
+    fn from(value: Component) -> PurePath {
+        PurePath(value.0)
     }
 }
 

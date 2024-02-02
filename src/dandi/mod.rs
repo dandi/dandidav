@@ -4,7 +4,8 @@ mod version_id;
 pub(crate) use self::dandiset_id::*;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
-use crate::consts::{S3CLIENT_CACHE_SIZE, USER_AGENT};
+use crate::consts::S3CLIENT_CACHE_SIZE;
+use crate::httputil::{new_client, BuildClientError};
 use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
 use crate::s3::{
     BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Error, S3Location,
@@ -12,7 +13,7 @@ use crate::s3::{
 use async_stream::try_stream;
 use futures_util::{Stream, TryStreamExt};
 use moka::future::{Cache, CacheBuilder};
-use reqwest::{ClientBuilder, StatusCode};
+use reqwest::StatusCode;
 use serde::de::DeserializeOwned;
 use smartstring::alias::CompactString;
 use std::sync::Arc;
@@ -28,7 +29,7 @@ pub(crate) struct DandiClient {
 
 impl DandiClient {
     pub(crate) fn new(api_url: Url) -> Result<Self, BuildClientError> {
-        let inner = ClientBuilder::new().user_agent(USER_AGENT).build()?;
+        let inner = new_client()?;
         let s3clients = Arc::new(
             CacheBuilder::new(S3CLIENT_CACHE_SIZE)
                 .name("s3clients")
@@ -424,10 +425,6 @@ impl<'a> VersionEndpoint<'a> {
         }
     }
 }
-
-#[derive(Debug, Error)]
-#[error("failed to initialize Dandi API client")]
-pub(crate) struct BuildClientError(#[from] reqwest::Error);
 
 #[derive(Debug, Error)]
 pub(crate) enum DandiError {

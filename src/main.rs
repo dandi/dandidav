@@ -8,6 +8,7 @@ mod zarrman;
 use crate::consts::{CSS_CONTENT_TYPE, DEFAULT_API_URL, SERVER_VALUE};
 use crate::dandi::DandiClient;
 use crate::dav::{DandiDav, Templater};
+use crate::zarrman::ZarrManClient;
 use anyhow::Context;
 use axum::{
     body::Body,
@@ -60,8 +61,14 @@ async fn main() -> anyhow::Result<()> {
         .with_max_level(LevelFilter::TRACE)
         .init();
     let dandi = DandiClient::new(args.api_url)?;
+    let zarrman = ZarrManClient::new()?;
     let templater = Templater::load()?;
-    let dav = Arc::new(DandiDav::new(dandi, templater, args.title));
+    let dav = Arc::new(DandiDav {
+        dandi,
+        zarrman,
+        templater,
+        title: args.title,
+    });
     let app = Router::new()
         .route(
             "/.static/styles.css",

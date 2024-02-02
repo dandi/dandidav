@@ -11,6 +11,7 @@ use self::util::*;
 use self::xml::*;
 use crate::consts::{DAV_XML_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
+use crate::zarrman::*;
 use axum::{
     body::Body,
     extract::Request,
@@ -29,20 +30,13 @@ const WEBDAV_RESPONSE_HEADERS: [(&str, &str); 2] = [
 ];
 
 pub(crate) struct DandiDav {
-    dandi: DandiClient,
-    templater: Templater,
-    title: String,
+    pub(crate) dandi: DandiClient,
+    pub(crate) zarrman: ZarrManClient,
+    pub(crate) templater: Templater,
+    pub(crate) title: String,
 }
 
 impl DandiDav {
-    pub(crate) fn new(dandi: DandiClient, templater: Templater, title: String) -> DandiDav {
-        DandiDav {
-            dandi,
-            templater,
-            title,
-        }
-    }
-
     pub(crate) async fn handle_request(
         &self,
         req: Request<Body>,
@@ -225,6 +219,11 @@ impl DandiDav {
                     .await?;
                 Ok(DavResource::from(res).under_version_path(dandiset_id, version))
             }
+            DavPath::ZarrIndex => Ok(DavResource::Collection(DavCollection::zarr_index())),
+            DavPath::ZarrPath { path } => {
+                let res = self.zarrman.get_resource(path).await?;
+                Ok(DavResource::from(res))
+            }
         }
     }
 
@@ -321,6 +320,21 @@ impl DandiDav {
                     .await?;
                 Ok(DavResourceWithChildren::from(res).under_version_path(dandiset_id, version))
             }
+            DavPath::ZarrIndex => {
+                let col = DavCollection::zarr_index();
+                let children = self
+                    .zarrman
+                    .get_top_level_dirs()
+                    .await?
+                    .into_iter()
+                    .map(DavResource::from)
+                    .collect();
+                Ok(DavResourceWithChildren::Collection { col, children })
+            }
+            DavPath::ZarrPath { path } => {
+                let res = self.zarrman.get_resource_with_children(path).await?;
+                Ok(DavResourceWithChildren::from(res))
+            }
         }
     }
 }
@@ -329,6 +343,8 @@ impl DandiDav {
 pub(crate) enum DavError {
     #[error("failed to fetch data from Archive")]
     DandiApi(#[from] DandiError),
+    #[error("failed to fetch data from Zarr manifests")]
+    ZarrMan(#[from] ZarrManError),
     #[error(
         "latest version was requested for Dandiset {dandiset_id}, but it has not been published"
     )]
@@ -344,6 +360,9 @@ impl DavError {
         matches!(
             self,
             DavError::DandiApi(DandiError::NotFound { .. } | DandiError::ZarrEntryNotFound { .. })
+                | DavError::ZarrMan(
+                    ZarrManError::NotFound { .. } | ZarrManError::InvalidPath { .. }
+                )
                 | DavError::NoLatestVersion { .. }
         )
     }

@@ -33,7 +33,7 @@ impl ZarrManClient {
     }
 
     #[allow(clippy::unused_async)]
-    pub(crate) async fn get_top_level_dirs(&self) -> Result<Vec<WebFolder>, ZarrManError> {
+    pub(crate) async fn get_top_level_dirs(&self) -> Result<Vec<ZarrManResource>, ZarrManError> {
         todo!()
     }
 
@@ -57,5 +57,9 @@ impl ZarrManClient {
 }
 
 #[derive(Debug, Error)]
-#[error("TODO")]
-pub(crate) struct ZarrManError; // TODO
+pub(crate) enum ZarrManError {
+    #[error("no such resource: {url}")]
+    NotFound { url: url::Url },
+    #[error("invalid path requested: {path:?}")]
+    InvalidPath { path: PurePath },
+}

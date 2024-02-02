@@ -11,12 +11,12 @@ pub(crate) enum ZarrManResource {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct WebFolder {
-    web_path: PureDirPath,
+    pub(crate) web_path: PureDirPath,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Manifest {
-    web_path: PureDirPath,
+    pub(crate) web_path: PureDirPath,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -25,6 +25,10 @@ pub(super) enum DavPath {
         version: VersionSpec,
         path: PurePath,
     },
+    ZarrIndex,
+    ZarrPath {
+        path: PurePath,
+    },
 }
 
 impl DavPath {
@@ -36,67 +40,60 @@ impl DavPath {
         let Some(p1) = parts.next() else {
             return Some(DavPath::Root);
         };
-        if !p1.eq_ignore_ascii_case("dandisets") {
-            return None;
-        }
-        let Some(did) = parts.next() else {
-            return Some(DavPath::DandisetIndex);
-        };
-        let Ok(dandiset_id) = did.parse::<DandisetId>() else {
-            return None;
-        };
-        let Some(p3) = parts.next() else {
-            return Some(DavPath::Dandiset { dandiset_id });
-        };
-        let version = if p3.eq_ignore_ascii_case("releases") {
-            let Some(v) = parts.next() else {
-                return Some(DavPath::DandisetReleases { dandiset_id });
+        if p1.eq_ignore_ascii_case("dandisets") {
+            let Some(did) = parts.next() else {
+                return Some(DavPath::DandisetIndex);
             };
-            let Ok(pv) = v.parse::<PublishedVersionId>() else {
+            let Ok(dandiset_id) = did.parse::<DandisetId>() else {
                 return None;
             };
-            VersionSpec::Published(pv)
-        } else if p3.eq_ignore_ascii_case("latest") {
-            VersionSpec::Latest
-        } else if p3.eq_ignore_ascii_case("draft") {
-            VersionSpec::Draft
-        } else {
-            return None;
-        };
-        let mut path = String::new();
-        for p in parts {
-            if p == "." {
-                continue;
-            } else if p == ".." || FAST_NOT_EXIST.binary_search(&p).is_ok() {
-                // axum collapses `..` components in requests; the only way a
-                // `..` could have snuck in is if the component were
-                // percent-escaped, in which case we're going to reject the
-                // user's meddling.
-                return None;
+            let Some(p3) = parts.next() else {
+                return Some(DavPath::Dandiset { dandiset_id });
+            };
+            let version = if p3.eq_ignore_ascii_case("releases") {
+                let Some(v) = parts.next() else {
+                    return Some(DavPath::DandisetReleases { dandiset_id });
+                };
+                let Ok(pv) = v.parse::<PublishedVersionId>() else {
+                    return None;
+                };
+                VersionSpec::Published(pv)
+            } else if p3.eq_ignore_ascii_case("latest") {
+                VersionSpec::Latest
+            } else if p3.eq_ignore_ascii_case("draft") {
+                VersionSpec::Draft
             } else {
-                if !path.is_empty() {
-                    path.push('/');
-                }
-                path.push_str(p);
+                return None;
+            };
+            let path = join_parts(parts)?;
+            if path.is_empty() {
+                Some(DavPath::Version {
+                    dandiset_id,
+                    version,
+                })
+            } else if path == "dandiset.yaml" {
+                Some(DavPath::DandisetYaml {
+                    dandiset_id,
+                    version,
+                })
+            } else {
+                let path = path.parse::<PurePath>().expect("should be valid path");
+                Some(DavPath::DandiResource {
+                    dandiset_id,
+                    version,
+                    path,
+                })
             }
-        }
-        if path.is_empty() {
-            Some(DavPath::Version {
-                dandiset_id,
-                version,
-            })
-        } else if path == "dandiset.yaml" {
-            Some(DavPath::DandisetYaml {
-                dandiset_id,
-                version,
-            })
+        } else if p1.eq_ignore_ascii_case("zarrs") {
+            let path = join_parts(parts)?;
+            if path.is_empty() {
+                Some(DavPath::ZarrIndex)
+            } else {
+                let path = path.parse::<PurePath>().expect("should be valid path");
+                Some(DavPath::ZarrPath { path })
+            }
         } else {
-            let path = path.parse::<PurePath>().expect("should be valid path");
-            Some(DavPath::DandiResource {
-                dandiset_id,
-                version,
-                path,
-            })
+            None
         }
     }
 }
@@ -135,6 +132,26 @@ impl<'a> Iterator for SplitComponents<'a> {
 }
 
 impl std::iter::FusedIterator for SplitComponents<'_> {}
+
+fn join_parts(parts: SplitComponents<'_>) -> Option<String> {
+    let mut path = String::new();
+    for p in parts {
+        if p == "." {
+            continue;
+        } else if p == ".." || FAST_NOT_EXIST.binary_search(&p).is_ok() {
+            // axum collapses `..` components in requests; the only way a `..`
+            // could have snuck in is if the component were percent-escaped, in
+            // which case we're going to reject the user's meddling.
+            return None;
+        } else {
+            if !path.is_empty() {
+                path.push('/');
+            }
+            path.push_str(p);
+        }
+    }
+    Some(path)
+}
 
 #[cfg(test)]
 mod tests {
@@ -304,6 +321,28 @@ mod tests {
             assert_matches!(version, VersionSpec::Published(v) => {
                 assert_eq!(v, "0.240123.42");
             });
+            assert_eq!(path, respath);
+        });
+    }
+
+    #[rstest]
+    #[case("/zarrs")]
+    #[case("/zarrs/")]
+    #[case("/zarrs//")]
+    #[case("//zarrs/")]
+    #[case("/Zarrs")]
+    #[case("/ZARRS")]
+    fn test_zarr_index(#[case] path: &str) {
+        assert_eq!(DavPath::parse_uri_path(path), Some(DavPath::ZarrIndex));
+    }
+
+    #[rstest]
+    #[case("/zarrs/123", "123")]
+    #[case("/zarrs/123/", "123")]
+    #[case("/zarrs/123/abc", "123/abc")]
+    #[case("/ZARRS/123/ABC", "123/ABC")]
+    fn test_zarr_path(#[case] s: &str, #[case] respath: &str) {
+        assert_matches!(DavPath::parse_uri_path(s), Some(DavPath::ZarrPath {path}) => {
             assert_eq!(path, respath);
         });
     }

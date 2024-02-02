@@ -21,17 +21,17 @@ use tokio::sync::Mutex;
 use url::Url;
 
 #[derive(Clone, Debug)]
-pub(crate) struct Client {
+pub(crate) struct DandiClient {
     inner: reqwest::Client,
     api_url: Url,
     s3clients: Arc<Mutex<LruCache<BucketSpec, Arc<S3Client>>>>,
 }
 
-impl Client {
+impl DandiClient {
     pub(crate) fn new(api_url: Url) -> Result<Self, BuildClientError> {
         let inner = ClientBuilder::new().user_agent(USER_AGENT).build()?;
         let s3clients = Arc::new(Mutex::new(LruCache::new(S3CLIENT_CACHE_SIZE)));
-        Ok(Client {
+        Ok(DandiClient {
             inner,
             api_url,
             s3clients,
@@ -162,12 +162,12 @@ impl Client {
 
 #[derive(Clone, Debug)]
 pub(crate) struct DandisetEndpoint<'a> {
-    client: &'a Client,
+    client: &'a DandiClient,
     dandiset_id: DandisetId,
 }
 
 impl<'a> DandisetEndpoint<'a> {
-    fn new(client: &'a Client, dandiset_id: DandisetId) -> Self {
+    fn new(client: &'a DandiClient, dandiset_id: DandisetId) -> Self {
         Self {
             client,
             dandiset_id,
@@ -200,7 +200,7 @@ impl<'a> DandisetEndpoint<'a> {
 
 #[derive(Clone, Debug)]
 pub(crate) struct VersionEndpoint<'a> {
-    client: &'a Client,
+    client: &'a DandiClient,
     dandiset_id: DandisetId,
     version_id: VersionId,
 }

@@ -29,15 +29,15 @@ const WEBDAV_RESPONSE_HEADERS: [(&str, &str); 2] = [
 ];
 
 pub(crate) struct DandiDav {
-    client: Client,
+    dandi: DandiClient,
     templater: Templater,
     title: String,
 }
 
 impl DandiDav {
-    pub(crate) fn new(client: Client, templater: Templater, title: String) -> DandiDav {
+    pub(crate) fn new(dandi: DandiClient, templater: Templater, title: String) -> DandiDav {
         DandiDav {
-            client,
+            dandi,
             templater,
             title,
         }
@@ -146,7 +146,7 @@ impl DandiDav {
         dandiset_id: &DandisetId,
         version: &VersionSpec,
     ) -> Result<VersionEndpoint<'_>, DavError> {
-        let d = self.client.dandiset(dandiset_id.clone());
+        let d = self.dandi.dandiset(dandiset_id.clone());
         match version {
             VersionSpec::Draft => Ok(d.version(VersionId::Draft)),
             VersionSpec::Published(v) => Ok(d.version(VersionId::Published(v.clone()))),
@@ -189,7 +189,7 @@ impl DandiDav {
             DavPath::Root => Ok(DavResource::root()),
             DavPath::DandisetIndex => Ok(DavResource::Collection(DavCollection::dandiset_index())),
             DavPath::Dandiset { dandiset_id } => {
-                let ds = self.client.dandiset(dandiset_id.clone()).get().await?;
+                let ds = self.dandi.dandiset(dandiset_id.clone()).get().await?;
                 Ok(DavResource::Collection(ds.into()))
             }
             DavPath::DandisetReleases { dandiset_id } => {
@@ -237,7 +237,7 @@ impl DandiDav {
             DavPath::DandisetIndex => {
                 let col = DavCollection::dandiset_index();
                 let mut children = Vec::new();
-                let stream = self.client.get_all_dandisets();
+                let stream = self.dandi.get_all_dandisets();
                 tokio::pin!(stream);
                 while let Some(ds) = stream.try_next().await? {
                     children.push(DavResource::Collection(ds.into()));
@@ -245,7 +245,7 @@ impl DandiDav {
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
             DavPath::Dandiset { dandiset_id } => {
-                let ds = self.client.dandiset(dandiset_id.clone()).get().await?;
+                let ds = self.dandi.dandiset(dandiset_id.clone()).get().await?;
                 let draft = DavResource::Collection(DavCollection::dandiset_version(
                     ds.draft_version.clone(),
                     version_path(dandiset_id, &VersionSpec::Draft),
@@ -271,7 +271,7 @@ impl DandiDav {
                 // have any published releases?
                 let col = DavCollection::dandiset_releases(dandiset_id);
                 let mut children = Vec::new();
-                let endpoint = self.client.dandiset(dandiset_id.clone());
+                let endpoint = self.dandi.dandiset(dandiset_id.clone());
                 let stream = endpoint.get_all_versions();
                 tokio::pin!(stream);
                 while let Some(v) = stream.try_next().await? {

@@ -4,7 +4,7 @@ mod dav;
 mod paths;
 mod s3;
 use crate::consts::{CSS_CONTENT_TYPE, DEFAULT_API_URL, SERVER_VALUE};
-use crate::dandi::Client;
+use crate::dandi::DandiClient;
 use crate::dav::{DandiDav, Templater};
 use anyhow::Context;
 use axum::{
@@ -57,9 +57,9 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_max_level(LevelFilter::TRACE)
         .init();
-    let client = Client::new(args.api_url)?;
+    let dandi = DandiClient::new(args.api_url)?;
     let templater = Templater::load()?;
-    let dav = Arc::new(DandiDav::new(client, templater, args.title));
+    let dav = Arc::new(DandiDav::new(dandi, templater, args.title));
     let app = Router::new()
         .route(
             "/.static/styles.css",

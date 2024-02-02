@@ -239,7 +239,7 @@ impl<'a> VersionEndpoint<'a> {
         Ok(VersionMetadata(dump_json_as_yaml(data).into_bytes()))
     }
 
-    pub(crate) async fn get_asset_by_id(&self, id: &str) -> Result<Asset, DandiError> {
+    async fn get_asset_by_id(&self, id: &str) -> Result<Asset, DandiError> {
         self.client
             .get(self.client.get_url([
                 "dandisets",
@@ -300,7 +300,7 @@ impl<'a> VersionEndpoint<'a> {
         self.client.paginate(url)
     }
 
-    pub(crate) async fn get_path(&self, path: &PurePath) -> Result<AtAssetPath, DandiError> {
+    async fn get_path(&self, path: &PurePath) -> Result<AtAssetPath, DandiError> {
         let mut url = self.client.get_url([
             "dandisets",
             self.dandiset_id.as_ref(),

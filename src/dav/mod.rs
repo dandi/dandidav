@@ -11,7 +11,6 @@ use self::util::*;
 use self::xml::*;
 use crate::consts::{DAV_XML_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
-use crate::httputil::HttpError;
 use crate::zarrman::*;
 use axum::{
     body::Body,
@@ -343,7 +342,7 @@ impl DandiDav {
 #[derive(Debug, Error)]
 pub(crate) enum DavError {
     #[error("failed to fetch data from Archive")]
-    DandiApi(#[from] DandiError),
+    Dandi(#[from] DandiError),
     #[error("failed to fetch data from Zarr manifests")]
     ZarrMan(#[from] ZarrManError),
     #[error(
@@ -358,14 +357,12 @@ pub(crate) enum DavError {
 
 impl DavError {
     pub(crate) fn is_404(&self) -> bool {
-        matches!(
-            self,
-            DavError::DandiApi(
-                DandiError::Http(HttpError::NotFound { .. }) | DandiError::ZarrEntryNotFound { .. }
-            ) | DavError::ZarrMan(
-                ZarrManError::Http(HttpError::NotFound { .. }) | ZarrManError::InvalidPath { .. }
-            ) | DavError::NoLatestVersion { .. }
-        )
+        match self {
+            DavError::Dandi(e) => e.is_404(),
+            DavError::ZarrMan(e) => e.is_404(),
+            DavError::NoLatestVersion { .. } => true,
+            _ => false,
+        }
     }
 }
 

@@ -287,7 +287,7 @@ impl<'a> VersionEndpoint<'a> {
                 break;
             }
         }
-        Err(DandiError::Http(HttpError::NotFound { url }))
+        Err(DandiError::PathNotFound { path: path.clone() })
     }
 
     async fn get_resource_with_s3(
@@ -320,7 +320,10 @@ impl<'a> VersionEndpoint<'a> {
                         "assets",
                     ]);
                     url.query_pairs_mut().append_pair("path", path.as_ref());
-                    return Err(DandiError::Http(HttpError::NotFound { url }));
+                    return Err(DandiError::PathUnderBlob {
+                        path: path.clone(),
+                        blob_path: zarr_path,
+                    });
                 }
                 AtAssetPath::Asset(Asset::Zarr(zarr)) => {
                     let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
@@ -398,6 +401,10 @@ impl<'a> VersionEndpoint<'a> {
 pub(crate) enum DandiError {
     #[error(transparent)]
     Http(#[from] HttpError),
+    #[error("path {path:?} not found in assets")]
+    PathNotFound { path: PurePath },
+    #[error("path {path:?} points nowhere as leading portion {blob_path:?} points to a blob")]
+    PathUnderBlob { path: PurePath, blob_path: PurePath },
     #[error("entry {entry_path:?} in Zarr {zarr_path:?} not found")]
     ZarrEntryNotFound {
         zarr_path: PurePath,
@@ -412,6 +419,18 @@ pub(crate) enum DandiError {
     },
     #[error(transparent)]
     S3(#[from] S3Error),
+}
+
+impl DandiError {
+    pub(crate) fn is_404(&self) -> bool {
+        matches!(
+            self,
+            DandiError::Http(HttpError::NotFound { .. })
+                | DandiError::PathNotFound { .. }
+                | DandiError::PathUnderBlob { .. }
+                | DandiError::ZarrEntryNotFound { .. }
+        )
+    }
 }
 
 #[derive(Debug, Error)]

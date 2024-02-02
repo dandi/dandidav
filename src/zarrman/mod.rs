@@ -91,3 +91,12 @@ pub(crate) enum ZarrManError {
     #[error("invalid path requested: {path:?}")]
     InvalidPath { path: PurePath },
 }
+
+impl ZarrManError {
+    pub(crate) fn is_404(&self) -> bool {
+        matches!(
+            self,
+            ZarrManError::Http(HttpError::NotFound { .. }) | ZarrManError::InvalidPath { .. }
+        )
+    }
+}

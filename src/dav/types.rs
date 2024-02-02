@@ -376,7 +376,7 @@ impl From<ZarrFolder> for DavCollection {
             created: None,
             modified: None,
             size: None,
-            kind: ResourceKind::ZarrFolder,
+            kind: ResourceKind::Directory,
         }
     }
 }
@@ -586,7 +586,6 @@ pub(super) enum ResourceKind {
     Blob,
     Zarr,
     ZarrEntry,
-    ZarrFolder,
     ZarrIndex,
 }
 
@@ -604,7 +603,6 @@ impl ResourceKind {
             ResourceKind::Blob => "Blob asset",
             ResourceKind::Zarr => "Zarr asset",
             ResourceKind::ZarrEntry => "Zarr entry",
-            ResourceKind::ZarrFolder => "Directory",
             ResourceKind::ZarrIndex => "Zarrs",
         }
     }

@@ -5,7 +5,7 @@ pub(crate) use self::dandiset_id::*;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
 use crate::consts::S3CLIENT_CACHE_SIZE;
-use crate::httputil::{new_client, BuildClientError};
+use crate::httputil::{new_client, urljoin_slashed, BuildClientError};
 use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
 use crate::s3::{
     BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Error, S3Location,
@@ -47,7 +47,7 @@ impl DandiClient {
         I: IntoIterator,
         I::Item: AsRef<str>,
     {
-        urljoin(&self.api_url, segments)
+        urljoin_slashed(&self.api_url, segments)
     }
 
     async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, DandiError> {
@@ -468,21 +468,6 @@ pub(crate) enum ZarrToS3Error {
     },
 }
 
-fn urljoin<I>(url: &Url, segments: I) -> Url
-where
-    I: IntoIterator,
-    I::Item: AsRef<str>,
-{
-    let mut url = url.clone();
-    url.path_segments_mut()
-        .expect("API URL should be able to be a base")
-        .pop_if_empty()
-        .extend(segments)
-        // Add an empty segment so that the final URL will end with a slash:
-        .push("");
-    url
-}
-
 fn dump_json_as_yaml(data: serde_json::Value) -> String {
     serde_yaml::to_string(&data).expect("converting JSON to YAML should not fail")
 }
@@ -491,39 +476,7 @@ fn dump_json_as_yaml(data: serde_json::Value) -> String {
 mod tests {
     use super::*;
     use indoc::indoc;
-    use rstest::rstest;
     use serde_json::json;
-
-    #[rstest]
-    #[case("https://api.github.com")]
-    #[case("https://api.github.com/")]
-    fn test_urljoin_nopath(#[case] base: Url) {
-        let u = urljoin(&base, ["foo"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/");
-        let u = urljoin(&base, ["foo", "bar"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/");
-    }
-
-    #[rstest]
-    #[case("https://api.github.com/foo/bar")]
-    #[case("https://api.github.com/foo/bar/")]
-    fn test_urljoin_path(#[case] base: Url) {
-        let u = urljoin(&base, ["gnusto"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/");
-        let u = urljoin(&base, ["gnusto", "cleesh"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/cleesh/");
-    }
-
-    #[rstest]
-    #[case("foo#bar", "https://api.github.com/base/foo%23bar/")]
-    #[case("foo%bar", "https://api.github.com/base/foo%25bar/")]
-    #[case("foo/bar", "https://api.github.com/base/foo%2Fbar/")]
-    #[case("foo?bar", "https://api.github.com/base/foo%3Fbar/")]
-    fn test_urljoin_special_chars(#[case] path: &str, #[case] expected: &str) {
-        let base = Url::parse("https://api.github.com/base").unwrap();
-        let u = urljoin(&base, [path]);
-        assert_eq!(u.as_str(), expected);
-    }
 
     #[test]
     fn test_dump_json_as_yaml() {

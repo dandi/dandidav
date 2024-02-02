@@ -41,6 +41,10 @@ impl PureDirPath {
         let s = self.0.strip_prefix(&dirpath.0)?;
         (!s.is_empty()).then(|| PureDirPath(s.to_owned()))
     }
+
+    pub(crate) fn components(&self) -> std::str::Split<'_, char> {
+        self.0.split('/')
+    }
 }
 
 impl fmt::Debug for PureDirPath {

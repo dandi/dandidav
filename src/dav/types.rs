@@ -394,9 +394,9 @@ impl From<WebFolder> for DavCollection {
 }
 
 impl From<Manifest> for DavCollection {
-    fn from(Manifest { web_path }: Manifest) -> DavCollection {
+    fn from(Manifest { path }: Manifest) -> DavCollection {
         DavCollection {
-            path: Some(web_path),
+            path: Some(path.to_web_path()),
             created: None,
             modified: None,
             size: None,

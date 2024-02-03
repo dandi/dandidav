@@ -14,6 +14,13 @@ use thiserror::Error;
 #[deref(forward)]
 pub(crate) struct Component(pub(super) String);
 
+impl Component {
+    pub(crate) fn strip_suffix(&self, suffix: &str) -> Option<Component> {
+        let s = self.0.strip_suffix(suffix)?;
+        (!s.is_empty()).then(|| Component(s.into()))
+    }
+}
+
 impl fmt::Debug for Component {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.0)

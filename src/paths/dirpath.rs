@@ -24,6 +24,10 @@ impl PureDirPath {
             .expect("path should be nonempty")
     }
 
+    pub(crate) fn name_component(&self) -> Component {
+        Component(self.name().to_owned())
+    }
+
     pub(crate) fn parent(&self) -> Option<PureDirPath> {
         let i = self.0.trim_end_matches('/').rfind('/')?;
         Some(PureDirPath(self.0[..=i].to_owned()))

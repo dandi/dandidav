@@ -56,6 +56,19 @@ pub(crate) enum HttpError {
     Deserialize { url: Url, source: reqwest::Error },
 }
 
+pub(crate) fn urljoin<I>(url: &Url, segments: I) -> Url
+where
+    I: IntoIterator,
+    I::Item: AsRef<str>,
+{
+    let mut url = url.clone();
+    url.path_segments_mut()
+        .expect("URL should be able to be a base")
+        .pop_if_empty()
+        .extend(segments);
+    url
+}
+
 pub(crate) fn urljoin_slashed<I>(url: &Url, segments: I) -> Url
 where
     I: IntoIterator,
@@ -74,36 +87,76 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rstest::rstest;
 
-    #[rstest]
-    #[case("https://api.github.com")]
-    #[case("https://api.github.com/")]
-    fn test_urljoin_slashed_nopath(#[case] base: Url) {
-        let u = urljoin_slashed(&base, ["foo"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/");
-        let u = urljoin_slashed(&base, ["foo", "bar"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/");
+    mod urljoin {
+        use super::*;
+        use rstest::rstest;
+
+        #[rstest]
+        #[case("https://api.github.com")]
+        #[case("https://api.github.com/")]
+        fn nopath(#[case] base: Url) {
+            let u = urljoin(&base, ["foo"]);
+            assert_eq!(u.as_str(), "https://api.github.com/foo");
+            let u = urljoin(&base, ["foo", "bar"]);
+            assert_eq!(u.as_str(), "https://api.github.com/foo/bar");
+        }
+
+        #[rstest]
+        #[case("https://api.github.com/foo/bar")]
+        #[case("https://api.github.com/foo/bar/")]
+        fn path(#[case] base: Url) {
+            let u = urljoin(&base, ["gnusto"]);
+            assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto");
+            let u = urljoin(&base, ["gnusto", "cleesh"]);
+            assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/cleesh");
+        }
+
+        #[rstest]
+        #[case("foo#bar", "https://api.github.com/base/foo%23bar")]
+        #[case("foo%bar", "https://api.github.com/base/foo%25bar")]
+        #[case("foo/bar", "https://api.github.com/base/foo%2Fbar")]
+        #[case("foo?bar", "https://api.github.com/base/foo%3Fbar")]
+        fn special_chars(#[case] path: &str, #[case] expected: &str) {
+            let base = Url::parse("https://api.github.com/base").unwrap();
+            let u = urljoin(&base, [path]);
+            assert_eq!(u.as_str(), expected);
+        }
     }
 
-    #[rstest]
-    #[case("https://api.github.com/foo/bar")]
-    #[case("https://api.github.com/foo/bar/")]
-    fn test_urljoin_slashed_path(#[case] base: Url) {
-        let u = urljoin_slashed(&base, ["gnusto"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/");
-        let u = urljoin_slashed(&base, ["gnusto", "cleesh"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/cleesh/");
-    }
+    mod urljoin_slashed {
+        use super::*;
+        use rstest::rstest;
 
-    #[rstest]
-    #[case("foo#bar", "https://api.github.com/base/foo%23bar/")]
-    #[case("foo%bar", "https://api.github.com/base/foo%25bar/")]
-    #[case("foo/bar", "https://api.github.com/base/foo%2Fbar/")]
-    #[case("foo?bar", "https://api.github.com/base/foo%3Fbar/")]
-    fn test_urljoin_slashed_special_chars(#[case] path: &str, #[case] expected: &str) {
-        let base = Url::parse("https://api.github.com/base").unwrap();
-        let u = urljoin_slashed(&base, [path]);
-        assert_eq!(u.as_str(), expected);
+        #[rstest]
+        #[case("https://api.github.com")]
+        #[case("https://api.github.com/")]
+        fn nopath(#[case] base: Url) {
+            let u = urljoin_slashed(&base, ["foo"]);
+            assert_eq!(u.as_str(), "https://api.github.com/foo/");
+            let u = urljoin_slashed(&base, ["foo", "bar"]);
+            assert_eq!(u.as_str(), "https://api.github.com/foo/bar/");
+        }
+
+        #[rstest]
+        #[case("https://api.github.com/foo/bar")]
+        #[case("https://api.github.com/foo/bar/")]
+        fn path(#[case] base: Url) {
+            let u = urljoin_slashed(&base, ["gnusto"]);
+            assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/");
+            let u = urljoin_slashed(&base, ["gnusto", "cleesh"]);
+            assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/cleesh/");
+        }
+
+        #[rstest]
+        #[case("foo#bar", "https://api.github.com/base/foo%23bar/")]
+        #[case("foo%bar", "https://api.github.com/base/foo%25bar/")]
+        #[case("foo/bar", "https://api.github.com/base/foo%2Fbar/")]
+        #[case("foo?bar", "https://api.github.com/base/foo%3Fbar/")]
+        fn special_chars(#[case] path: &str, #[case] expected: &str) {
+            let base = Url::parse("https://api.github.com/base").unwrap();
+            let u = urljoin_slashed(&base, [path]);
+            assert_eq!(u.as_str(), expected);
+        }
     }
 }

@@ -44,11 +44,11 @@ pub(crate) enum FolderEntry {
 pub(crate) struct ManifestEntry {
     // Keep these fields in this order so that deserialization will work
     // properly!
-    version_id: String,
+    pub(super) version_id: String,
     #[serde(with = "time::serde::rfc3339")]
-    modified: OffsetDateTime,
-    size: i64,
-    etag: String,
+    pub(super) modified: OffsetDateTime,
+    pub(super) size: i64,
+    pub(super) etag: String,
 }
 
 #[cfg(test)]

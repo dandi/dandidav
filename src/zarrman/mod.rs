@@ -23,7 +23,7 @@ const MANIFEST_CACHE_SIZE: u64 = 16;
 #[derive(Clone, Debug)]
 pub(crate) struct ZarrManClient {
     inner: reqwest::Client,
-    manifests: Arc<Cache<PurePath, Arc<manifest::Manifest>>>,
+    manifests: Cache<ManifestPath, Arc<manifest::Manifest>>,
     manifest_root_url: Url,
     s3_download_prefix: Url,
     web_path_prefix: PureDirPath,
@@ -32,11 +32,9 @@ pub(crate) struct ZarrManClient {
 impl ZarrManClient {
     pub(crate) fn new() -> Result<Self, BuildClientError> {
         let inner = new_client()?;
-        let manifests = Arc::new(
-            CacheBuilder::new(MANIFEST_CACHE_SIZE)
-                .name("zarr-manifests")
-                .build(),
-        );
+        let manifests = CacheBuilder::new(MANIFEST_CACHE_SIZE)
+            .name("zarr-manifests")
+            .build();
         let manifest_root_url =
             Url::parse(MANIFEST_ROOT_URL).expect("MANIFEST_ROOT_URL should be a valid URL");
         let s3_download_prefix =
@@ -102,13 +100,18 @@ impl ZarrManClient {
         Ok(entries)
     }
 
-    #[allow(clippy::unused_async)]
-    #[allow(unused_variables)]
     async fn get_zarr_manifest(
         &self,
         path: &ManifestPath,
-    ) -> Result<manifest::Manifest, ZarrManError> {
-        todo!()
+    ) -> Result<Arc<manifest::Manifest>, ZarrManError> {
+        self.manifests
+            .try_get_with_by_ref(path, async move {
+                get_json::<manifest::Manifest>(&self.inner, path.urljoin(&self.manifest_root_url))
+                    .await
+                    .map(Arc::new)
+            })
+            .await
+            .map_err(Into::into)
     }
 
     pub(crate) async fn get_resource(
@@ -188,7 +191,7 @@ impl ZarrManClient {
 #[derive(Debug, Error)]
 pub(crate) enum ZarrManError {
     #[error(transparent)]
-    Http(#[from] HttpError),
+    Http(#[from] Arc<HttpError>),
     #[error("invalid path requested: {path:?}")]
     InvalidPath { path: PurePath },
     #[error("path {entry_path:?} inside manifest at {manifest_path} does not exist")]
@@ -202,10 +205,17 @@ impl ZarrManError {
     pub(crate) fn is_404(&self) -> bool {
         matches!(
             self,
-            ZarrManError::Http(HttpError::NotFound { .. })
-                | ZarrManError::InvalidPath { .. }
-                | ZarrManError::ManifestPathNotFound { .. }
+            ZarrManError::Http(e) if matches!(**e, HttpError::NotFound {..})
+        ) || matches!(
+            self,
+            ZarrManError::InvalidPath { .. } | ZarrManError::ManifestPathNotFound { .. }
         )
+    }
+}
+
+impl From<HttpError> for ZarrManError {
+    fn from(e: HttpError) -> ZarrManError {
+        Arc::new(e).into()
     }
 }
 

@@ -23,7 +23,7 @@ pub(crate) struct Manifest {
     pub(crate) path: ManifestPath,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct ManifestPath {
     pub(super) prefix: PureDirPath,
     pub(super) zarr_id: Component,

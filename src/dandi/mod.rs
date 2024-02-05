@@ -23,17 +23,15 @@ use url::Url;
 pub(crate) struct DandiClient {
     inner: reqwest::Client,
     api_url: Url,
-    s3clients: Arc<Cache<BucketSpec, Arc<S3Client>>>,
+    s3clients: Cache<BucketSpec, Arc<S3Client>>,
 }
 
 impl DandiClient {
     pub(crate) fn new(api_url: Url) -> Result<Self, BuildClientError> {
         let inner = new_client()?;
-        let s3clients = Arc::new(
-            CacheBuilder::new(S3CLIENT_CACHE_SIZE)
-                .name("s3clients")
-                .build(),
-        );
+        let s3clients = CacheBuilder::new(S3CLIENT_CACHE_SIZE)
+            .name("s3clients")
+            .build();
         Ok(DandiClient {
             inner,
             api_url,

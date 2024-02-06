@@ -11,6 +11,7 @@ use self::util::*;
 use self::xml::*;
 use crate::consts::{DAV_XML_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
+use crate::zarrman::*;
 use axum::{
     body::Body,
     extract::Request,
@@ -29,20 +30,13 @@ const WEBDAV_RESPONSE_HEADERS: [(&str, &str); 2] = [
 ];
 
 pub(crate) struct DandiDav {
-    client: Client,
-    templater: Templater,
-    title: String,
+    pub(crate) dandi: DandiClient,
+    pub(crate) zarrman: ZarrManClient,
+    pub(crate) templater: Templater,
+    pub(crate) title: String,
 }
 
 impl DandiDav {
-    pub(crate) fn new(client: Client, templater: Templater, title: String) -> DandiDav {
-        DandiDav {
-            client,
-            templater,
-            title,
-        }
-    }
-
     pub(crate) async fn handle_request(
         &self,
         req: Request<Body>,
@@ -146,7 +140,7 @@ impl DandiDav {
         dandiset_id: &DandisetId,
         version: &VersionSpec,
     ) -> Result<VersionEndpoint<'_>, DavError> {
-        let d = self.client.dandiset(dandiset_id.clone());
+        let d = self.dandi.dandiset(dandiset_id.clone());
         match version {
             VersionSpec::Draft => Ok(d.version(VersionId::Draft)),
             VersionSpec::Published(v) => Ok(d.version(VersionId::Published(v.clone()))),
@@ -189,7 +183,7 @@ impl DandiDav {
             DavPath::Root => Ok(DavResource::root()),
             DavPath::DandisetIndex => Ok(DavResource::Collection(DavCollection::dandiset_index())),
             DavPath::Dandiset { dandiset_id } => {
-                let ds = self.client.dandiset(dandiset_id.clone()).get().await?;
+                let ds = self.dandi.dandiset(dandiset_id.clone()).get().await?;
                 Ok(DavResource::Collection(ds.into()))
             }
             DavPath::DandisetReleases { dandiset_id } => {
@@ -225,6 +219,11 @@ impl DandiDav {
                     .await?;
                 Ok(DavResource::from(res).under_version_path(dandiset_id, version))
             }
+            DavPath::ZarrIndex => Ok(DavResource::Collection(DavCollection::zarr_index())),
+            DavPath::ZarrPath { path } => {
+                let res = self.zarrman.get_resource(path).await?;
+                Ok(DavResource::from(res))
+            }
         }
     }
 
@@ -237,7 +236,7 @@ impl DandiDav {
             DavPath::DandisetIndex => {
                 let col = DavCollection::dandiset_index();
                 let mut children = Vec::new();
-                let stream = self.client.get_all_dandisets();
+                let stream = self.dandi.get_all_dandisets();
                 tokio::pin!(stream);
                 while let Some(ds) = stream.try_next().await? {
                     children.push(DavResource::Collection(ds.into()));
@@ -245,7 +244,7 @@ impl DandiDav {
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
             DavPath::Dandiset { dandiset_id } => {
-                let ds = self.client.dandiset(dandiset_id.clone()).get().await?;
+                let ds = self.dandi.dandiset(dandiset_id.clone()).get().await?;
                 let draft = DavResource::Collection(DavCollection::dandiset_version(
                     ds.draft_version.clone(),
                     version_path(dandiset_id, &VersionSpec::Draft),
@@ -271,7 +270,7 @@ impl DandiDav {
                 // have any published releases?
                 let col = DavCollection::dandiset_releases(dandiset_id);
                 let mut children = Vec::new();
-                let endpoint = self.client.dandiset(dandiset_id.clone());
+                let endpoint = self.dandi.dandiset(dandiset_id.clone());
                 let stream = endpoint.get_all_versions();
                 tokio::pin!(stream);
                 while let Some(v) = stream.try_next().await? {
@@ -321,6 +320,21 @@ impl DandiDav {
                     .await?;
                 Ok(DavResourceWithChildren::from(res).under_version_path(dandiset_id, version))
             }
+            DavPath::ZarrIndex => {
+                let col = DavCollection::zarr_index();
+                let children = self
+                    .zarrman
+                    .get_top_level_dirs()
+                    .await?
+                    .into_iter()
+                    .map(DavResource::from)
+                    .collect();
+                Ok(DavResourceWithChildren::Collection { col, children })
+            }
+            DavPath::ZarrPath { path } => {
+                let res = self.zarrman.get_resource_with_children(path).await?;
+                Ok(DavResourceWithChildren::from(res))
+            }
         }
     }
 }
@@ -328,7 +342,9 @@ impl DandiDav {
 #[derive(Debug, Error)]
 pub(crate) enum DavError {
     #[error("failed to fetch data from Archive")]
-    DandiApi(#[from] DandiError),
+    Dandi(#[from] DandiError),
+    #[error("failed to fetch data from Zarr manifests")]
+    ZarrMan(#[from] ZarrManError),
     #[error(
         "latest version was requested for Dandiset {dandiset_id}, but it has not been published"
     )]
@@ -341,11 +357,12 @@ pub(crate) enum DavError {
 
 impl DavError {
     pub(crate) fn is_404(&self) -> bool {
-        matches!(
-            self,
-            DavError::DandiApi(DandiError::NotFound { .. } | DandiError::ZarrEntryNotFound { .. })
-                | DavError::NoLatestVersion { .. }
-        )
+        match self {
+            DavError::Dandi(e) => e.is_404(),
+            DavError::ZarrMan(e) => e.is_404(),
+            DavError::NoLatestVersion { .. } => true,
+            _ => false,
+        }
     }
 }
 

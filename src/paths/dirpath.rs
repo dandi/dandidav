@@ -1,4 +1,4 @@
-use super::PurePath;
+use super::{Component, PurePath};
 use derive_more::{AsRef, Deref, Display};
 use std::fmt;
 use thiserror::Error;
@@ -16,12 +16,16 @@ use thiserror::Error;
 pub(crate) struct PureDirPath(pub(super) String);
 
 impl PureDirPath {
-    pub(crate) fn name(&self) -> &str {
+    pub(crate) fn name_str(&self) -> &str {
         self.0
             .trim_end_matches('/')
             .split('/')
             .next_back()
             .expect("path should be nonempty")
+    }
+
+    pub(crate) fn name(&self) -> Component {
+        Component(self.name_str().to_owned())
     }
 
     pub(crate) fn parent(&self) -> Option<PureDirPath> {
@@ -37,9 +41,22 @@ impl PureDirPath {
         PureDirPath(format!("{self}{path}"))
     }
 
+    pub(crate) fn join_one_dir(&self, c: &Component) -> PureDirPath {
+        PureDirPath(format!("{self}{c}/"))
+    }
+
+    pub(crate) fn push(&mut self, c: &Component) {
+        self.0.push_str(c.as_ref());
+        self.0.push('/');
+    }
+
     pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<PureDirPath> {
         let s = self.0.strip_prefix(&dirpath.0)?;
         (!s.is_empty()).then(|| PureDirPath(s.to_owned()))
+    }
+
+    pub(crate) fn component_strs(&self) -> std::str::Split<'_, char> {
+        self.0.trim_end_matches('/').split('/')
     }
 }
 
@@ -80,6 +97,14 @@ impl std::str::FromStr for PureDirPath {
         } else {
             Ok(PureDirPath(s.into()))
         }
+    }
+}
+
+impl From<Component> for PureDirPath {
+    fn from(value: Component) -> PureDirPath {
+        let mut s = value.0;
+        s.push('/');
+        PureDirPath(s)
     }
 }
 

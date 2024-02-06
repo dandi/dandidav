@@ -4,6 +4,7 @@ use super::VersionSpec;
 use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
 use crate::dandi::*;
 use crate::paths::{PureDirPath, PurePath};
+use crate::zarrman::*;
 use enum_dispatch::enum_dispatch;
 use serde::{ser::Serializer, Serialize};
 use time::OffsetDateTime;
@@ -79,6 +80,17 @@ impl From<DandiResource> for DavResource {
     }
 }
 
+impl From<ZarrManResource> for DavResource {
+    fn from(res: ZarrManResource) -> DavResource {
+        match res {
+            ZarrManResource::WebFolder(folder) => DavResource::Collection(folder.into()),
+            ZarrManResource::Manifest(folder) => DavResource::Collection(folder.into()),
+            ZarrManResource::ManFolder(folder) => DavResource::Collection(folder.into()),
+            ZarrManResource::ManEntry(entry) => DavResource::Item(entry.into()),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DavResourceWithChildren {
     Collection {
@@ -92,7 +104,10 @@ impl DavResourceWithChildren {
     pub(super) fn root() -> Self {
         DavResourceWithChildren::Collection {
             col: DavCollection::root(),
-            children: vec![DavResource::Collection(DavCollection::dandiset_index())],
+            children: vec![
+                DavResource::Collection(DavCollection::dandiset_index()),
+                DavResource::Collection(DavCollection::zarr_index()),
+            ],
         }
     }
 
@@ -150,6 +165,31 @@ impl From<DandiResourceWithChildren> for DavResourceWithChildren {
     }
 }
 
+impl From<ZarrManResourceWithChildren> for DavResourceWithChildren {
+    fn from(res: ZarrManResourceWithChildren) -> DavResourceWithChildren {
+        fn map_children(vec: Vec<ZarrManResource>) -> Vec<DavResource> {
+            vec.into_iter().map(DavResource::from).collect()
+        }
+
+        use ZarrManResourceWithChildren::*;
+        match res {
+            WebFolder { folder, children } => DavResourceWithChildren::Collection {
+                col: DavCollection::from(folder),
+                children: map_children(children),
+            },
+            Manifest { folder, children } => DavResourceWithChildren::Collection {
+                col: DavCollection::from(folder),
+                children: map_children(children),
+            },
+            ManFolder { folder, children } => DavResourceWithChildren::Collection {
+                col: DavCollection::from(folder),
+                children: map_children(children),
+            },
+            ManEntry(entry) => DavResourceWithChildren::Item(entry.into()),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DavCollection {
     pub(super) path: Option<PureDirPath>, // None for root collection
@@ -161,7 +201,7 @@ pub(super) struct DavCollection {
 
 impl DavCollection {
     pub(super) fn name(&self) -> Option<&str> {
-        self.path.as_ref().map(PureDirPath::name)
+        self.path.as_ref().map(PureDirPath::name_str)
     }
 
     pub(super) fn web_link(&self) -> Href {
@@ -239,6 +279,20 @@ impl DavCollection {
             kind: ResourceKind::Version,
         }
     }
+
+    pub(super) fn zarr_index() -> Self {
+        DavCollection {
+            path: Some(
+                "zarrs/"
+                    .parse::<PureDirPath>()
+                    .expect(r#""zarrs/" should be a valid dir path"#),
+            ),
+            created: None,
+            modified: None,
+            size: None,
+            kind: ResourceKind::ZarrIndex,
+        }
+    }
 }
 
 impl HasProperties for DavCollection {
@@ -298,7 +352,7 @@ impl From<AssetFolder> for DavCollection {
             created: None,
             modified: None,
             size: None,
-            kind: ResourceKind::AssetFolder,
+            kind: ResourceKind::Directory,
         }
     }
 }
@@ -322,7 +376,43 @@ impl From<ZarrFolder> for DavCollection {
             created: None,
             modified: None,
             size: None,
-            kind: ResourceKind::ZarrFolder,
+            kind: ResourceKind::Directory,
+        }
+    }
+}
+
+impl From<WebFolder> for DavCollection {
+    fn from(WebFolder { web_path }: WebFolder) -> DavCollection {
+        DavCollection {
+            path: Some(web_path),
+            created: None,
+            modified: None,
+            size: None,
+            kind: ResourceKind::Directory,
+        }
+    }
+}
+
+impl From<Manifest> for DavCollection {
+    fn from(Manifest { path }: Manifest) -> DavCollection {
+        DavCollection {
+            path: Some(path.to_web_path()),
+            created: None,
+            modified: None,
+            size: None,
+            kind: ResourceKind::Zarr,
+        }
+    }
+}
+
+impl From<ManifestFolder> for DavCollection {
+    fn from(ManifestFolder { web_path }: ManifestFolder) -> DavCollection {
+        DavCollection {
+            path: Some(web_path),
+            created: None,
+            modified: None,
+            size: None,
+            kind: ResourceKind::Directory,
         }
     }
 }
@@ -341,7 +431,7 @@ pub(super) struct DavItem {
 
 impl DavItem {
     pub(super) fn name(&self) -> &str {
-        self.path.name()
+        self.path.name_str()
     }
 
     pub(super) fn web_link(&self) -> Href {
@@ -459,6 +549,21 @@ impl From<ZarrEntry> for DavItem {
     }
 }
 
+impl From<ManifestEntry> for DavItem {
+    fn from(entry: ManifestEntry) -> DavItem {
+        DavItem {
+            path: entry.web_path,
+            created: None,
+            modified: Some(entry.modified),
+            content_type: DEFAULT_CONTENT_TYPE.to_owned(),
+            size: Some(entry.size),
+            etag: Some(entry.etag),
+            kind: ResourceKind::ZarrEntry,
+            content: DavContent::Redirect(entry.url),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DavContent {
     Blob(Vec<u8>),
@@ -477,11 +582,11 @@ pub(super) enum ResourceKind {
     DandisetReleases,
     Version,
     VersionMetadata,
-    AssetFolder,
+    Directory,
     Blob,
     Zarr,
     ZarrEntry,
-    ZarrFolder,
+    ZarrIndex,
 }
 
 impl ResourceKind {
@@ -494,11 +599,11 @@ impl ResourceKind {
             ResourceKind::DandisetReleases => "Published versions",
             ResourceKind::Version => "Dandiset version",
             ResourceKind::VersionMetadata => "Version metadata",
-            ResourceKind::AssetFolder => "Directory",
+            ResourceKind::Directory => "Directory",
             ResourceKind::Blob => "Blob asset",
             ResourceKind::Zarr => "Zarr asset",
             ResourceKind::ZarrEntry => "Zarr entry",
-            ResourceKind::ZarrFolder => "Directory",
+            ResourceKind::ZarrIndex => "Zarrs",
         }
     }
 }

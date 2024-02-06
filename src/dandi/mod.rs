@@ -4,34 +4,35 @@ mod version_id;
 pub(crate) use self::dandiset_id::*;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
-use crate::consts::{S3CLIENT_CACHE_SIZE, USER_AGENT};
+use crate::consts::S3CLIENT_CACHE_SIZE;
+use crate::httputil::{get_json, new_client, urljoin_slashed, BuildClientError, HttpError};
 use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
 use crate::s3::{
     BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Error, S3Location,
 };
 use async_stream::try_stream;
 use futures_util::{Stream, TryStreamExt};
-use lru::LruCache;
-use reqwest::{ClientBuilder, StatusCode};
+use moka::future::{Cache, CacheBuilder};
 use serde::de::DeserializeOwned;
 use smartstring::alias::CompactString;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::Mutex;
 use url::Url;
 
 #[derive(Clone, Debug)]
-pub(crate) struct Client {
+pub(crate) struct DandiClient {
     inner: reqwest::Client,
     api_url: Url,
-    s3clients: Arc<Mutex<LruCache<BucketSpec, Arc<S3Client>>>>,
+    s3clients: Cache<BucketSpec, Arc<S3Client>>,
 }
 
-impl Client {
+impl DandiClient {
     pub(crate) fn new(api_url: Url) -> Result<Self, BuildClientError> {
-        let inner = ClientBuilder::new().user_agent(USER_AGENT).build()?;
-        let s3clients = Arc::new(Mutex::new(LruCache::new(S3CLIENT_CACHE_SIZE)));
-        Ok(Client {
+        let inner = new_client()?;
+        let s3clients = CacheBuilder::new(S3CLIENT_CACHE_SIZE)
+            .name("s3clients")
+            .build();
+        Ok(DandiClient {
             inner,
             api_url,
             s3clients,
@@ -43,30 +44,11 @@ impl Client {
         I: IntoIterator,
         I::Item: AsRef<str>,
     {
-        urljoin(&self.api_url, segments)
+        urljoin_slashed(&self.api_url, segments)
     }
 
     async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, DandiError> {
-        let r = self
-            .inner
-            .get(url.clone())
-            .send()
-            .await
-            .map_err(|source| DandiError::Send {
-                url: url.clone(),
-                source,
-            })?;
-        if r.status() == StatusCode::NOT_FOUND {
-            return Err(DandiError::NotFound { url: url.clone() });
-        }
-        r.error_for_status()
-            .map_err(|source| DandiError::Status {
-                url: url.clone(),
-                source,
-            })?
-            .json::<T>()
-            .await
-            .map_err(move |source| DandiError::Deserialize { url, source })
+        get_json(&self.inner, url).await.map_err(Into::into)
     }
 
     fn paginate<T: DeserializeOwned + 'static>(
@@ -76,19 +58,7 @@ impl Client {
         try_stream! {
             let mut url = Some(url);
             while let Some(u) = url {
-                let resp = self.inner
-                    .get(u.clone())
-                    .send()
-                    .await
-                    .map_err(|source| DandiError::Send {url: u.clone(), source})?;
-                if resp.status() == StatusCode::NOT_FOUND {
-                    Err(DandiError::NotFound {url: u.clone() })?;
-                }
-                let page = resp.error_for_status()
-                    .map_err(|source| DandiError::Status {url: u.clone(), source})?
-                    .json::<Page<T>>()
-                    .await
-                    .map_err(move |source| DandiError::Deserialize {url: u, source})?;
+                let page = get_json::<Page<T>>(&self.inner, u).await?;
                 for r in page.results {
                     yield r;
                 }
@@ -108,27 +78,18 @@ impl Client {
         let prefix = key
             .parse::<PureDirPath>()
             .map_err(|source| ZarrToS3Error::BadS3Key { key, source })?;
-        let client = {
-            let mut cache = self.s3clients.lock().await;
-            if let Some(client) = cache.get(&bucket_spec) {
-                client.clone()
-            } else {
-                match bucket_spec.clone().into_s3client().await {
-                    Ok(client) => {
-                        let client = Arc::new(client);
-                        cache.put(bucket_spec, client.clone());
-                        client
-                    }
-                    Err(source) => {
-                        return Err(ZarrToS3Error::LocateBucket {
-                            bucket: bucket_spec.bucket,
-                            source,
-                        })
-                    }
-                }
-            }
-        };
-        Ok(client.with_prefix(prefix))
+        // Box large future:
+        match Box::pin(self.s3clients.try_get_with_by_ref(&bucket_spec, async {
+            bucket_spec.clone().into_s3client().await.map(Arc::new)
+        }))
+        .await
+        {
+            Ok(client) => Ok(client.with_prefix(prefix)),
+            Err(source) => Err(ZarrToS3Error::LocateBucket {
+                bucket: bucket_spec.bucket,
+                source,
+            }),
+        }
     }
 
     async fn get_s3client_for_zarr(
@@ -162,12 +123,12 @@ impl Client {
 
 #[derive(Clone, Debug)]
 pub(crate) struct DandisetEndpoint<'a> {
-    client: &'a Client,
+    client: &'a DandiClient,
     dandiset_id: DandisetId,
 }
 
 impl<'a> DandisetEndpoint<'a> {
-    fn new(client: &'a Client, dandiset_id: DandisetId) -> Self {
+    fn new(client: &'a DandiClient, dandiset_id: DandisetId) -> Self {
         Self {
             client,
             dandiset_id,
@@ -200,7 +161,7 @@ impl<'a> DandisetEndpoint<'a> {
 
 #[derive(Clone, Debug)]
 pub(crate) struct VersionEndpoint<'a> {
-    client: &'a Client,
+    client: &'a DandiClient,
     dandiset_id: DandisetId,
     version_id: VersionId,
 }
@@ -264,7 +225,7 @@ impl<'a> VersionEndpoint<'a> {
                     FolderEntry::Folder(subf) => yield DandiResource::Folder(subf),
                     FolderEntry::Asset { id, path } => match self.get_asset_by_id(&id).await {
                         Ok(asset) => yield DandiResource::Asset(asset),
-                        Err(DandiError::NotFound { .. }) => {
+                        Err(DandiError::Http(HttpError::NotFound { .. })) => {
                             Err(DandiError::DisappearingAsset { asset_id: id, path })?;
                         }
                         Err(e) => Err(e)?,
@@ -324,7 +285,7 @@ impl<'a> VersionEndpoint<'a> {
                 break;
             }
         }
-        Err(DandiError::NotFound { url })
+        Err(DandiError::PathNotFound { path: path.clone() })
     }
 
     async fn get_resource_with_s3(
@@ -357,7 +318,10 @@ impl<'a> VersionEndpoint<'a> {
                         "assets",
                     ]);
                     url.query_pairs_mut().append_pair("path", path.as_ref());
-                    return Err(DandiError::NotFound { url });
+                    return Err(DandiError::PathUnderBlob {
+                        path: path.clone(),
+                        blob_path: zarr_path,
+                    });
                 }
                 AtAssetPath::Asset(Asset::Zarr(zarr)) => {
                     let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
@@ -392,7 +356,7 @@ impl<'a> VersionEndpoint<'a> {
                         FolderEntry::Folder(subf) => DandiResource::Folder(subf),
                         FolderEntry::Asset { id, path } => match self.get_asset_by_id(&id).await {
                             Ok(asset) => DandiResource::Asset(asset),
-                            Err(DandiError::NotFound { .. }) => {
+                            Err(DandiError::Http(HttpError::NotFound { .. })) => {
                                 return Err(DandiError::DisappearingAsset { asset_id: id, path })
                             }
                             Err(e) => return Err(e),
@@ -432,15 +396,13 @@ impl<'a> VersionEndpoint<'a> {
 }
 
 #[derive(Debug, Error)]
-#[error("failed to initialize Dandi API client")]
-pub(crate) struct BuildClientError(#[from] reqwest::Error);
-
-#[derive(Debug, Error)]
 pub(crate) enum DandiError {
-    #[error("failed to make request to {url}")]
-    Send { url: Url, source: reqwest::Error },
-    #[error("no such resource: {url}")]
-    NotFound { url: Url },
+    #[error(transparent)]
+    Http(#[from] HttpError),
+    #[error("path {path:?} not found in assets")]
+    PathNotFound { path: PurePath },
+    #[error("path {path:?} points nowhere as leading portion {blob_path:?} points to a blob")]
+    PathUnderBlob { path: PurePath, blob_path: PurePath },
     #[error("entry {entry_path:?} in Zarr {zarr_path:?} not found")]
     ZarrEntryNotFound {
         zarr_path: PurePath,
@@ -448,10 +410,6 @@ pub(crate) enum DandiError {
     },
     #[error("folder listing included asset ID={asset_id} at path {path:?}, but request to asset returned 404")]
     DisappearingAsset { asset_id: String, path: PurePath },
-    #[error("request to {url} returned error")]
-    Status { url: Url, source: reqwest::Error },
-    #[error("failed to deserialize response body from {url}")]
-    Deserialize { url: Url, source: reqwest::Error },
     #[error("failed to acquire S3 client for Zarr with asset ID {asset_id}")]
     ZarrToS3Error {
         asset_id: String,
@@ -459,6 +417,18 @@ pub(crate) enum DandiError {
     },
     #[error(transparent)]
     S3(#[from] S3Error),
+}
+
+impl DandiError {
+    pub(crate) fn is_404(&self) -> bool {
+        matches!(
+            self,
+            DandiError::Http(HttpError::NotFound { .. })
+                | DandiError::PathNotFound { .. }
+                | DandiError::PathUnderBlob { .. }
+                | DandiError::ZarrEntryNotFound { .. }
+        )
+    }
 }
 
 #[derive(Debug, Error)]
@@ -473,23 +443,8 @@ pub(crate) enum ZarrToS3Error {
     #[error("failed to determine region for S3 bucket {bucket:?}")]
     LocateBucket {
         bucket: CompactString,
-        source: GetBucketRegionError,
+        source: Arc<GetBucketRegionError>,
     },
-}
-
-fn urljoin<I>(url: &Url, segments: I) -> Url
-where
-    I: IntoIterator,
-    I::Item: AsRef<str>,
-{
-    let mut url = url.clone();
-    url.path_segments_mut()
-        .expect("API URL should be able to be a base")
-        .pop_if_empty()
-        .extend(segments)
-        // Add an empty segment so that the final URL will end with a slash:
-        .push("");
-    url
 }
 
 fn dump_json_as_yaml(data: serde_json::Value) -> String {
@@ -500,39 +455,7 @@ fn dump_json_as_yaml(data: serde_json::Value) -> String {
 mod tests {
     use super::*;
     use indoc::indoc;
-    use rstest::rstest;
     use serde_json::json;
-
-    #[rstest]
-    #[case("https://api.github.com")]
-    #[case("https://api.github.com/")]
-    fn test_urljoin_nopath(#[case] base: Url) {
-        let u = urljoin(&base, ["foo"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/");
-        let u = urljoin(&base, ["foo", "bar"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/");
-    }
-
-    #[rstest]
-    #[case("https://api.github.com/foo/bar")]
-    #[case("https://api.github.com/foo/bar/")]
-    fn test_urljoin_path(#[case] base: Url) {
-        let u = urljoin(&base, ["gnusto"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/");
-        let u = urljoin(&base, ["gnusto", "cleesh"]);
-        assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/cleesh/");
-    }
-
-    #[rstest]
-    #[case("foo#bar", "https://api.github.com/base/foo%23bar/")]
-    #[case("foo%bar", "https://api.github.com/base/foo%25bar/")]
-    #[case("foo/bar", "https://api.github.com/base/foo%2Fbar/")]
-    #[case("foo?bar", "https://api.github.com/base/foo%3Fbar/")]
-    fn test_urljoin_special_chars(#[case] path: &str, #[case] expected: &str) {
-        let base = Url::parse("https://api.github.com/base").unwrap();
-        let u = urljoin(&base, [path]);
-        assert_eq!(u.as_str(), expected);
-    }
 
     #[test]
     fn test_dump_json_as_yaml() {

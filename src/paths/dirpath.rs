@@ -41,12 +41,13 @@ impl PureDirPath {
         PureDirPath(format!("{self}{path}"))
     }
 
-    pub(crate) fn join_one(&self, c: &Component) -> PurePath {
-        PurePath(format!("{self}{c}"))
-    }
-
     pub(crate) fn join_one_dir(&self, c: &Component) -> PureDirPath {
         PureDirPath(format!("{self}{c}/"))
+    }
+
+    pub(crate) fn push(&mut self, c: &Component) {
+        self.0.push_str(c.as_ref());
+        self.0.push('/');
     }
 
     pub(crate) fn relative_to(&self, dirpath: &PureDirPath) -> Option<PureDirPath> {

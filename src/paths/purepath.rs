@@ -64,6 +64,11 @@ impl PurePath {
     pub(crate) fn components(&self) -> impl Iterator<Item = Component> + '_ {
         self.0.split('/').map(|c| Component(c.to_owned()))
     }
+
+    pub(crate) fn push(&mut self, c: &Component) {
+        self.0.push('/');
+        self.0.push_str(c.as_ref());
+    }
 }
 
 impl fmt::Debug for PurePath {

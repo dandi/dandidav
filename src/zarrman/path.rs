@@ -12,8 +12,42 @@ pub(super) enum ReqPath {
 }
 
 impl ReqPath {
-    pub(super) fn parse_path(_path: &PurePath) -> Option<ReqPath> {
-        todo!()
+    pub(super) fn parse_path(path: &PurePath) -> Option<ReqPath> {
+        let mut components = path.components();
+        let Some(c1) = components.next() else {
+            unreachable!("path should have at least one component");
+        };
+        let mut prefix = PureDirPath::from(c1);
+        let Some(c2) = components.next() else {
+            return Some(ReqPath::Dir(prefix));
+        };
+        prefix.push(&c2);
+        let Some(zarr_id) = components.next() else {
+            return Some(ReqPath::Dir(prefix));
+        };
+        let Some(checksum) = components.next() else {
+            prefix.push(&zarr_id);
+            return Some(ReqPath::Dir(prefix));
+        };
+        if checksum.contains('.') {
+            return None;
+        }
+        let manifest_path = ManifestPath {
+            prefix,
+            zarr_id,
+            checksum,
+        };
+        let Some(e1) = components.next() else {
+            return Some(ReqPath::Manifest(manifest_path));
+        };
+        let mut entry_path = PurePath::from(e1);
+        for e in components {
+            entry_path.push(&e);
+        }
+        Some(ReqPath::InManifest {
+            manifest_path,
+            entry_path,
+        })
     }
 }
 

@@ -56,7 +56,7 @@ impl PureDirPath {
     }
 
     pub(crate) fn component_strs(&self) -> std::str::Split<'_, char> {
-        self.0.split('/')
+        self.0.trim_end_matches('/').split('/')
     }
 }
 

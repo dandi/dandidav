@@ -36,7 +36,7 @@ impl ManifestPath {
     }
 
     pub(crate) fn to_web_path(&self) -> PureDirPath {
-        format!("zarrs/{}/{}/{}/", self.prefix, self.zarr_id, self.checksum)
+        format!("zarrs/{}{}/{}/", self.prefix, self.zarr_id, self.checksum)
             .parse::<PureDirPath>()
             .expect("ManifestPath should have valid web_path")
     }

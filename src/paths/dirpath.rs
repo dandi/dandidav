@@ -16,7 +16,7 @@ use thiserror::Error;
 pub(crate) struct PureDirPath(pub(super) String);
 
 impl PureDirPath {
-    pub(crate) fn name(&self) -> &str {
+    pub(crate) fn name_str(&self) -> &str {
         self.0
             .trim_end_matches('/')
             .split('/')
@@ -24,8 +24,8 @@ impl PureDirPath {
             .expect("path should be nonempty")
     }
 
-    pub(crate) fn name_component(&self) -> Component {
-        Component(self.name().to_owned())
+    pub(crate) fn name(&self) -> Component {
+        Component(self.name_str().to_owned())
     }
 
     pub(crate) fn parent(&self) -> Option<PureDirPath> {
@@ -41,6 +41,10 @@ impl PureDirPath {
         PureDirPath(format!("{self}{path}"))
     }
 
+    pub(crate) fn join_one(&self, c: &Component) -> PurePath {
+        PurePath(format!("{self}{c}"))
+    }
+
     pub(crate) fn join_one_dir(&self, c: &Component) -> PureDirPath {
         PureDirPath(format!("{self}{c}/"))
     }
@@ -50,7 +54,7 @@ impl PureDirPath {
         (!s.is_empty()).then(|| PureDirPath(s.to_owned()))
     }
 
-    pub(crate) fn components(&self) -> std::str::Split<'_, char> {
+    pub(crate) fn component_strs(&self) -> std::str::Split<'_, char> {
         self.0.split('/')
     }
 }

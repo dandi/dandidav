@@ -22,11 +22,15 @@ use thiserror::Error;
 pub(crate) struct PurePath(pub(super) String);
 
 impl PurePath {
-    pub(crate) fn name(&self) -> &str {
+    pub(crate) fn name_str(&self) -> &str {
         self.0
             .split('/')
             .next_back()
             .expect("path should be nonempty")
+    }
+
+    pub(crate) fn join_one(&self, c: &Component) -> PurePath {
+        PurePath(format!("{self}/{c}"))
     }
 
     pub(crate) fn is_strictly_under(&self, other: &PureDirPath) -> bool {
@@ -53,8 +57,12 @@ impl PurePath {
         PureDirPath(format!("{}/", self.0))
     }
 
-    pub(crate) fn components(&self) -> std::str::Split<'_, char> {
+    pub(crate) fn component_strs(&self) -> std::str::Split<'_, char> {
         self.0.split('/')
+    }
+
+    pub(crate) fn components(&self) -> impl Iterator<Item = Component> + '_ {
+        self.0.split('/').map(|c| Component(c.to_owned()))
     }
 }
 
@@ -200,7 +208,7 @@ mod tests {
     #[case("foo", "foo")]
     #[case("foo/bar/baz", "baz")]
     fn test_name(#[case] p: PurePath, #[case] name: &str) {
-        assert_eq!(p.name(), name);
+        assert_eq!(p.name_str(), name);
     }
 
     #[rstest]

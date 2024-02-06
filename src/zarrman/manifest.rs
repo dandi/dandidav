@@ -1,19 +1,19 @@
-use crate::paths::PurePath;
+use crate::paths::{Component, PurePath};
 use itertools::{Itertools, Position};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use time::OffsetDateTime;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-pub(crate) struct Manifest {
-    entries: ManifestFolder,
+pub(super) struct Manifest {
+    pub(super) entries: ManifestFolder,
 }
 
 impl Manifest {
     pub(super) fn get(&self, path: &PurePath) -> Option<EntryRef<'_>> {
         let mut folder = &self.entries;
         for (pos, p) in path.components().with_position() {
-            match folder.get(p)? {
+            match folder.get(&p)? {
                 FolderEntry::Folder(f) => folder = f,
                 FolderEntry::Entry(e) if matches!(pos, Position::Last | Position::Only) => {
                     return Some(EntryRef::Entry(e))
@@ -26,22 +26,22 @@ impl Manifest {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum EntryRef<'a> {
+pub(super) enum EntryRef<'a> {
     Folder(&'a ManifestFolder),
     Entry(&'a ManifestEntry),
 }
 
-pub(super) type ManifestFolder = BTreeMap<String, FolderEntry>;
+pub(super) type ManifestFolder = BTreeMap<Component, FolderEntry>;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(untagged)]
-pub(crate) enum FolderEntry {
+pub(super) enum FolderEntry {
     Folder(ManifestFolder),
     Entry(ManifestEntry),
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-pub(crate) struct ManifestEntry {
+pub(super) struct ManifestEntry {
     // Keep these fields in this order so that deserialization will work
     // properly!
     pub(super) version_id: String,
@@ -116,9 +116,12 @@ mod tests {
             manifest,
             Manifest {
                 entries: BTreeMap::from([
-                    (".zattrs".into(), FolderEntry::Entry(zattrs.clone())),
                     (
-                        ".zgroup".into(),
+                        ".zattrs".parse().unwrap(),
+                        FolderEntry::Entry(zattrs.clone())
+                    ),
+                    (
+                        ".zgroup".parse().unwrap(),
                         FolderEntry::Entry(ManifestEntry {
                             version_id: "7obAY5BUNOdI1Uch3RoI4oHuGXhW4h0R".into(),
                             modified: datetime!(2022-06-27 23:07:47 UTC),
@@ -127,7 +130,7 @@ mod tests {
                         })
                     ),
                     (
-                        ".zmetadata".into(),
+                        ".zmetadata".parse().unwrap(),
                         FolderEntry::Entry(ManifestEntry {
                             version_id: "Vfe0W0v4zkydmzyXkUMjm2Xr7.rIvfZQ".into(),
                             modified: datetime!(2022-06-27 23:07:47 UTC),
@@ -136,24 +139,27 @@ mod tests {
                         })
                     ),
                     (
-                        "0".into(),
+                        "0".parse().unwrap(),
                         FolderEntry::Folder(BTreeMap::from([
-                            (".zarray".into(), FolderEntry::Entry(zarray.clone())),
                             (
-                                "0".into(),
+                                ".zarray".parse().unwrap(),
+                                FolderEntry::Entry(zarray.clone())
+                            ),
+                            (
+                                "0".parse().unwrap(),
                                 FolderEntry::Folder(BTreeMap::from([(
-                                    "0".into(),
+                                    "0".parse().unwrap(),
                                     FolderEntry::Folder(BTreeMap::from([(
-                                        "13".into(),
+                                        "13".parse().unwrap(),
                                         FolderEntry::Folder(BTreeMap::from([(
-                                            "8".into(),
+                                            "8".parse().unwrap(),
                                             FolderEntry::Folder(BTreeMap::from([
                                                 (
-                                                    "100".into(),
+                                                    "100".parse().unwrap(),
                                                     FolderEntry::Entry(entry_100.clone())
                                                 ),
                                                 (
-                                                    "101".into(),
+                                                    "101".parse().unwrap(),
                                                     FolderEntry::Entry(ManifestEntry {
                                                         version_id:
                                                             "_i9cZBerb4mB9D8IFbPHo8nrefWcbq0p"

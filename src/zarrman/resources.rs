@@ -45,7 +45,7 @@ impl ManifestPath {
         urljoin(
             url,
             self.prefix
-                .components()
+                .component_strs()
                 .map(Cow::from)
                 .chain(std::iter::once(Cow::from(&*self.zarr_id)))
                 .chain(std::iter::once(Cow::from(format!(

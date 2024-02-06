@@ -60,7 +60,7 @@ impl ZarrManClient {
         path: Option<&PureDirPath>,
     ) -> Result<Vec<ZarrManResource>, ZarrManError> {
         let url = match path {
-            Some(p) => urljoin_slashed(&self.manifest_root_url, p.components()),
+            Some(p) => urljoin_slashed(&self.manifest_root_url, p.component_strs()),
             None => self.manifest_root_url.clone(),
         };
         let index = get_json::<Index>(&self.inner, url).await?;
@@ -79,7 +79,7 @@ impl ZarrManClient {
                         entries.push(ZarrManResource::Manifest(Manifest {
                             path: ManifestPath {
                                 prefix: prefix.clone(),
-                                zarr_id: path.name_component(),
+                                zarr_id: path.name(),
                                 checksum,
                             },
                         }));
@@ -125,7 +125,9 @@ impl ZarrManClient {
             ReqPath::Dir(p) => {
                 // Make a request to confirm that directory exists
                 let _ = self.get_index_entries(Some(&p)).await?;
-                Ok(ZarrManResource::WebFolder(WebFolder { web_path: p }))
+                Ok(ZarrManResource::WebFolder(WebFolder {
+                    web_path: self.web_path_prefix.join_dir(&p),
+                }))
             }
             ReqPath::Manifest(path) => {
                 // Make a request to confirm that manifest exists
@@ -156,13 +158,57 @@ impl ZarrManClient {
         }
     }
 
-    #[allow(clippy::unused_async)]
-    #[allow(unused_variables)]
     pub(crate) async fn get_resource_with_children(
         &self,
         path: &PurePath,
     ) -> Result<ZarrManResourceWithChildren, ZarrManError> {
-        todo!()
+        let Some(rp) = ReqPath::parse_path(path) else {
+            return Err(ZarrManError::InvalidPath { path: path.clone() });
+        };
+        match rp {
+            ReqPath::Dir(p) => {
+                let children = self.get_index_entries(Some(&p)).await?;
+                let folder = WebFolder {
+                    web_path: self.web_path_prefix.join_dir(&p),
+                };
+                Ok(ZarrManResourceWithChildren::WebFolder { folder, children })
+            }
+            ReqPath::Manifest(path) => {
+                let man = self.get_zarr_manifest(&path).await?;
+                let children = self.convert_manifest_folder_children(&path, None, &man.entries);
+                let folder = Manifest { path };
+                Ok(ZarrManResourceWithChildren::Manifest { folder, children })
+            }
+            ReqPath::InManifest {
+                manifest_path,
+                entry_path,
+            } => {
+                let man = self.get_zarr_manifest(&manifest_path).await?;
+                match man.get(&entry_path) {
+                    Some(manifest::EntryRef::Folder(folref)) => {
+                        let web_path = manifest_path
+                            .to_web_path()
+                            .join_dir(&entry_path.to_dir_path());
+                        let children = self.convert_manifest_folder_children(
+                            &manifest_path,
+                            Some(&entry_path),
+                            folref,
+                        );
+                        let folder = ManifestFolder { web_path };
+                        Ok(ZarrManResourceWithChildren::ManFolder { folder, children })
+                    }
+                    Some(manifest::EntryRef::Entry(entry)) => {
+                        Ok(ZarrManResourceWithChildren::ManEntry(
+                            self.convert_manifest_entry(&manifest_path, &entry_path, entry),
+                        ))
+                    }
+                    None => Err(ZarrManError::ManifestPathNotFound {
+                        manifest_path,
+                        entry_path,
+                    }),
+                }
+            }
+        }
     }
 
     fn convert_manifest_entry(
@@ -174,7 +220,7 @@ impl ZarrManClient {
         let web_path = manifest_path.to_web_path().join(entry_path);
         let mut url = urljoin(
             &self.s3_download_prefix,
-            std::iter::once(manifest_path.zarr_id()).chain(entry_path.components()),
+            std::iter::once(manifest_path.zarr_id()).chain(entry_path.component_strs()),
         );
         url.query_pairs_mut()
             .append_pair("versionId", &entry.version_id);
@@ -185,6 +231,40 @@ impl ZarrManClient {
             etag: entry.etag.clone(),
             url,
         }
+    }
+
+    fn convert_manifest_folder_children(
+        &self,
+        manifest_path: &ManifestPath,
+        entry_path: Option<&PurePath>,
+        folder: &manifest::ManifestFolder,
+    ) -> Vec<ZarrManResource> {
+        let mut children = Vec::with_capacity(folder.len());
+        let web_path_prefix = match entry_path {
+            Some(p) => manifest_path.to_web_path().join_dir(&p.to_dir_path()),
+            None => manifest_path.to_web_path(),
+        };
+        for (name, child) in folder {
+            match child {
+                manifest::FolderEntry::Folder(_) => {
+                    children.push(ZarrManResource::ManFolder(ManifestFolder {
+                        web_path: web_path_prefix.join_one_dir(name),
+                    }));
+                }
+                manifest::FolderEntry::Entry(entry) => {
+                    let thispath = match entry_path {
+                        Some(p) => p.join_one(name),
+                        None => PurePath::from(name.clone()),
+                    };
+                    children.push(ZarrManResource::ManEntry(self.convert_manifest_entry(
+                        manifest_path,
+                        &thispath,
+                        entry,
+                    )));
+                }
+            }
+        }
+        children
     }
 }
 

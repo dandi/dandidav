@@ -201,7 +201,7 @@ pub(super) struct DavCollection {
 
 impl DavCollection {
     pub(super) fn name(&self) -> Option<&str> {
-        self.path.as_ref().map(PureDirPath::name)
+        self.path.as_ref().map(PureDirPath::name_str)
     }
 
     pub(super) fn web_link(&self) -> Href {
@@ -431,7 +431,7 @@ pub(super) struct DavItem {
 
 impl DavItem {
     pub(super) fn name(&self) -> &str {
-        self.path.name()
+        self.path.name_str()
     }
 
     pub(super) fn web_link(&self) -> Href {

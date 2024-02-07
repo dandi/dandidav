@@ -1,5 +1,5 @@
-v0.2.0 (in development)
------------------------
+v0.2.0 (2024-02-07)
+-------------------
 - Serve Zarr entries via manifests from
   <https://datasets.datalad.org/?dir=/dandi/zarr-manifests> at "`/zarrs/`"
 

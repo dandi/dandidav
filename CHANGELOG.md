@@ -1,3 +1,8 @@
+In Development
+--------------
+- Respond to undecodable "Depth" header values with a 400 response instead of
+  acting like no value was specified
+
 v0.2.0 (2024-02-07)
 -------------------
 - Serve Zarr entries via manifests from

@@ -78,10 +78,10 @@ impl<S: Send + Sync> FromRequestParts<S> for FiniteDepth {
     type Rejection = Response<Body>;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        match parts.headers.get("Depth").and_then(|v| v.to_str().ok()) {
-            Some("0") => Ok(FiniteDepth::Zero),
-            Some("1") => Ok(FiniteDepth::One),
-            Some("infinity") | None => Err((
+        match parts.headers.get("Depth").map(|v| v.to_str()) {
+            Some(Ok("0")) => Ok(FiniteDepth::Zero),
+            Some(Ok("1")) => Ok(FiniteDepth::One),
+            Some(Ok("infinity")) | None => Err((
                 StatusCode::FORBIDDEN,
                 [(CONTENT_TYPE, DAV_XML_CONTENT_TYPE)],
                 INFINITE_DEPTH_RESPONSE,

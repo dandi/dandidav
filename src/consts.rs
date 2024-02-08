@@ -50,6 +50,9 @@ mod tests {
 
     #[test]
     fn test_fast_not_exist_is_sorted() {
-        assert!(FAST_NOT_EXIST.windows(2).all(|ab| ab[0] < ab[1]));
+        assert!(FAST_NOT_EXIST.windows(2).all(|ab| {
+            assert!(ab.len() >= 2);
+            ab[0] < ab[1]
+        }));
     }
 }

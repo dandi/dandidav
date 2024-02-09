@@ -5,7 +5,7 @@ pub(crate) use self::dandiset_id::*;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
 use crate::consts::S3CLIENT_CACHE_SIZE;
-use crate::httputil::{get_json, new_client, urljoin_slashed, BuildClientError, HttpError};
+use crate::httputil::{urljoin_slashed, BuildClientError, Client, HttpError};
 use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
 use crate::s3::{
     BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Error, S3Location,
@@ -21,14 +21,14 @@ use url::Url;
 
 #[derive(Clone, Debug)]
 pub(crate) struct DandiClient {
-    inner: reqwest::Client,
+    inner: Client,
     api_url: Url,
     s3clients: Cache<BucketSpec, Arc<S3Client>>,
 }
 
 impl DandiClient {
     pub(crate) fn new(api_url: Url) -> Result<Self, BuildClientError> {
-        let inner = new_client()?;
+        let inner = Client::new()?;
         let s3clients = CacheBuilder::new(S3CLIENT_CACHE_SIZE)
             .name("s3clients")
             .build();
@@ -48,7 +48,7 @@ impl DandiClient {
     }
 
     async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, DandiError> {
-        get_json(&self.inner, url).await.map_err(Into::into)
+        self.inner.get_json(url).await.map_err(Into::into)
     }
 
     fn paginate<T: DeserializeOwned + 'static>(
@@ -58,7 +58,7 @@ impl DandiClient {
         try_stream! {
             let mut url = Some(url);
             while let Some(u) = url {
-                let page = get_json::<Page<T>>(&self.inner, u).await?;
+                let page = self.inner.get_json::<Page<T>>(u).await?;
                 for r in page.results {
                     yield r;
                 }

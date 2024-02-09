@@ -17,6 +17,7 @@ publish = false
 [dependencies]
 anyhow = "1.0.79"
 async-stream = "0.3.5"
+async-trait = "0.1.77"
 aws-config = { version = "1.1.4", features = ["behavior-version-latest"] }
 aws-sdk-s3 = "1.14.0"
 aws-smithy-runtime-api = "1.1.4"
@@ -32,16 +33,19 @@ itertools = "0.12.1"
 moka = { version = "0.12.5", features = ["future"] }
 percent-encoding = "2.3.1"
 reqwest = { version = "0.11.24", default-features = false, features = ["json", "rustls-tls-native-roots"] }
+reqwest-middleware = "0.2.4"
 serde = { version = "1.0.196", features = ["derive"] }
 serde_json = { version = "1.0.113", features = ["preserve_order"] }
 serde_yaml = "0.9.31"
 smartstring = "1.0.1"
+task-local-extensions = "0.1.4"
 tera = { version = "1.19.1", default-features = false }
 thiserror = "1.0.56"
 time = { version = "0.3.34", features = ["formatting", "macros", "parsing", "serde"] }
 tokio = { version = "1.36.0", features = ["macros", "net", "rt-multi-thread"] }
 tower = "0.4.13"
 tower-http = { version = "0.5.1", features = ["set-header", "trace"] }
+tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 url = { version = "2.5.0", features = ["serde"] }
 xml-rs = "0.8.19"

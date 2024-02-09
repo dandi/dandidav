@@ -3,9 +3,7 @@ mod path;
 mod resources;
 use self::path::ReqPath;
 pub(crate) use self::resources::*;
-use crate::httputil::{
-    get_json, new_client, urljoin, urljoin_slashed, BuildClientError, HttpError,
-};
+use crate::httputil::{urljoin, urljoin_slashed, BuildClientError, Client, HttpError};
 use crate::paths::{Component, PureDirPath, PurePath};
 use moka::future::{Cache, CacheBuilder};
 use serde::Deserialize;
@@ -22,7 +20,7 @@ const MANIFEST_CACHE_SIZE: u64 = 16;
 
 #[derive(Clone, Debug)]
 pub(crate) struct ZarrManClient {
-    inner: reqwest::Client,
+    inner: Client,
     manifests: Cache<ManifestPath, Arc<manifest::Manifest>>,
     manifest_root_url: Url,
     s3_download_prefix: Url,
@@ -31,7 +29,7 @@ pub(crate) struct ZarrManClient {
 
 impl ZarrManClient {
     pub(crate) fn new() -> Result<Self, BuildClientError> {
-        let inner = new_client()?;
+        let inner = Client::new()?;
         let manifests = CacheBuilder::new(MANIFEST_CACHE_SIZE)
             .name("zarr-manifests")
             .build();
@@ -63,7 +61,7 @@ impl ZarrManClient {
             Some(p) => urljoin_slashed(&self.manifest_root_url, p.component_strs()),
             None => self.manifest_root_url.clone(),
         };
-        let index = get_json::<Index>(&self.inner, url).await?;
+        let index = self.inner.get_json::<Index>(url).await?;
         let mut entries =
             Vec::with_capacity(index.files.len().saturating_add(index.directories.len()));
         if let Some(path) = path {
@@ -106,7 +104,8 @@ impl ZarrManClient {
     ) -> Result<Arc<manifest::Manifest>, ZarrManError> {
         self.manifests
             .try_get_with_by_ref(path, async move {
-                get_json::<manifest::Manifest>(&self.inner, path.urljoin(&self.manifest_root_url))
+                self.inner
+                    .get_json::<manifest::Manifest>(path.urljoin(&self.manifest_root_url))
                     .await
                     .map(Arc::new)
             })

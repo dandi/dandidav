@@ -23,11 +23,13 @@ use axum::{
     Router,
 };
 use clap::Parser;
+use std::io::{stderr, IsTerminal};
 use std::net::IpAddr;
 use std::sync::Arc;
 use tower::service_fn;
 use tower_http::{set_header::response::SetResponseHeaderLayer, trace::TraceLayer};
-use tracing_subscriber::filter::LevelFilter;
+use tracing::Level;
+use tracing_subscriber::{filter::Targets, prelude::*};
 
 static STYLESHEET: &str = include_str!("dav/static/styles.css");
 
@@ -57,8 +59,20 @@ struct Arguments {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Arguments::parse();
-    tracing_subscriber::fmt()
-        .with_max_level(LevelFilter::TRACE)
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(stderr().is_terminal())
+                .with_writer(stderr),
+        )
+        .with(
+            Targets::new()
+                .with_target(env!("CARGO_CRATE_NAME"), Level::TRACE)
+                .with_target("aws_config", Level::DEBUG)
+                .with_target("reqwest", Level::TRACE)
+                .with_target("tower_http", Level::TRACE)
+                .with_default(Level::INFO),
+        )
         .init();
     let dandi = DandiClient::new(args.api_url)?;
     let zarrman = ZarrManClient::new()?;

@@ -1,11 +1,10 @@
-use super::consts::USER_AGENT;
-use super::paths::{ParsePureDirPathError, ParsePurePathError, PureDirPath, PurePath};
+use crate::httputil::{self, BuildClientError, HttpError};
+use crate::paths::{ParsePureDirPathError, ParsePurePathError, PureDirPath, PurePath};
 use async_stream::try_stream;
 use aws_sdk_s3::{operation::list_objects_v2::ListObjectsV2Error, types::CommonPrefix, Client};
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
 use aws_smithy_types_convert::date_time::DateTimeExt;
 use futures_util::{Stream, TryStreamExt};
-use reqwest::ClientBuilder;
 use smartstring::alias::CompactString;
 use std::cmp::Ordering;
 use std::sync::Arc;
@@ -492,18 +491,15 @@ pub(crate) enum TryFromAwsObjectError {
 // The AWS SDK currently cannot be used for this:
 // <https://github.com/awslabs/aws-sdk-rust/issues/1052>
 pub(crate) async fn get_bucket_region(bucket: &str) -> Result<String, GetBucketRegionError> {
-    let client = ClientBuilder::new()
-        .user_agent(USER_AGENT)
-        .https_only(true)
-        .build()
-        .map_err(GetBucketRegionError::BuildClient)?;
-    let r = client
-        .head(format!("https://{bucket}.s3.amazonaws.com"))
-        .send()
-        .await
-        .map_err(GetBucketRegionError::Send)?
-        .error_for_status()
-        .map_err(GetBucketRegionError::Status)?;
+    let url_str = format!("https://{bucket}.s3.amazonaws.com");
+    let url = url_str
+        .parse::<Url>()
+        .map_err(|source| GetBucketRegionError::BadUrl {
+            url: url_str,
+            source,
+        })?;
+    let client = httputil::Client::new()?;
+    let r = client.head(url).await?;
     match r.headers().get("x-amz-bucket-region").map(|hv| hv.to_str()) {
         Some(Ok(region)) => Ok(region.to_owned()),
         Some(Err(e)) => Err(GetBucketRegionError::BadHeader(e)),
@@ -513,12 +509,15 @@ pub(crate) async fn get_bucket_region(bucket: &str) -> Result<String, GetBucketR
 
 #[derive(Debug, Error)]
 pub(crate) enum GetBucketRegionError {
-    #[error("failed to initialize HTTP client")]
-    BuildClient(#[source] reqwest::Error),
-    #[error("failed to make S3 request")]
-    Send(#[source] reqwest::Error),
-    #[error("S3 request returned error")]
-    Status(#[source] reqwest::Error),
+    #[error(transparent)]
+    BuildClient(#[from] BuildClientError),
+    #[error(transparent)]
+    Http(#[from] HttpError),
+    #[error("URL constructed for bucket is invalid: {url:?}")]
+    BadUrl {
+        url: String,
+        source: url::ParseError,
+    },
     #[error("S3 response lacked x-amz-bucket-region header")]
     NoHeader,
     #[error("S3 response had undecodable x-amz-bucket-region header")]

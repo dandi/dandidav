@@ -1,5 +1,5 @@
 use crate::consts::USER_AGENT;
-use reqwest::{Request, Response, StatusCode};
+use reqwest::{Method, Request, Response, StatusCode};
 use reqwest_middleware::{Middleware, Next};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
@@ -21,10 +21,10 @@ impl Client {
         Ok(Client(client))
     }
 
-    async fn get(&self, url: Url) -> Result<Response, HttpError> {
+    pub(crate) async fn request(&self, method: Method, url: Url) -> Result<Response, HttpError> {
         let r = self
             .0
-            .get(url.clone())
+            .request(method, url.clone())
             .send()
             .await
             .map_err(|source| HttpError::Send {
@@ -36,6 +36,14 @@ impl Client {
         }
         r.error_for_status()
             .map_err(|source| HttpError::Status { url, source })
+    }
+
+    pub(crate) async fn head(&self, url: Url) -> Result<Response, HttpError> {
+        self.request(Method::HEAD, url).await
+    }
+
+    pub(crate) async fn get(&self, url: Url) -> Result<Response, HttpError> {
+        self.request(Method::GET, url).await
     }
 
     pub(crate) async fn get_json<T: DeserializeOwned>(&self, url: Url) -> Result<T, HttpError> {

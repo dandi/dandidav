@@ -8,8 +8,11 @@
 
 This is a [Rust](https://www.rust-lang.org) implementation of a readonly
 [WebDAV](https://webdav.org) interface to [DANDI
-Archive](https://dandiarchive.org), intended as a replacement for the Python
+Archive](https://dandiarchive.org), written as a replacement for the Python
 implementation [dandi-webdav](https://github.com/dandi/dandi-webdav).
+
+An active instance is currently accessible at
+<https://dandi.centerforopenneuroscience.org>.
 
 Features
 ========

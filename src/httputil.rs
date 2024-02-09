@@ -1,53 +1,89 @@
 use crate::consts::USER_AGENT;
-use reqwest::{ClientBuilder, StatusCode};
+use reqwest::{Request, Response, StatusCode};
+use reqwest_middleware::{Middleware, Next};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
+use tracing::Instrument;
 use url::Url;
 
-pub(crate) fn new_client() -> Result<reqwest::Client, BuildClientError> {
-    ClientBuilder::new()
-        .user_agent(USER_AGENT)
-        .build()
-        .map_err(Into::into)
+#[derive(Debug, Clone)]
+pub(crate) struct Client(reqwest_middleware::ClientWithMiddleware);
+
+impl Client {
+    pub(crate) fn new() -> Result<Client, BuildClientError> {
+        let client = reqwest_middleware::ClientBuilder::new(
+            reqwest::ClientBuilder::new()
+                .user_agent(USER_AGENT)
+                .build()?,
+        )
+        .with(SimpleReqwestLogger)
+        .build();
+        Ok(Client(client))
+    }
+
+    async fn get(&self, url: Url) -> Result<Response, HttpError> {
+        let r = self
+            .0
+            .get(url.clone())
+            .send()
+            .await
+            .map_err(|source| HttpError::Send {
+                url: url.clone(),
+                source,
+            })?;
+        if r.status() == StatusCode::NOT_FOUND {
+            return Err(HttpError::NotFound { url });
+        }
+        r.error_for_status()
+            .map_err(|source| HttpError::Status { url, source })
+    }
+
+    pub(crate) async fn get_json<T: DeserializeOwned>(&self, url: Url) -> Result<T, HttpError> {
+        self.get(url.clone())
+            .await?
+            .json::<T>()
+            .await
+            .map_err(move |source| HttpError::Deserialize { url, source })
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+struct SimpleReqwestLogger;
+
+#[async_trait::async_trait]
+impl Middleware for SimpleReqwestLogger {
+    async fn handle(
+        &self,
+        req: Request,
+        extensions: &mut task_local_extensions::Extensions,
+        next: Next<'_>,
+    ) -> reqwest_middleware::Result<Response> {
+        let span = tracing::debug_span!("http-request", url = %req.url(), method = %req.method());
+        async move {
+            tracing::debug!("Making HTTP request");
+            let r = next.run(req, extensions).await;
+            match r {
+                Ok(ref resp) => tracing::debug!(status = %resp.status(), "Response received"),
+                Err(ref e) => tracing::debug!(error = ?e, "Failed to receive response"),
+            }
+            r
+        }
+        .instrument(span)
+        .await
+    }
 }
 
 #[derive(Debug, Error)]
 #[error("failed to initialize HTTP client")]
 pub(crate) struct BuildClientError(#[from] reqwest::Error);
 
-async fn get_response(client: &reqwest::Client, url: Url) -> Result<reqwest::Response, HttpError> {
-    let r = client
-        .get(url.clone())
-        .send()
-        .await
-        .map_err(|source| HttpError::Send {
-            url: url.clone(),
-            source,
-        })?;
-    if r.status() == StatusCode::NOT_FOUND {
-        return Err(HttpError::NotFound { url: url.clone() });
-    }
-    r.error_for_status().map_err(|source| HttpError::Status {
-        url: url.clone(),
-        source,
-    })
-}
-
-pub(crate) async fn get_json<T: DeserializeOwned>(
-    client: &reqwest::Client,
-    url: Url,
-) -> Result<T, HttpError> {
-    get_response(client, url.clone())
-        .await?
-        .json::<T>()
-        .await
-        .map_err(move |source| HttpError::Deserialize { url, source })
-}
-
 #[derive(Debug, Error)]
 pub(crate) enum HttpError {
     #[error("failed to make request to {url}")]
-    Send { url: Url, source: reqwest::Error },
+    Send {
+        url: Url,
+        source: reqwest_middleware::Error,
+    },
     #[error("no such resource: {url}")]
     NotFound { url: Url },
     #[error("request to {url} returned error")]

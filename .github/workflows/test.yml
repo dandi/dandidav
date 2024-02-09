@@ -24,9 +24,7 @@ jobs:
           - minimal
           - stable
           - beta
-          # TODO: Re-enable nightly tests once fix for
-          # <https://github.com/zowens/crc32c/issues/51> is released
-          #- nightly
+          - nightly
         include:
           - os: macos-latest
             toolchain: stable

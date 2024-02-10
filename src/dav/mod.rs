@@ -41,7 +41,19 @@ impl DandiDav {
         &self,
         req: Request<Body>,
     ) -> Result<Response<Body>, Infallible> {
-        let resp = self.inner_handle_request(req).await;
+        let resp = match self.inner_handle_request(req).await {
+            Ok(r) => r,
+            Err(e) if e.is_404() => {
+                let e = anyhow::Error::from(e);
+                tracing::info!(error = ?e, "Resource not found");
+                not_found()
+            }
+            Err(e) => {
+                let e = anyhow::Error::from(e);
+                tracing::error!(error = ?e, "Internal server error");
+                (StatusCode::INTERNAL_SERVER_ERROR, format!("{e:?}")).into_response()
+            }
+        };
         Ok((WEBDAV_RESPONSE_HEADERS, resp).into_response())
     }
 
@@ -362,18 +374,6 @@ impl DavError {
             DavError::ZarrMan(e) => e.is_404(),
             DavError::NoLatestVersion { .. } => true,
             _ => false,
-        }
-    }
-}
-
-impl IntoResponse for DavError {
-    fn into_response(self) -> Response<Body> {
-        if self.is_404() {
-            not_found()
-        } else {
-            let traceback = format!("{:?}\n", anyhow::Error::from(self));
-            // TODO: Log error details
-            (StatusCode::INTERNAL_SERVER_ERROR, traceback).into_response()
         }
     }
 }

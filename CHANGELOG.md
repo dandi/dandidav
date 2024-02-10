@@ -8,6 +8,7 @@ In Development
     - Emit logs on stderr instead of stdout
     - Disable log coloration when stderr is not a terminal
     - Suppress noisy & irrelevant log messages from various dependencies
+    - Log errors that cause 404 and 500 responses
 
 v0.2.0 (2024-02-07)
 -------------------

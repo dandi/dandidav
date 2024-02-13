@@ -1,5 +1,5 @@
 macro_rules! validstr {
-    ($t:ty, $err:ty, $expecting:literal) => {
+    ($t:ident, $err:ty, $validator:ident, $expecting:literal) => {
         impl From<$t> for String {
             fn from(value: $t) -> String {
                 value.0
@@ -48,7 +48,21 @@ macro_rules! validstr {
             type Err = $err;
 
             fn from_str(s: &str) -> Result<$t, $err> {
-                String::from(s).try_into()
+                match $validator(s) {
+                    Ok(()) => Ok($t(s.into())),
+                    Err(e) => Err(e),
+                }
+            }
+        }
+
+        impl TryFrom<String> for $t {
+            type Error = $err;
+
+            fn try_from(s: String) -> Result<$t, $err> {
+                match $validator(&s) {
+                    Ok(()) => Ok($t(s)),
+                    Err(e) => Err(e),
+                }
             }
         }
 
@@ -86,9 +100,20 @@ macro_rules! validstr {
                             .parse::<$t>()
                             .map_err(|_| E::invalid_value(serde::de::Unexpected::Str(input), &self))
                     }
+
+                    fn visit_string<E>(self, input: String) -> Result<Self::Value, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        if $validator(&input).is_ok() {
+                            Ok($t(input))
+                        } else {
+                            Err(E::invalid_value(serde::de::Unexpected::Str(&input), &self))
+                        }
+                    }
                 }
 
-                deserializer.deserialize_str(Visitor)
+                deserializer.deserialize_string(Visitor)
             }
         }
     };

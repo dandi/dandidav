@@ -11,9 +11,28 @@ use thiserror::Error;
 #[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct PureDirPath(pub(super) String);
 
+fn validate(s: &str) -> Result<(), ParsePureDirPathError> {
+    let Some(pre) = s.strip_suffix('/') else {
+        return Err(ParsePureDirPathError::NotDir);
+    };
+    if s.starts_with('/') {
+        Err(ParsePureDirPathError::StartsWithSlash)
+    } else if s.contains('\0') {
+        Err(ParsePureDirPathError::Nul)
+    } else if pre
+        .split('/')
+        .any(|p| p.is_empty() || p == "." || p == "..")
+    {
+        Err(ParsePureDirPathError::NotNormalized)
+    } else {
+        Ok(())
+    }
+}
+
 validstr!(
     PureDirPath,
     ParsePureDirPathError,
+    validate,
     "a normalized relative directory path"
 );
 
@@ -59,28 +78,6 @@ impl PureDirPath {
 
     pub(crate) fn component_strs(&self) -> std::str::Split<'_, char> {
         self.0.trim_end_matches('/').split('/')
-    }
-}
-
-impl TryFrom<String> for PureDirPath {
-    type Error = ParsePureDirPathError;
-
-    fn try_from(s: String) -> Result<PureDirPath, ParsePureDirPathError> {
-        let Some(pre) = s.strip_suffix('/') else {
-            return Err(ParsePureDirPathError::NotDir);
-        };
-        if s.starts_with('/') {
-            Err(ParsePureDirPathError::StartsWithSlash)
-        } else if s.contains('\0') {
-            Err(ParsePureDirPathError::Nul)
-        } else if pre
-            .split('/')
-            .any(|p| p.is_empty() || p == "." || p == "..")
-        {
-            Err(ParsePureDirPathError::NotNormalized)
-        } else {
-            Ok(PureDirPath(s))
-        }
     }
 }
 

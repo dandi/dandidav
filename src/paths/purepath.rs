@@ -12,7 +12,28 @@ use thiserror::Error;
 #[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct PurePath(pub(super) String);
 
-validstr!(PurePath, ParsePurePathError, "a normalized relative path");
+fn validate(s: &str) -> Result<(), ParsePurePathError> {
+    if s.is_empty() {
+        Err(ParsePurePathError::Empty)
+    } else if s.starts_with('/') {
+        Err(ParsePurePathError::StartsWithSlash)
+    } else if s.ends_with('/') {
+        Err(ParsePurePathError::EndsWithSlash)
+    } else if s.contains('\0') {
+        Err(ParsePurePathError::Nul)
+    } else if s.split('/').any(|p| p.is_empty() || p == "." || p == "..") {
+        Err(ParsePurePathError::NotNormalized)
+    } else {
+        Ok(())
+    }
+}
+
+validstr!(
+    PurePath,
+    ParsePurePathError,
+    validate,
+    "a normalized relative path"
+);
 
 impl PurePath {
     pub(crate) fn name_str(&self) -> &str {
@@ -61,26 +82,6 @@ impl PurePath {
     pub(crate) fn push(&mut self, c: &Component) {
         self.0.push('/');
         self.0.push_str(c.as_ref());
-    }
-}
-
-impl TryFrom<String> for PurePath {
-    type Error = ParsePurePathError;
-
-    fn try_from(s: String) -> Result<PurePath, ParsePurePathError> {
-        if s.is_empty() {
-            Err(ParsePurePathError::Empty)
-        } else if s.starts_with('/') {
-            Err(ParsePurePathError::StartsWithSlash)
-        } else if s.ends_with('/') {
-            Err(ParsePurePathError::EndsWithSlash)
-        } else if s.contains('\0') {
-            Err(ParsePurePathError::Nul)
-        } else if s.split('/').any(|p| p.is_empty() || p == "." || p == "..") {
-            Err(ParsePurePathError::NotNormalized)
-        } else {
-            Ok(PurePath(s))
-        }
     }
 }
 

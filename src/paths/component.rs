@@ -5,30 +5,31 @@ use thiserror::Error;
 #[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct Component(pub(super) String);
 
-validstr!(Component, ParseComponentError, "a plain path component");
+fn validate(s: &str) -> Result<(), ParseComponentError> {
+    if s.is_empty() {
+        Err(ParseComponentError::Empty)
+    } else if s.contains('/') {
+        Err(ParseComponentError::Slash)
+    } else if s.contains('\0') {
+        Err(ParseComponentError::Nul)
+    } else if s == "." || s == ".." {
+        Err(ParseComponentError::SpecialDir)
+    } else {
+        Ok(())
+    }
+}
+
+validstr!(
+    Component,
+    ParseComponentError,
+    validate,
+    "a plain path component"
+);
 
 impl Component {
     pub(crate) fn strip_suffix(&self, suffix: &str) -> Option<Component> {
         let s = self.0.strip_suffix(suffix)?;
         (!s.is_empty()).then(|| Component(s.into()))
-    }
-}
-
-impl TryFrom<String> for Component {
-    type Error = ParseComponentError;
-
-    fn try_from(s: String) -> Result<Component, ParseComponentError> {
-        if s.is_empty() {
-            Err(ParseComponentError::Empty)
-        } else if s.contains('/') {
-            Err(ParseComponentError::Slash)
-        } else if s.contains('\0') {
-            Err(ParseComponentError::Nul)
-        } else if s == "." || s == ".." {
-            Err(ParseComponentError::SpecialDir)
-        } else {
-            Ok(Component(s))
-        }
     }
 }
 

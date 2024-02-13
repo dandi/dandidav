@@ -52,8 +52,7 @@ pub(super) fn version_path(dandiset_id: &DandisetId, version: &VersionSpec) -> P
 
     let mut s = String::new();
     writer(&mut s, dandiset_id, version).expect("writing to a String shouldn't fail");
-    s.parse::<PureDirPath>()
-        .expect("should be a valid dir path")
+    PureDirPath::try_from(s).expect("should be a valid dir path")
 }
 
 pub(super) fn format_creationdate(dt: OffsetDateTime) -> String {

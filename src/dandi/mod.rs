@@ -281,7 +281,7 @@ impl<'a> VersionEndpoint<'a> {
                 return Ok(AtAssetPath::Asset(asset));
             } else if asset.path().is_strictly_under(&dirpath) {
                 return Ok(AtAssetPath::Folder(AssetFolder { path: dirpath }));
-            } else if **asset.path() > *dirpath {
+            } else if asset.path().as_ref() > dirpath.as_ref() {
                 break;
             }
         }

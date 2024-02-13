@@ -1,3 +1,12 @@
+use thiserror::Error;
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+#[error("{source}: {string:?}")]
+pub(crate) struct TryFromStringError<E> {
+    pub(crate) source: E,
+    pub(crate) string: String,
+}
+
 macro_rules! validstr {
     ($t:ident, $err:ty, $validator:ident, $expecting:literal) => {
         impl From<$t> for String {
@@ -56,12 +65,12 @@ macro_rules! validstr {
         }
 
         impl TryFrom<String> for $t {
-            type Error = $err;
+            type Error = crate::validstr::TryFromStringError<$err>;
 
-            fn try_from(s: String) -> Result<$t, $err> {
+            fn try_from(s: String) -> Result<$t, Self::Error> {
                 match $validator(&s) {
                     Ok(()) => Ok($t(s.into())),
-                    Err(e) => Err(e),
+                    Err(source) => Err(crate::validstr::TryFromStringError { source, string: s }),
                 }
             }
         }

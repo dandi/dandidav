@@ -1,18 +1,11 @@
-use derive_more::{AsRef, Deref, Display};
-use serde::{
-    de::{Deserializer, Unexpected, Visitor},
-    ser::Serializer,
-    Deserialize, Serialize,
-};
-use std::fmt;
 use thiserror::Error;
 
 /// A nonempty path component that does not contain a forward slash or NUL nor
 /// equals `.` or `..`
-#[derive(AsRef, Clone, Deref, Display, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[as_ref(forward)]
-#[deref(forward)]
+#[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct Component(pub(super) String);
+
+validstr!(Component, ParseComponentError, "a plain path component");
 
 impl Component {
     pub(crate) fn strip_suffix(&self, suffix: &str) -> Option<Component> {
@@ -21,28 +14,10 @@ impl Component {
     }
 }
 
-impl fmt::Debug for Component {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
+impl TryFrom<String> for Component {
+    type Error = ParseComponentError;
 
-impl PartialEq<str> for Component {
-    fn eq(&self, other: &str) -> bool {
-        self.0 == other
-    }
-}
-
-impl<'a> PartialEq<&'a str> for Component {
-    fn eq(&self, other: &&'a str) -> bool {
-        &self.0 == other
-    }
-}
-
-impl std::str::FromStr for Component {
-    type Err = ParseComponentError;
-
-    fn from_str(s: &str) -> Result<Component, ParseComponentError> {
+    fn try_from(s: String) -> Result<Component, ParseComponentError> {
         if s.is_empty() {
             Err(ParseComponentError::Empty)
         } else if s.contains('/') {
@@ -52,7 +27,7 @@ impl std::str::FromStr for Component {
         } else if s == "." || s == ".." {
             Err(ParseComponentError::SpecialDir)
         } else {
-            Ok(Component(s.into()))
+            Ok(Component(s))
         }
     }
 }
@@ -67,43 +42,6 @@ pub(crate) enum ParseComponentError {
     Nul,
     #[error(r#"path components cannot equal "." or "..""#)]
     SpecialDir,
-}
-
-impl Serialize for Component {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(self.as_ref())
-    }
-}
-
-impl<'de> Deserialize<'de> for Component {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct ComponentVisitor;
-
-        impl Visitor<'_> for ComponentVisitor {
-            type Value = Component;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a plain path component")
-            }
-
-            fn visit_str<E>(self, input: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                input
-                    .parse::<Component>()
-                    .map_err(|_| E::invalid_value(Unexpected::Str(input), &self))
-            }
-        }
-
-        deserializer.deserialize_str(ComponentVisitor)
-    }
 }
 
 #[cfg(test)]

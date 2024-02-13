@@ -1,6 +1,4 @@
 use super::{Component, PurePath};
-use derive_more::{AsRef, Deref, Display};
-use std::fmt;
 use thiserror::Error;
 
 /// A nonempty, forward-slash-separated path that ends in (but does not equal)
@@ -10,10 +8,14 @@ use thiserror::Error;
 /// - a leading forward slash
 /// - two or more consecutive forward slashes
 /// - NUL
-#[derive(AsRef, Clone, Deref, Display, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[as_ref(forward)]
-#[deref(forward)]
+#[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct PureDirPath(pub(super) String);
+
+validstr!(
+    PureDirPath,
+    ParsePureDirPathError,
+    "a normalized relative directory path"
+);
 
 impl PureDirPath {
     pub(crate) fn name_str(&self) -> &str {
@@ -60,28 +62,10 @@ impl PureDirPath {
     }
 }
 
-impl fmt::Debug for PureDirPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
+impl TryFrom<String> for PureDirPath {
+    type Error = ParsePureDirPathError;
 
-impl PartialEq<str> for PureDirPath {
-    fn eq(&self, other: &str) -> bool {
-        self.0 == other
-    }
-}
-
-impl<'a> PartialEq<&'a str> for PureDirPath {
-    fn eq(&self, other: &&'a str) -> bool {
-        &self.0 == other
-    }
-}
-
-impl std::str::FromStr for PureDirPath {
-    type Err = ParsePureDirPathError;
-
-    fn from_str(s: &str) -> Result<PureDirPath, ParsePureDirPathError> {
+    fn try_from(s: String) -> Result<PureDirPath, ParsePureDirPathError> {
         let Some(pre) = s.strip_suffix('/') else {
             return Err(ParsePureDirPathError::NotDir);
         };
@@ -95,7 +79,7 @@ impl std::str::FromStr for PureDirPath {
         {
             Err(ParsePureDirPathError::NotNormalized)
         } else {
-            Ok(PureDirPath(s.into()))
+            Ok(PureDirPath(s))
         }
     }
 }

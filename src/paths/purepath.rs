@@ -1,12 +1,5 @@
 use super::{Component, PureDirPath};
 use crate::consts::ZARR_EXTENSIONS;
-use derive_more::{AsRef, Deref, Display};
-use serde::{
-    de::{Deserializer, Unexpected, Visitor},
-    ser::Serializer,
-    Deserialize, Serialize,
-};
-use std::fmt;
 use thiserror::Error;
 
 /// A nonempty, forward-slash-separated path that does not contain any of the
@@ -16,10 +9,10 @@ use thiserror::Error;
 /// - a leading or trailing forward slash
 /// - two or more consecutive forward slashes
 /// - NUL
-#[derive(AsRef, Clone, Deref, Display, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[as_ref(forward)]
-#[deref(forward)]
+#[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct PurePath(pub(super) String);
+
+validstr!(PurePath, ParsePurePathError, "a normalized relative path");
 
 impl PurePath {
     pub(crate) fn name_str(&self) -> &str {
@@ -71,28 +64,10 @@ impl PurePath {
     }
 }
 
-impl fmt::Debug for PurePath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
+impl TryFrom<String> for PurePath {
+    type Error = ParsePurePathError;
 
-impl PartialEq<str> for PurePath {
-    fn eq(&self, other: &str) -> bool {
-        self.0 == other
-    }
-}
-
-impl<'a> PartialEq<&'a str> for PurePath {
-    fn eq(&self, other: &&'a str) -> bool {
-        &self.0 == other
-    }
-}
-
-impl std::str::FromStr for PurePath {
-    type Err = ParsePurePathError;
-
-    fn from_str(s: &str) -> Result<PurePath, ParsePurePathError> {
+    fn try_from(s: String) -> Result<PurePath, ParsePurePathError> {
         if s.is_empty() {
             Err(ParsePurePathError::Empty)
         } else if s.starts_with('/') {
@@ -104,7 +79,7 @@ impl std::str::FromStr for PurePath {
         } else if s.split('/').any(|p| p.is_empty() || p == "." || p == "..") {
             Err(ParsePurePathError::NotNormalized)
         } else {
-            Ok(PurePath(s.into()))
+            Ok(PurePath(s))
         }
     }
 }
@@ -127,43 +102,6 @@ pub(crate) enum ParsePurePathError {
     Nul,
     #[error("path is not normalized")]
     NotNormalized,
-}
-
-impl Serialize for PurePath {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(self.as_ref())
-    }
-}
-
-impl<'de> Deserialize<'de> for PurePath {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct PurePathVisitor;
-
-        impl Visitor<'_> for PurePathVisitor {
-            type Value = PurePath;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a normalized relative path")
-            }
-
-            fn visit_str<E>(self, input: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                input
-                    .parse::<PurePath>()
-                    .map_err(|_| E::invalid_value(Unexpected::Str(input), &self))
-            }
-        }
-
-        deserializer.deserialize_str(PurePathVisitor)
-    }
 }
 
 #[derive(Clone, Debug)]

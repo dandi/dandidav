@@ -1,3 +1,6 @@
+#[macro_use]
+mod validstr;
+
 mod consts;
 mod dandi;
 mod dav;

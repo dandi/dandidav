@@ -2,7 +2,7 @@ macro_rules! validstr {
     ($t:ident, $err:ty, $validator:ident, $expecting:literal) => {
         impl From<$t> for String {
             fn from(value: $t) -> String {
-                value.0
+                value.0.into()
             }
         }
 
@@ -60,12 +60,13 @@ macro_rules! validstr {
 
             fn try_from(s: String) -> Result<$t, $err> {
                 match $validator(&s) {
-                    Ok(()) => Ok($t(s)),
+                    Ok(()) => Ok($t(s.into())),
                     Err(e) => Err(e),
                 }
             }
         }
 
+        #[allow(unused_qualifications)]
         impl serde::Serialize for $t {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
@@ -75,6 +76,7 @@ macro_rules! validstr {
             }
         }
 
+        #[allow(unused_qualifications)]
         impl<'de> serde::Deserialize<'de> for $t {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
             where
@@ -106,7 +108,7 @@ macro_rules! validstr {
                         E: serde::de::Error,
                     {
                         if $validator(&input).is_ok() {
-                            Ok($t(input))
+                            Ok($t(input.into()))
                         } else {
                             Err(E::invalid_value(serde::de::Unexpected::Str(&input), &self))
                         }

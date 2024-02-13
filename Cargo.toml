@@ -25,7 +25,6 @@ aws-smithy-types-convert = { version = "0.60.5", features = ["convert-time"] }
 axum = { version = "0.7.4", default-features = false, features = ["http1", "tokio", "tower-log"] }
 bytes = "1.5.0"
 clap = { version = "4.4.18", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
-derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "deref", "display"] }
 enum_dispatch = "0.3.12"
 futures-util = "0.3.30"
 indoc = "2.0.4"

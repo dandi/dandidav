@@ -1,4 +1,3 @@
-use derive_more::{AsRef, Deref, Display};
 use serde::{
     de::{Deserializer, Unexpected, Visitor},
     ser::Serializer,
@@ -6,7 +5,6 @@ use serde::{
 };
 use smartstring::alias::CompactString;
 use std::fmt;
-use std::ops::Deref;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -24,7 +22,7 @@ impl AsRef<str> for VersionId {
     }
 }
 
-impl Deref for VersionId {
+impl std::ops::Deref for VersionId {
     type Target = str;
 
     fn deref(&self) -> &str {
@@ -112,50 +110,33 @@ impl<'de> Deserialize<'de> for VersionId {
     }
 }
 
-#[derive(AsRef, Clone, Deref, Display, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[as_ref(forward)]
-#[deref(forward)]
+#[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct PublishedVersionId(CompactString);
 
-impl fmt::Debug for PublishedVersionId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
-
-impl PartialEq<str> for PublishedVersionId {
-    fn eq(&self, other: &str) -> bool {
-        self.0 == other
-    }
-}
-
-impl<'a> PartialEq<&'a str> for PublishedVersionId {
-    fn eq(&self, other: &&'a str) -> bool {
-        &self.0 == other
-    }
-}
-
-impl std::str::FromStr for PublishedVersionId {
-    type Err = ParsePublishedVersionIdError;
-
-    fn from_str(s: &str) -> Result<PublishedVersionId, Self::Err> {
-        let e = Err(ParsePublishedVersionIdError);
-        let mut parts = s.split('.');
-        for _ in 0..3 {
-            let Some(p) = parts.next() else {
-                return e;
-            };
-            if p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()) {
-                return e;
-            }
-        }
-        if parts.next().is_none() {
-            Ok(PublishedVersionId(CompactString::from(s)))
-        } else {
-            e
+fn validate(s: &str) -> Result<(), ParsePublishedVersionIdError> {
+    let e = Err(ParsePublishedVersionIdError);
+    let mut parts = s.split('.');
+    for _ in 0..3 {
+        let Some(p) = parts.next() else {
+            return e;
+        };
+        if p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()) {
+            return e;
         }
     }
+    if parts.next().is_none() {
+        Ok(())
+    } else {
+        e
+    }
 }
+
+validstr!(
+    PublishedVersionId,
+    ParsePublishedVersionIdError,
+    validate,
+    "a published Dandiset version ID"
+);
 
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
 #[error(r#"Published version IDs must be of the form "N.N.N""#)]

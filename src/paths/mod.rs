@@ -1,6 +1,3 @@
-#[macro_use]
-mod validstr;
-
 mod component;
 mod dirpath;
 mod purepath;

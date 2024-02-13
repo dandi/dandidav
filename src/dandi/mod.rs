@@ -75,9 +75,7 @@ impl DandiClient {
         if !key.ends_with('/') {
             key.push('/');
         }
-        let prefix = key
-            .parse::<PureDirPath>()
-            .map_err(|source| ZarrToS3Error::BadS3Key { key, source })?;
+        let prefix = PureDirPath::try_from(key).map_err(ZarrToS3Error::BadS3Key)?;
         // Box large future:
         match Box::pin(self.s3clients.try_get_with_by_ref(&bucket_spec, async {
             bucket_spec.clone().into_s3client().await.map(Arc::new)
@@ -281,7 +279,7 @@ impl<'a> VersionEndpoint<'a> {
                 return Ok(AtAssetPath::Asset(asset));
             } else if asset.path().is_strictly_under(&dirpath) {
                 return Ok(AtAssetPath::Folder(AssetFolder { path: dirpath }));
-            } else if **asset.path() > *dirpath {
+            } else if asset.path().as_ref() > dirpath.as_ref() {
                 break;
             }
         }
@@ -435,11 +433,8 @@ impl DandiError {
 pub(crate) enum ZarrToS3Error {
     #[error("Zarr does not have an S3 download URL")]
     ZarrLacksS3Url,
-    #[error("key in S3 URL is not a well-formed path: {key:?}")]
-    BadS3Key {
-        key: String,
-        source: ParsePureDirPathError,
-    },
+    #[error("key in S3 URL is not a well-formed path")]
+    BadS3Key(#[source] crate::validstr::TryFromStringError<ParsePureDirPathError>),
     #[error("failed to determine region for S3 bucket {bucket:?}")]
     LocateBucket {
         bucket: CompactString,

@@ -259,8 +259,7 @@ impl DavCollection {
     pub(super) fn dandiset_releases(dandiset_id: &DandisetId) -> Self {
         DavCollection {
             path: Some(
-                format!("dandisets/{dandiset_id}/releases/")
-                    .parse::<PureDirPath>()
+                PureDirPath::try_from(format!("dandisets/{dandiset_id}/releases/"))
                     .expect("should be a valid dir path"),
             ),
             created: None,
@@ -333,8 +332,7 @@ impl From<Dandiset> for DavCollection {
     fn from(ds: Dandiset) -> DavCollection {
         DavCollection {
             path: Some(
-                format!("dandisets/{}/", ds.identifier)
-                    .parse::<PureDirPath>()
+                PureDirPath::try_from(format!("dandisets/{}/", ds.identifier))
                     .expect("should be a valid dir path"),
             ),
             created: Some(ds.created),

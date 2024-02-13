@@ -1,5 +1,6 @@
 use crate::httputil::{self, BuildClientError, HttpError};
 use crate::paths::{ParsePureDirPathError, ParsePurePathError, PureDirPath, PurePath};
+use crate::validstr::TryFromStringError;
 use async_stream::try_stream;
 use aws_sdk_s3::{operation::list_objects_v2::ListObjectsV2Error, types::CommonPrefix, Client};
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
@@ -353,9 +354,8 @@ impl TryFrom<CommonPrefix> for S3Folder {
         let Some(prefix) = value.prefix else {
             return Err(TryFromCommonPrefixError::NoPrefix);
         };
-        let key_prefix = prefix
-            .parse::<PureDirPath>()
-            .map_err(|source| TryFromCommonPrefixError::BadPrefix { prefix, source })?;
+        let key_prefix =
+            PureDirPath::try_from(prefix).map_err(TryFromCommonPrefixError::BadPrefix)?;
         Ok(S3Folder { key_prefix })
     }
 }
@@ -386,12 +386,7 @@ impl S3Object {
         let Some(size) = obj.size else {
             return Err(TryFromAwsObjectError::NoSize { key });
         };
-        let keypath = key
-            .parse::<PurePath>()
-            .map_err(|source| TryFromAwsObjectError::BadKey {
-                key: key.clone(),
-                source,
-            })?;
+        let keypath = PurePath::try_from(key.clone()).map_err(TryFromAwsObjectError::BadKey)?;
         let mut download_url = Url::parse(&format!("https://{bucket}.s3.amazonaws.com"))
             .expect("bucket should be a valid hostname component");
         // Adding the key this way is necessary in order for URL-unsafe
@@ -456,11 +451,8 @@ pub(crate) enum S3Error {
 pub(crate) enum TryFromCommonPrefixError {
     #[error(r#"CommonPrefix lacks "prefix" field"#)]
     NoPrefix,
-    #[error("CommonPrefix {prefix:?} is not a well-formed directory path")]
-    BadPrefix {
-        prefix: String,
-        source: ParsePureDirPathError,
-    },
+    #[error("CommonPrefix is not a well-formed directory path")]
+    BadPrefix(#[source] TryFromStringError<ParsePureDirPathError>),
 }
 
 #[derive(Debug, Error)]
@@ -473,11 +465,8 @@ pub(crate) enum TryFromAwsObjectError {
     NoETag { key: String },
     #[error("S3 object with key {key:?} lacks size")]
     NoSize { key: String },
-    #[error("S3 key {key:?} is not a well-formed path")]
-    BadKey {
-        key: String,
-        source: ParsePurePathError,
-    },
+    #[error("S3 key is not a well-formed path")]
+    BadKey(#[source] TryFromStringError<ParsePurePathError>),
     #[error(
         "last_modified value {modified} for S3 object {key:?} is outside time library's range"
     )]

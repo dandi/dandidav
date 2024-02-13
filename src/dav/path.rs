@@ -77,7 +77,7 @@ impl DavPath {
                     version,
                 })
             } else {
-                let path = path.parse::<PurePath>().expect("should be valid path");
+                let path = PurePath::try_from(path).expect("should be valid path");
                 Some(DavPath::DandiResource {
                     dandiset_id,
                     version,
@@ -89,7 +89,7 @@ impl DavPath {
             if path.is_empty() {
                 Some(DavPath::ZarrIndex)
             } else {
-                let path = path.parse::<PurePath>().expect("should be valid path");
+                let path = PurePath::try_from(path).expect("should be valid path");
                 Some(DavPath::ZarrPath { path })
             }
         } else {

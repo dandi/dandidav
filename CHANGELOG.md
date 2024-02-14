@@ -11,6 +11,7 @@ In Development
     - Log errors that cause 404 and 500 responses
 - Added breadcrumbs to HTML views of collections
 - `FAST_NOT_EXIST` components are now checked for case-insensitively
+- Add links to version & asset metadata to the web view
 
 v0.2.0 (2024-02-07)
 -------------------

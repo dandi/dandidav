@@ -62,7 +62,7 @@ impl DavPath {
             } else {
                 return None;
             };
-            match join_parts(iter)? {
+            match PurePath::from_components(iter) {
                 None => Some(DavPath::Version {
                     dandiset_id,
                     version,
@@ -78,7 +78,7 @@ impl DavPath {
                 }),
             }
         } else if p1.eq_ignore_ascii_case("zarrs") {
-            match join_parts(iter)? {
+            match PurePath::from_components(iter) {
                 None => Some(DavPath::ZarrIndex),
                 Some(path) => Some(DavPath::ZarrPath { path }),
             }
@@ -100,6 +100,9 @@ pub(super) fn split_uri_path(s: &str) -> Option<Vec<Component>> {
     let path = percent_encoding::percent_decode_str(s).decode_utf8().ok()?;
     let mut parts = Vec::new();
     for p in SplitComponents::new(&path) {
+        if is_fast_not_exist(p) {
+            return None;
+        }
         match p.parse::<Component>() {
             Ok(c) => parts.push(c),
             Err(ParseComponentError::Empty) => unreachable!("part should not be empty"),
@@ -146,18 +149,8 @@ impl<'a> Iterator for SplitComponents<'a> {
 impl std::iter::FusedIterator for SplitComponents<'_> {}
 
 fn is_fast_not_exist(s: &str) -> bool {
-    FAST_NOT_EXIST.binary_search(&s).is_ok()
-}
-
-// - Returns `None` if path does not exist due to containing a `FAST_NOT_EXIST`
-//   component
-// - Returns `Some(None)` if path is empty/root/has no components
-fn join_parts<I: Iterator<Item = Component>>(iter: I) -> Option<Option<PurePath>> {
-    let parts = iter.collect::<Vec<_>>();
-    parts
-        .iter()
-        .all(|c| !is_fast_not_exist(c))
-        .then(|| PurePath::from_components(parts))
+    let s = s.to_ascii_lowercase();
+    FAST_NOT_EXIST.binary_search(&&*s).is_ok()
 }
 
 #[cfg(test)]
@@ -238,6 +231,114 @@ mod tests {
         }
     }
 
+    mod split_uri_path {
+        use super::*;
+        use rstest::rstest;
+
+        #[rstest]
+        #[case("")]
+        #[case("/")]
+        #[case("/.")]
+        #[case("%2f%2e")]
+        #[case("/..")]
+        #[case("/%2e.")]
+        fn root(#[case] s: &str) {
+            let parts = split_uri_path(s).unwrap();
+            assert!(parts.is_empty());
+        }
+
+        #[rstest]
+        #[case("foo")]
+        #[case("/foo")]
+        #[case("/foo/")]
+        #[case("//foo//")]
+        fn foo(#[case] s: &str) {
+            let parts = split_uri_path(s).unwrap();
+            assert_eq!(parts, ["foo"]);
+        }
+
+        #[rstest]
+        #[case("foo/bar")]
+        #[case("/foo/bar")]
+        #[case("/foo%2fbar")]
+        #[case("/foo%2fbar%2f")]
+        #[case("/foo/bar/")]
+        #[case("//foo//bar//")]
+        fn foo_bar(#[case] s: &str) {
+            let parts = split_uri_path(s).unwrap();
+            assert_eq!(parts, ["foo", "bar"]);
+        }
+
+        #[rstest]
+        #[case("/foo/./bar")]
+        #[case("/./foo/bar")]
+        #[case("/foo/bar/.")]
+        #[case("/foo/bar/./")]
+        fn curdir(#[case] s: &str) {
+            let parts = split_uri_path(s).unwrap();
+            assert_eq!(parts, ["foo", "bar"]);
+        }
+
+        #[rstest]
+        #[case("/foo/../bar")]
+        #[case("/foo/%2e./bar")]
+        #[case("/foo/%2e%2e/bar")]
+        #[case("/foo/.%2e/bar")]
+        fn foo_parent_bar(#[case] s: &str) {
+            let parts = split_uri_path(s).unwrap();
+            assert_eq!(parts, ["bar"]);
+        }
+
+        #[rstest]
+        #[case("/foo/bar/..")]
+        #[case("/foo/bar/%2e.")]
+        #[case("/foo/bar/%2e%2e")]
+        #[case("/foo/bar/.%2e")]
+        #[case("/foo/bar/.%2E/")]
+        fn foo_bar_parent(#[case] s: &str) {
+            let parts = split_uri_path(s).unwrap();
+            assert_eq!(parts, ["foo"]);
+        }
+
+        #[rstest]
+        #[case("/../foo/bar")]
+        #[case("/%2e./foo/bar")]
+        #[case("/%2e%2e/foo/bar")]
+        #[case("/.%2e/foo/bar")]
+        fn parent_foo_bar(#[case] s: &str) {
+            let parts = split_uri_path(s).unwrap();
+            assert_eq!(parts, ["foo", "bar"]);
+        }
+
+        #[rstest]
+        #[case("/foo\0bar")]
+        #[case("/foo%00bar")]
+        fn nul(#[case] s: &str) {
+            assert_eq!(split_uri_path(s), None);
+        }
+
+        #[test]
+        fn non_utf8() {
+            assert_eq!(split_uri_path("/f%f6%f6"), None);
+        }
+
+        #[rstest]
+        #[case("/.git")]
+        #[case("/.bzr")]
+        #[case("/.nols")]
+        #[case("/.svn")]
+        #[case("/zarrs/.git/index")]
+        #[case("/zarrs/.git/../001")]
+        #[case("/zarrs/%2e%67%69%74")]
+        #[case("/foo/.GIT/config")]
+        #[case("/foo/.Svn/trunk")]
+        #[case("/foo/.NoLs/bar")]
+        #[case("/foo/.Bzr/cathedral")]
+        fn fast_not_exist(#[case] s: &str) {
+            assert_eq!(split_uri_path(s), None);
+        }
+    }
+
     mod dav_path_from_components {
         use super::*;
         use assert_matches::assert_matches;
@@ -249,12 +350,6 @@ mod tests {
         #[case("/dandisets/draft")]
         #[case("/dandisets/000123/0.201234.1")]
         #[case("/dandisets/000123/releases/draft")]
-        #[case("/dandisets/000123/draft/.git/index")]
-        #[case("/dandisets/000123/draft/foo/.svn")]
-        #[case("/dandisets/000123/draft/foo/%2esvn")]
-        #[case("/dandisets/000123/draft/foo%2f.svn")]
-        #[case("/dandisets/000123/draft/foo/.nols/bar")]
-        #[case("/dandisets/000123/draft/.bzr")]
         fn test_bad_uri_paths(#[case] path: &str) {
             let parts = split_uri_path(path).unwrap();
             assert_eq!(DavPath::from_components(parts), None);

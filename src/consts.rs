@@ -39,7 +39,8 @@ pub(crate) static HTML_TIMESTAMP_FORMAT: &[FormatItem<'_>] = format_description!
 );
 
 /// If a client makes a request for a resource with one of these names as a
-/// component, assume it doesn't exist without checking the Archive.
+/// component (case insensitive), assume it doesn't exist without bothering to
+/// check the backend.
 ///
 /// This list must be kept in sorted order; this is enforced by a test below.
 pub(crate) static FAST_NOT_EXIST: &[&str] = &[".bzr", ".git", ".nols", ".svn"];
@@ -51,7 +52,7 @@ mod tests {
     #[test]
     fn test_fast_not_exist_is_sorted() {
         assert!(FAST_NOT_EXIST.windows(2).all(|ab| {
-            assert!(ab.len() >= 2);
+            assert!(ab.len() == 2);
             ab[0] < ab[1]
         }));
     }

@@ -34,8 +34,23 @@ table td, table th {
     border: 1px solid #DFE2E5;
 }
 
-table td.dir {
+table td.name {
+    align-items: stretch;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+}
+
+table td.name.dir > a {
     font-weight: bold;
+}
+
+table td.name span.fill {
+    min-width: 1em;
+}
+
+table td.name span.metadata-link a {
+    text-decoration: underline;
 }
 
 table td.null {

@@ -5,6 +5,11 @@
     <link rel="stylesheet" type="text/css" href="/.static/styles.css"/>
 </head>
 <body>
+    <div class="breadcrumbs">
+        {% for bc in breadcrumbs %}
+        <a href="{{bc.href}}">{{bc.name}}</a> {% if not loop.last %} / {% endif %}
+        {% endfor %}
+    </div>
     <table class="collection" border="1">
         <tr>
             <th>Name</th>

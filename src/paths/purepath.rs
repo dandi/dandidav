@@ -83,6 +83,15 @@ impl PurePath {
         self.0.push('/');
         self.0.push_str(c.as_ref());
     }
+
+    pub(crate) fn from_components<I: IntoIterator<Item = Component>>(iter: I) -> Option<PurePath> {
+        let mut iter = iter.into_iter();
+        let mut path = PurePath::from(iter.next()?);
+        for c in iter {
+            path.push(&c);
+        }
+        Some(path)
+    }
 }
 
 impl From<Component> for PurePath {

@@ -12,8 +12,10 @@ fn validate(s: &str) -> Result<(), ParseComponentError> {
         Err(ParseComponentError::Slash)
     } else if s.contains('\0') {
         Err(ParseComponentError::Nul)
-    } else if s == "." || s == ".." {
-        Err(ParseComponentError::SpecialDir)
+    } else if s == "." {
+        Err(ParseComponentError::CurDir)
+    } else if s == ".." {
+        Err(ParseComponentError::ParentDir)
     } else {
         Ok(())
     }
@@ -41,8 +43,10 @@ pub(crate) enum ParseComponentError {
     Slash,
     #[error("path components cannot contain NUL")]
     Nul,
-    #[error(r#"path components cannot equal "." or "..""#)]
-    SpecialDir,
+    #[error(r#"path components cannot equal ".""#)]
+    CurDir,
+    #[error(r#"path components cannot equal "..""#)]
+    ParentDir,
 }
 
 #[cfg(test)]

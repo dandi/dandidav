@@ -1,6 +1,7 @@
 use super::util::Href;
 use super::{DavCollection, DavItem, DavResource, ResourceKind};
 use crate::consts::HTML_TIMESTAMP_FORMAT;
+use crate::paths::Component;
 use serde::{ser::Serializer, Serialize};
 use tera::{Context, Error, Tera};
 use thiserror::Error;
@@ -43,10 +44,17 @@ impl Templater {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub(super) struct CollectionContext {
     pub(super) title: String,
+    pub(super) breadcrumbs: Vec<Link>,
     pub(super) rows: Vec<ColRow>,
     pub(super) package_url: &'static str,
     pub(super) package_version: &'static str,
     pub(super) package_commit: Option<&'static str>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub(super) struct Link {
+    name: String,
+    href: Href,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
@@ -143,4 +151,22 @@ fn maybe_timestamp<S: Serializer>(
         }
         None => serializer.serialize_none(),
     }
+}
+
+pub(super) fn make_breadcrumbs(pathparts: Vec<Component>) -> Vec<Link> {
+    let mut links = Vec::with_capacity(pathparts.len().saturating_add(1));
+    let mut cumpath = String::from("/");
+    links.push(Link {
+        name: String::from("dandidav"),
+        href: Href::from_path(&cumpath),
+    });
+    for p in pathparts {
+        cumpath.push_str(&p);
+        cumpath.push('/');
+        links.push(Link {
+            name: p.into(),
+            href: Href::from_path(&cumpath),
+        });
+    }
+    links
 }

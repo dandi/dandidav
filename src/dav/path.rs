@@ -1,6 +1,6 @@
 use crate::consts::FAST_NOT_EXIST;
 use crate::dandi::{DandisetId, PublishedVersionId};
-use crate::paths::PurePath;
+use crate::paths::{Component, ParseComponentError, PurePath};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DavPath {
@@ -32,26 +32,23 @@ pub(super) enum DavPath {
 }
 
 impl DavPath {
-    pub(super) fn parse_uri_path(s: &str) -> Option<DavPath> {
-        let Ok(path) = percent_encoding::percent_decode_str(s).decode_utf8() else {
-            return None;
-        };
-        let mut parts = SplitComponents::new(&path);
-        let Some(p1) = parts.next() else {
+    pub(super) fn from_components(parts: Vec<Component>) -> Option<DavPath> {
+        let mut iter = parts.into_iter();
+        let Some(p1) = iter.next() else {
             return Some(DavPath::Root);
         };
         if p1.eq_ignore_ascii_case("dandisets") {
-            let Some(did) = parts.next() else {
+            let Some(did) = iter.next() else {
                 return Some(DavPath::DandisetIndex);
             };
             let Ok(dandiset_id) = did.parse::<DandisetId>() else {
                 return None;
             };
-            let Some(p3) = parts.next() else {
+            let Some(p3) = iter.next() else {
                 return Some(DavPath::Dandiset { dandiset_id });
             };
             let version = if p3.eq_ignore_ascii_case("releases") {
-                let Some(v) = parts.next() else {
+                let Some(v) = iter.next() else {
                     return Some(DavPath::DandisetReleases { dandiset_id });
                 };
                 let Ok(pv) = v.parse::<PublishedVersionId>() else {
@@ -65,32 +62,25 @@ impl DavPath {
             } else {
                 return None;
             };
-            let path = join_parts(parts)?;
-            if path.is_empty() {
-                Some(DavPath::Version {
+            match join_parts(iter)? {
+                None => Some(DavPath::Version {
                     dandiset_id,
                     version,
-                })
-            } else if path == "dandiset.yaml" {
-                Some(DavPath::DandisetYaml {
+                }),
+                Some(p) if p == "dandiset.yaml" => Some(DavPath::DandisetYaml {
                     dandiset_id,
                     version,
-                })
-            } else {
-                let path = PurePath::try_from(path).expect("should be valid path");
-                Some(DavPath::DandiResource {
+                }),
+                Some(path) => Some(DavPath::DandiResource {
                     dandiset_id,
                     version,
                     path,
-                })
+                }),
             }
         } else if p1.eq_ignore_ascii_case("zarrs") {
-            let path = join_parts(parts)?;
-            if path.is_empty() {
-                Some(DavPath::ZarrIndex)
-            } else {
-                let path = PurePath::try_from(path).expect("should be valid path");
-                Some(DavPath::ZarrPath { path })
+            match join_parts(iter)? {
+                None => Some(DavPath::ZarrIndex),
+                Some(path) => Some(DavPath::ZarrPath { path }),
             }
         } else {
             None
@@ -103,6 +93,28 @@ pub(super) enum VersionSpec {
     Draft,
     Published(PublishedVersionId),
     Latest,
+}
+
+pub(super) fn split_uri_path(s: &str) -> Option<Vec<Component>> {
+    // TODO: Convert decoding-failures into DavError:
+    let path = percent_encoding::percent_decode_str(s).decode_utf8().ok()?;
+    let mut parts = Vec::new();
+    for p in SplitComponents::new(&path) {
+        match p.parse::<Component>() {
+            Ok(c) => parts.push(c),
+            Err(ParseComponentError::Empty) => unreachable!("part should not be empty"),
+            Err(ParseComponentError::Slash) => {
+                unreachable!("part should not contain / after splitting on /")
+            }
+            // TODO: Report NULs as DavErrors:
+            Err(ParseComponentError::Nul) => return None,
+            Err(ParseComponentError::CurDir) => (),
+            Err(ParseComponentError::ParentDir) => {
+                let _ = parts.pop();
+            }
+        }
+    }
+    Some(parts)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -133,24 +145,19 @@ impl<'a> Iterator for SplitComponents<'a> {
 
 impl std::iter::FusedIterator for SplitComponents<'_> {}
 
-fn join_parts(parts: SplitComponents<'_>) -> Option<String> {
-    let mut path = String::new();
-    for p in parts {
-        if p == "." {
-            continue;
-        } else if p == ".." || FAST_NOT_EXIST.binary_search(&p).is_ok() {
-            // axum collapses `..` components in requests; the only way a `..`
-            // could have snuck in is if the component were percent-escaped, in
-            // which case we're going to reject the user's meddling.
-            return None;
-        } else {
-            if !path.is_empty() {
-                path.push('/');
-            }
-            path.push_str(p);
-        }
-    }
-    Some(path)
+fn is_fast_not_exist(s: &str) -> bool {
+    FAST_NOT_EXIST.binary_search(&s).is_ok()
+}
+
+// - Returns `None` if path does not exist due to containing a `FAST_NOT_EXIST`
+//   component
+// - Returns `Some(None)` if path is empty/root/has no components
+fn join_parts<I: Iterator<Item = Component>>(iter: I) -> Option<Option<PurePath>> {
+    let parts = iter.collect::<Vec<_>>();
+    parts
+        .iter()
+        .all(|c| !is_fast_not_exist(c))
+        .then(|| PurePath::from_components(parts))
 }
 
 #[cfg(test)]
@@ -165,8 +172,6 @@ mod tests {
     #[case("/dandisets/draft")]
     #[case("/dandisets/000123/0.201234.1")]
     #[case("/dandisets/000123/releases/draft")]
-    #[case("/dandisets/000123/draft/foo/../bar")]
-    #[case("/dandisets/000123/draft/foo/%2e%2e/bar")]
     #[case("/dandisets/000123/draft/.git/index")]
     #[case("/dandisets/000123/draft/foo/.svn")]
     #[case("/dandisets/000123/draft/foo/%2esvn")]
@@ -174,7 +179,8 @@ mod tests {
     #[case("/dandisets/000123/draft/foo/.nols/bar")]
     #[case("/dandisets/000123/draft/.bzr")]
     fn test_bad_uri_paths(#[case] path: &str) {
-        assert_eq!(DavPath::parse_uri_path(path), None);
+        let parts = split_uri_path(path).unwrap();
+        assert_eq!(DavPath::from_components(parts), None);
     }
 
     #[rstest]
@@ -182,7 +188,8 @@ mod tests {
     #[case("/")]
     #[case("//")]
     fn test_root(#[case] path: &str) {
-        assert_eq!(DavPath::parse_uri_path(path), Some(DavPath::Root));
+        let parts = split_uri_path(path).unwrap();
+        assert_eq!(DavPath::from_components(parts), Some(DavPath::Root));
     }
 
     #[rstest]
@@ -193,7 +200,11 @@ mod tests {
     #[case("/Dandisets")]
     #[case("/DandiSets")]
     fn test_dandiset_index(#[case] path: &str) {
-        assert_eq!(DavPath::parse_uri_path(path), Some(DavPath::DandisetIndex));
+        let parts = split_uri_path(path).unwrap();
+        assert_eq!(
+            DavPath::from_components(parts),
+            Some(DavPath::DandisetIndex)
+        );
     }
 
     #[rstest]
@@ -203,7 +214,8 @@ mod tests {
     #[case("/Dandisets/000123")]
     #[case("/DandiSets/000123")]
     fn test_dandiset(#[case] path: &str) {
-        assert_matches!(DavPath::parse_uri_path(path), Some(DavPath::Dandiset {dandiset_id}) => {
+        let parts = split_uri_path(path).unwrap();
+        assert_matches!(DavPath::from_components(parts), Some(DavPath::Dandiset {dandiset_id}) => {
             assert_eq!(dandiset_id, "000123");
         });
     }
@@ -214,7 +226,8 @@ mod tests {
     #[case("/Dandisets/000123/Releases")]
     #[case("/DandiSets/000123/ReLeAsEs/")]
     fn test_dandiset_releases(#[case] path: &str) {
-        assert_matches!(DavPath::parse_uri_path(path), Some(DavPath::DandisetReleases {dandiset_id}) => {
+        let parts = split_uri_path(path).unwrap();
+        assert_matches!(DavPath::from_components(parts), Some(DavPath::DandisetReleases {dandiset_id}) => {
             assert_eq!(dandiset_id, "000123");
         });
     }
@@ -225,7 +238,8 @@ mod tests {
     #[case("/Dandisets/000123/Draft")]
     #[case("/DandiSets/000123/dRaFt/")]
     fn test_dandiset_draft(#[case] path: &str) {
-        assert_matches!(DavPath::parse_uri_path(path), Some(DavPath::Version {dandiset_id, version}) => {
+        let parts = split_uri_path(path).unwrap();
+        assert_matches!(DavPath::from_components(parts), Some(DavPath::Version {dandiset_id, version}) => {
             assert_eq!(dandiset_id, "000123");
             assert_eq!(version, VersionSpec::Draft);
         });
@@ -237,7 +251,8 @@ mod tests {
     #[case("/Dandisets/000123/Latest")]
     #[case("/DandiSets/000123/LaTeST/")]
     fn test_dandiset_latest(#[case] path: &str) {
-        assert_matches!(DavPath::parse_uri_path(path), Some(DavPath::Version {dandiset_id, version}) => {
+        let parts = split_uri_path(path).unwrap();
+        assert_matches!(DavPath::from_components(parts), Some(DavPath::Version {dandiset_id, version}) => {
             assert_eq!(dandiset_id, "000123");
             assert_eq!(version, VersionSpec::Latest);
         });
@@ -249,7 +264,8 @@ mod tests {
     #[case("/Dandisets/000123/Releases//0.240123.42")]
     #[case("/DandiSets/000123/ReLeAsEs/0.240123.42//")]
     fn test_dandiset_published_version(#[case] path: &str) {
-        assert_matches!(DavPath::parse_uri_path(path), Some(DavPath::Version {dandiset_id, version}) => {
+        let parts = split_uri_path(path).unwrap();
+        assert_matches!(DavPath::from_components(parts), Some(DavPath::Version {dandiset_id, version}) => {
             assert_eq!(dandiset_id, "000123");
             assert_matches!(version, VersionSpec::Published(v) => {
                 assert_eq!(v, "0.240123.42");
@@ -263,7 +279,8 @@ mod tests {
     #[case("/Dandisets/000123/Draft/dandiset.yaml")]
     #[case("/DandiSets/000123/dRaFt/dandiset.yaml")]
     fn test_dandiset_draft_dandiset_yaml(#[case] path: &str) {
-        assert_matches!(DavPath::parse_uri_path(path), Some(DavPath::DandisetYaml {dandiset_id, version}) => {
+        let parts = split_uri_path(path).unwrap();
+        assert_matches!(DavPath::from_components(parts), Some(DavPath::DandisetYaml {dandiset_id, version}) => {
             assert_eq!(dandiset_id, "000123");
             assert_eq!(version, VersionSpec::Draft);
         });
@@ -278,8 +295,11 @@ mod tests {
     #[case("/dandisets/000123/draft/foo%20bar", "foo bar")]
     #[case("/dandisets/000123/draft/foo/./bar", "foo/bar")]
     #[case("/dandisets/000123/draft//foo//bar/", "foo/bar")]
+    #[case("/dandisets/000123/draft/foo/../bar", "bar")]
+    #[case("/dandisets/000123/draft/foo/%2e%2e/bar", "bar")]
     fn test_dandiset_draft_resource(#[case] s: &str, #[case] respath: &str) {
-        assert_matches!(DavPath::parse_uri_path(s), Some(DavPath::DandiResource {dandiset_id, version, path}) => {
+        let parts = split_uri_path(s).unwrap();
+        assert_matches!(DavPath::from_components(parts), Some(DavPath::DandiResource {dandiset_id, version, path}) => {
             assert_eq!(dandiset_id, "000123");
             assert_eq!(version, VersionSpec::Draft);
             assert_eq!(path, respath);
@@ -296,7 +316,8 @@ mod tests {
     #[case("/dandisets/000123/latest/foo/./bar", "foo/bar")]
     #[case("/dandisets/000123/latest//foo//bar/", "foo/bar")]
     fn test_dandiset_latest_resource(#[case] s: &str, #[case] respath: &str) {
-        assert_matches!(DavPath::parse_uri_path(s), Some(DavPath::DandiResource {dandiset_id, version, path}) => {
+        let parts = split_uri_path(s).unwrap();
+        assert_matches!(DavPath::from_components(parts), Some(DavPath::DandiResource {dandiset_id, version, path}) => {
             assert_eq!(dandiset_id, "000123");
             assert_eq!(version, VersionSpec::Latest);
             assert_eq!(path, respath);
@@ -316,7 +337,8 @@ mod tests {
     #[case("/dandisets/000123/RELEASES/0.240123.42/foo/./bar", "foo/bar")]
     #[case("/dandisets/000123/releases/0.240123.42//foo//bar/", "foo/bar")]
     fn test_dandiset_publish_version_resource(#[case] s: &str, #[case] respath: &str) {
-        assert_matches!(DavPath::parse_uri_path(s), Some(DavPath::DandiResource {dandiset_id, version, path}) => {
+        let parts = split_uri_path(s).unwrap();
+        assert_matches!(DavPath::from_components(parts), Some(DavPath::DandiResource {dandiset_id, version, path}) => {
             assert_eq!(dandiset_id, "000123");
             assert_matches!(version, VersionSpec::Published(v) => {
                 assert_eq!(v, "0.240123.42");
@@ -333,7 +355,8 @@ mod tests {
     #[case("/Zarrs")]
     #[case("/ZARRS")]
     fn test_zarr_index(#[case] path: &str) {
-        assert_eq!(DavPath::parse_uri_path(path), Some(DavPath::ZarrIndex));
+        let parts = split_uri_path(path).unwrap();
+        assert_eq!(DavPath::from_components(parts), Some(DavPath::ZarrIndex));
     }
 
     #[rstest]
@@ -342,7 +365,8 @@ mod tests {
     #[case("/zarrs/123/abc", "123/abc")]
     #[case("/ZARRS/123/ABC", "123/ABC")]
     fn test_zarr_path(#[case] s: &str, #[case] respath: &str) {
-        assert_matches!(DavPath::parse_uri_path(s), Some(DavPath::ZarrPath {path}) => {
+        let parts = split_uri_path(s).unwrap();
+        assert_matches!(DavPath::from_components(parts), Some(DavPath::ZarrPath {path}) => {
             assert_eq!(path, respath);
         });
     }

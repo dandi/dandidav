@@ -1,3 +1,8 @@
+div.breadcrumbs {
+    margin-bottom: 16px;
+    font: 11px SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+}
+
 table {
     border-collapse: collapse;
     border-spacing: 0;

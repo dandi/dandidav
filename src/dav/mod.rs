@@ -11,6 +11,7 @@ use self::util::*;
 use self::xml::*;
 use crate::consts::{DAV_XML_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
+use crate::paths::Component;
 use crate::zarrman::*;
 use axum::{
     body::Body,
@@ -64,14 +65,17 @@ impl DandiDav {
         let m = req.method();
         match m {
             &Method::GET => {
-                let Some(path) = DavPath::parse_uri_path(uri_path) else {
+                let Some(parts) = split_uri_path(uri_path) else {
                     return Ok(not_found());
                 };
-                self.get(&path, uri_path).await
+                let Some(path) = DavPath::from_components(parts.clone()) else {
+                    return Ok(not_found());
+                };
+                self.get(&path, parts).await
             }
             &Method::OPTIONS => Ok(StatusCode::NO_CONTENT.into_response()),
             m if m.as_str().eq_ignore_ascii_case("PROPFIND") => {
-                let Some(path) = DavPath::parse_uri_path(uri_path) else {
+                let Some(path) = split_uri_path(uri_path).and_then(DavPath::from_components) else {
                     return Ok(not_found());
                 };
                 match req.extract::<(FiniteDepth, PropFind), _>().await {
@@ -83,7 +87,11 @@ impl DandiDav {
         }
     }
 
-    async fn get(&self, path: &DavPath, uri_path: &str) -> Result<Response<Body>, DavError> {
+    async fn get(
+        &self,
+        path: &DavPath,
+        pathparts: Vec<Component>,
+    ) -> Result<Response<Body>, DavError> {
         match self.resolve_with_children(path).await? {
             DavResourceWithChildren::Collection { col, children } => {
                 let mut rows = children.into_iter().map(ColRow::from).collect::<Vec<_>>();
@@ -91,8 +99,14 @@ impl DandiDav {
                 if path != &DavPath::Root {
                     rows.insert(0, ColRow::parentdir(col.parent_web_link()));
                 }
+                let mut title = format!("{} \u{2014} /", self.title);
+                for p in &pathparts {
+                    title.push_str(p);
+                    title.push('/');
+                }
                 let context = CollectionContext {
-                    title: format!("{} — {}", self.title, uri_path),
+                    title,
+                    breadcrumbs: make_breadcrumbs(pathparts),
                     rows,
                     package_url: env!("CARGO_PKG_REPOSITORY"),
                     package_version: env!("CARGO_PKG_VERSION"),

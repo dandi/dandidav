@@ -41,7 +41,7 @@ table td.name {
     justify-content: space-between;
 }
 
-table td.name.dir > a {
+table td.name.dir span.item-link a {
     font-weight: bold;
 }
 

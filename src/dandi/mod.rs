@@ -111,11 +111,21 @@ impl DandiClient {
     pub(crate) fn get_all_dandisets(
         &self,
     ) -> impl Stream<Item = Result<Dandiset, DandiError>> + '_ {
-        self.paginate(self.get_url(["dandisets"]))
+        self.paginate::<RawDandiset>(self.get_url(["dandisets"]))
+            .map_ok(|ds| ds.with_metadata_urls(self))
     }
 
     pub(crate) fn dandiset(&self, dandiset_id: DandisetId) -> DandisetEndpoint<'_> {
         DandisetEndpoint::new(self, dandiset_id)
+    }
+
+    fn version_metadata_url(&self, dandiset_id: &DandisetId, version_id: &VersionId) -> Url {
+        self.get_url([
+            "dandisets",
+            dandiset_id.as_ref(),
+            "versions",
+            version_id.as_ref(),
+        ])
     }
 }
 
@@ -139,21 +149,29 @@ impl<'a> DandisetEndpoint<'a> {
 
     pub(crate) async fn get(&self) -> Result<Dandiset, DandiError> {
         self.client
-            .get(
+            .get::<RawDandiset>(
                 self.client
                     .get_url(["dandisets", self.dandiset_id.as_ref()]),
             )
             .await
+            .map(|ds| ds.with_metadata_urls(self.client))
     }
 
     pub(crate) fn get_all_versions(
         &self,
     ) -> impl Stream<Item = Result<DandisetVersion, DandiError>> + '_ {
-        self.client.paginate(self.client.get_url([
-            "dandisets",
-            self.dandiset_id.as_ref(),
-            "versions",
-        ]))
+        self.client
+            .paginate::<RawDandisetVersion>(self.client.get_url([
+                "dandisets",
+                self.dandiset_id.as_ref(),
+                "versions",
+            ]))
+            .map_ok(|v| {
+                let url = self
+                    .client
+                    .version_metadata_url(&self.dandiset_id, &v.version);
+                v.with_metadata_url(url)
+            })
     }
 }
 
@@ -175,7 +193,7 @@ impl<'a> VersionEndpoint<'a> {
 
     pub(crate) async fn get(&self) -> Result<DandisetVersion, DandiError> {
         self.client
-            .get(self.client.get_url([
+            .get::<RawDandisetVersion>(self.client.get_url([
                 "dandisets",
                 self.dandiset_id.as_ref(),
                 "versions",
@@ -183,24 +201,37 @@ impl<'a> VersionEndpoint<'a> {
                 "info",
             ]))
             .await
+            .map(|v| v.with_metadata_url(self.metadata_url()))
+    }
+
+    fn metadata_url(&self) -> Url {
+        self.client
+            .version_metadata_url(&self.dandiset_id, &self.version_id)
+    }
+
+    fn asset_metadata_url(&self, asset_id: &str) -> Url {
+        self.client.get_url([
+            "dandisets",
+            self.dandiset_id.as_ref(),
+            "versions",
+            self.version_id.as_ref(),
+            "assets",
+            asset_id,
+        ])
     }
 
     pub(crate) async fn get_metadata(&self) -> Result<VersionMetadata, DandiError> {
         let data = self
             .client
-            .get::<serde_json::Value>(self.client.get_url([
-                "dandisets",
-                self.dandiset_id.as_ref(),
-                "versions",
-                self.version_id.as_ref(),
-            ]))
+            .get::<serde_json::Value>(self.metadata_url())
             .await?;
         Ok(VersionMetadata(dump_json_as_yaml(data).into_bytes()))
     }
 
     async fn get_asset_by_id(&self, id: &str) -> Result<Asset, DandiError> {
-        self.client
-            .get(self.client.get_url([
+        let raw_asset = self
+            .client
+            .get::<RawAsset>(self.client.get_url([
                 "dandisets",
                 self.dandiset_id.as_ref(),
                 "versions",
@@ -209,7 +240,8 @@ impl<'a> VersionEndpoint<'a> {
                 id,
                 "info",
             ]))
-            .await
+            .await?;
+        raw_asset.try_into_asset(self).map_err(Into::into)
     }
 
     pub(crate) fn get_root_children(
@@ -272,14 +304,14 @@ impl<'a> VersionEndpoint<'a> {
             .append_pair("metadata", "1")
             .append_pair("order", "path");
         let dirpath = path.to_dir_path();
-        let stream = self.client.paginate::<Asset>(url.clone());
+        let stream = self.client.paginate::<RawAsset>(url.clone());
         tokio::pin!(stream);
         while let Some(asset) = stream.try_next().await? {
-            if asset.path() == path {
-                return Ok(AtAssetPath::Asset(asset));
-            } else if asset.path().is_strictly_under(&dirpath) {
+            if &asset.path == path {
+                return Ok(AtAssetPath::Asset(asset.try_into_asset(self)?));
+            } else if asset.path.is_strictly_under(&dirpath) {
                 return Ok(AtAssetPath::Folder(AssetFolder { path: dirpath }));
-            } else if asset.path().as_ref() > dirpath.as_ref() {
+            } else if asset.path.as_ref() > dirpath.as_ref() {
                 break;
             }
         }
@@ -308,18 +340,10 @@ impl<'a> VersionEndpoint<'a> {
             match self.get_path(&zarr_path).await? {
                 AtAssetPath::Folder(_) => continue,
                 AtAssetPath::Asset(Asset::Blob(_)) => {
-                    let mut url = self.client.get_url([
-                        "dandisets",
-                        self.dandiset_id.as_ref(),
-                        "versions",
-                        self.version_id.as_ref(),
-                        "assets",
-                    ]);
-                    url.query_pairs_mut().append_pair("path", path.as_ref());
                     return Err(DandiError::PathUnderBlob {
                         path: path.clone(),
                         blob_path: zarr_path,
-                    });
+                    })
                 }
                 AtAssetPath::Asset(Asset::Zarr(zarr)) => {
                     let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
@@ -413,6 +437,8 @@ pub(crate) enum DandiError {
         asset_id: String,
         source: ZarrToS3Error,
     },
+    #[error(transparent)]
+    AssetType(#[from] AssetTypeError),
     #[error(transparent)]
     S3(#[from] S3Error),
 }

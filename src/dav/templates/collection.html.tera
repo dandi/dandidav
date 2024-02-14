@@ -20,7 +20,7 @@
         </tr>
         {% for r in rows %}
         <tr>
-            <td class="name{% if r.is_dir %} dir{% endif %}"><a href="{{r.href}}">{{r.name}}{% if r.is_dir %}/{% endif %}</a></td>
+            <td class="name{% if r.is_dir %} dir{% endif %}"><a href="{{r.href}}">{{r.name}}{% if r.is_dir %}/{% endif %}</a>{% if r.metadata_url is defined %} [<a href="{{r.metadata_url}}">metadata</a>]{% endif %}</td>
 
             <td class="type">{{r.kind}}</td>
 

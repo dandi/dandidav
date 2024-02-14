@@ -197,6 +197,7 @@ pub(super) struct DavCollection {
     pub(super) modified: Option<OffsetDateTime>,
     pub(super) size: Option<i64>,
     pub(super) kind: ResourceKind,
+    pub(super) metadata_url: Option<url::Url>,
 }
 
 impl DavCollection {
@@ -239,6 +240,7 @@ impl DavCollection {
             modified: None,
             size: None,
             kind: ResourceKind::Root,
+            metadata_url: None,
         }
     }
 
@@ -253,6 +255,7 @@ impl DavCollection {
             modified: None,
             size: None,
             kind: ResourceKind::DandisetIndex,
+            metadata_url: None,
         }
     }
 
@@ -266,6 +269,7 @@ impl DavCollection {
             modified: None,
             size: None,
             kind: ResourceKind::DandisetReleases,
+            metadata_url: None,
         }
     }
 
@@ -276,6 +280,7 @@ impl DavCollection {
             modified: Some(v.modified),
             size: Some(v.size),
             kind: ResourceKind::Version,
+            metadata_url: Some(v.metadata_url),
         }
     }
 
@@ -290,6 +295,7 @@ impl DavCollection {
             modified: None,
             size: None,
             kind: ResourceKind::ZarrIndex,
+            metadata_url: None,
         }
     }
 }
@@ -339,6 +345,7 @@ impl From<Dandiset> for DavCollection {
             modified: Some(ds.modified),
             size: None,
             kind: ResourceKind::Dandiset,
+            metadata_url: None,
         }
     }
 }
@@ -351,6 +358,7 @@ impl From<AssetFolder> for DavCollection {
             modified: None,
             size: None,
             kind: ResourceKind::Directory,
+            metadata_url: None,
         }
     }
 }
@@ -363,6 +371,7 @@ impl From<ZarrAsset> for DavCollection {
             modified: Some(zarr.modified),
             size: Some(zarr.size),
             kind: ResourceKind::Zarr,
+            metadata_url: Some(zarr.metadata_url),
         }
     }
 }
@@ -375,6 +384,7 @@ impl From<ZarrFolder> for DavCollection {
             modified: None,
             size: None,
             kind: ResourceKind::Directory,
+            metadata_url: None,
         }
     }
 }
@@ -387,6 +397,7 @@ impl From<WebFolder> for DavCollection {
             modified: None,
             size: None,
             kind: ResourceKind::Directory,
+            metadata_url: None,
         }
     }
 }
@@ -399,6 +410,7 @@ impl From<Manifest> for DavCollection {
             modified: None,
             size: None,
             kind: ResourceKind::Zarr,
+            metadata_url: None,
         }
     }
 }
@@ -411,6 +423,7 @@ impl From<ManifestFolder> for DavCollection {
             modified: None,
             size: None,
             kind: ResourceKind::Directory,
+            metadata_url: None,
         }
     }
 }
@@ -425,6 +438,7 @@ pub(super) struct DavItem {
     pub(super) etag: Option<String>,
     pub(super) kind: ResourceKind,
     pub(super) content: DavContent,
+    pub(super) metadata_url: Option<url::Url>,
 }
 
 impl DavItem {
@@ -502,6 +516,7 @@ impl From<VersionMetadata> for DavItem {
             etag: None,
             kind: ResourceKind::VersionMetadata,
             content: DavContent::Blob(blob),
+            metadata_url: None,
         }
     }
 }
@@ -528,6 +543,7 @@ impl From<BlobAsset> for DavItem {
             etag,
             kind: ResourceKind::Blob,
             content,
+            metadata_url: Some(blob.metadata_url),
         }
     }
 }
@@ -543,6 +559,7 @@ impl From<ZarrEntry> for DavItem {
             etag: Some(entry.etag),
             kind: ResourceKind::ZarrEntry,
             content: DavContent::Redirect(entry.url),
+            metadata_url: None,
         }
     }
 }
@@ -558,6 +575,7 @@ impl From<ManifestEntry> for DavItem {
             etag: Some(entry.etag),
             kind: ResourceKind::ZarrEntry,
             content: DavContent::Redirect(entry.url),
+            metadata_url: None,
         }
     }
 }

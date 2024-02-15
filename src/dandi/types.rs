@@ -13,29 +13,78 @@ pub(super) struct Page<T> {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-pub(crate) struct Dandiset {
-    pub(crate) identifier: DandisetId,
+pub(crate) struct RawDandiset {
+    identifier: DandisetId,
     #[serde(with = "time::serde::rfc3339")]
-    pub(crate) created: OffsetDateTime,
+    created: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
-    pub(crate) modified: OffsetDateTime,
+    modified: OffsetDateTime,
     //contact_person: String,
     //embargo_status: ...,
+    draft_version: RawDandisetVersion,
+    most_recent_published_version: Option<RawDandisetVersion>,
+}
+
+impl RawDandiset {
+    pub(super) fn with_metadata_urls(self, client: &super::DandiClient) -> Dandiset {
+        let draft_version = self
+            .draft_version
+            .with_metadata_url(client.version_metadata_url(&self.identifier, &VersionId::Draft));
+        let most_recent_published_version = self.most_recent_published_version.map(|v| {
+            let url = client.version_metadata_url(&self.identifier, &v.version);
+            v.with_metadata_url(url)
+        });
+        Dandiset {
+            identifier: self.identifier,
+            created: self.created,
+            modified: self.modified,
+            draft_version,
+            most_recent_published_version,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct Dandiset {
+    pub(crate) identifier: DandisetId,
+    pub(crate) created: OffsetDateTime,
+    pub(crate) modified: OffsetDateTime,
     pub(crate) draft_version: DandisetVersion,
     pub(crate) most_recent_published_version: Option<DandisetVersion>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-pub(crate) struct DandisetVersion {
-    pub(crate) version: VersionId,
+pub(crate) struct RawDandisetVersion {
+    pub(super) version: VersionId,
     //name: String,
     //asset_count: u64,
-    pub(crate) size: i64,
+    size: i64,
     //status: ...,
     #[serde(with = "time::serde::rfc3339")]
-    pub(crate) created: OffsetDateTime,
+    created: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
+    modified: OffsetDateTime,
+}
+
+impl RawDandisetVersion {
+    pub(super) fn with_metadata_url(self, metadata_url: Url) -> DandisetVersion {
+        DandisetVersion {
+            version: self.version,
+            size: self.size,
+            created: self.created,
+            modified: self.modified,
+            metadata_url,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct DandisetVersion {
+    pub(crate) version: VersionId,
+    pub(crate) size: i64,
+    pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
+    pub(crate) metadata_url: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -95,26 +144,17 @@ struct RawFolderEntryAsset {
     asset_id: String,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum AtAssetPath {
     Folder(AssetFolder),
     Asset(Asset),
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-#[serde(try_from = "RawAsset")]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Asset {
     Blob(BlobAsset),
     Zarr(ZarrAsset),
-}
-
-impl Asset {
-    pub(crate) fn path(&self) -> &PurePath {
-        match self {
-            Asset::Blob(a) => &a.path,
-            Asset::Zarr(a) => &a.path,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -126,6 +166,7 @@ pub(crate) struct BlobAsset {
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
     pub(crate) metadata: AssetMetadata,
+    pub(crate) metadata_url: Url,
 }
 
 impl BlobAsset {
@@ -160,6 +201,7 @@ pub(crate) struct ZarrAsset {
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
     pub(crate) metadata: AssetMetadata,
+    pub(crate) metadata_url: Url,
 }
 
 impl ZarrAsset {
@@ -211,11 +253,11 @@ pub(crate) struct AssetDigests {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-struct RawAsset {
+pub(super) struct RawAsset {
     asset_id: String,
     blob: Option<String>,
     zarr: Option<String>,
-    path: PurePath,
+    pub(super) path: PurePath,
     size: i64,
     #[serde(with = "time::serde::rfc3339")]
     created: OffsetDateTime,
@@ -224,34 +266,38 @@ struct RawAsset {
     metadata: AssetMetadata,
 }
 
-impl TryFrom<RawAsset> for Asset {
-    type Error = AssetTypeError;
-
-    fn try_from(value: RawAsset) -> Result<Asset, AssetTypeError> {
-        match (value.blob, value.zarr) {
+impl RawAsset {
+    pub(super) fn try_into_asset(
+        self,
+        endpoint: &super::VersionEndpoint<'_>,
+    ) -> Result<Asset, AssetTypeError> {
+        let metadata_url = endpoint.asset_metadata_url(&self.asset_id);
+        match (self.blob, self.zarr) {
             (Some(blob_id), None) => Ok(Asset::Blob(BlobAsset {
-                asset_id: value.asset_id,
+                asset_id: self.asset_id,
                 blob_id,
-                path: value.path,
-                size: value.size,
-                created: value.created,
-                modified: value.modified,
-                metadata: value.metadata,
+                path: self.path,
+                size: self.size,
+                created: self.created,
+                modified: self.modified,
+                metadata: self.metadata,
+                metadata_url,
             })),
             (None, Some(zarr_id)) => Ok(Asset::Zarr(ZarrAsset {
-                asset_id: value.asset_id,
+                asset_id: self.asset_id,
                 zarr_id,
-                path: value.path,
-                size: value.size,
-                created: value.created,
-                modified: value.modified,
-                metadata: value.metadata,
+                path: self.path,
+                size: self.size,
+                created: self.created,
+                modified: self.modified,
+                metadata: self.metadata,
+                metadata_url,
             })),
             (None, None) => Err(AssetTypeError::Neither {
-                asset_id: value.asset_id,
+                asset_id: self.asset_id,
             }),
             (Some(_), Some(_)) => Err(AssetTypeError::Both {
-                asset_id: value.asset_id,
+                asset_id: self.asset_id,
             }),
         }
     }

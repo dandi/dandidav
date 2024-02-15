@@ -1,24 +1,21 @@
+body {
+    font: 11px SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+}
+
 div.breadcrumbs {
     margin-bottom: 16px;
-    font: 11px SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
 }
 
 table {
     border-collapse: collapse;
     border-spacing: 0;
-    border-style: solid;
-    border-width: 1px;
-    margin-top: 0;
     margin-bottom: 16px;
-    /*display: block;*/
-    /*width: 100%;*/
+    margin-top: 0;
     overflow: auto;
-    font: 11px SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
 }
 
 table tr {
     background-color: #FFFFFF;
-    border-top: 1px solid #C6CBD1;
 }
 
 table tr:nth-child(2n) {
@@ -30,18 +27,32 @@ table th {
 }
 
 table td, table th {
-    padding: 6px 13px;
     border: 1px solid #DFE2E5;
+    padding: 6px 13px;
 }
 
-table td.dir {
+table.collection td.name.dir span.item-link a {
     font-weight: bold;
 }
 
-table td.null {
+div.link-with-metadata {
+    align-items: stretch;
+    display: flex;
+    justify-content: space-between;
+}
+
+div.link-with-metadata span.fill {
+    min-width: 1em;
+}
+
+div.link-with-metadata span.metadata-link a {
+    text-decoration: underline;
+}
+
+table.collection td.null {
     text-align: center;
 }
 
 footer {
-    font: 9px SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+    font-size: 9px;
 }

@@ -75,6 +75,8 @@ pub(super) struct ColRow {
         serialize_with = "maybe_timestamp"
     )]
     modified: Option<OffsetDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    metadata_url: Option<Href>,
 }
 
 impl ColRow {
@@ -87,6 +89,7 @@ impl ColRow {
             size: None,
             created: None,
             modified: None,
+            metadata_url: None,
         }
     }
 }
@@ -110,6 +113,7 @@ impl From<DavCollection> for ColRow {
             size: col.size,
             created: col.created,
             modified: col.modified,
+            metadata_url: col.metadata_url.map(Into::into),
         }
     }
 }
@@ -124,6 +128,7 @@ impl From<DavItem> for ColRow {
             size: item.size,
             created: item.created,
             modified: item.modified,
+            metadata_url: item.metadata_url.map(Into::into),
         }
     }
 }

@@ -270,15 +270,15 @@ impl DandiDav {
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
             DavPath::Dandiset { dandiset_id } => {
-                let ds = self.dandi.dandiset(dandiset_id.clone()).get().await?;
+                let mut ds = self.dandi.dandiset(dandiset_id.clone()).get().await?;
                 let draft = DavResource::Collection(DavCollection::dandiset_version(
                     ds.draft_version.clone(),
                     version_path(dandiset_id, &VersionSpec::Draft),
                 ));
-                let children = match ds.most_recent_published_version {
-                    Some(ref v) => {
+                let children = match ds.most_recent_published_version.take() {
+                    Some(v) => {
                         let latest = DavCollection::dandiset_version(
-                            v.clone(),
+                            v,
                             version_path(dandiset_id, &VersionSpec::Latest),
                         );
                         let latest = DavResource::Collection(latest);

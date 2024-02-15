@@ -69,7 +69,7 @@ impl CollectionContext {
         let full_title = format!("{title} \u{2014} {title_path}");
         CollectionContext {
             title: full_title,
-            breadcrumbs: make_breadcrumbs(pathparts),
+            breadcrumbs: make_breadcrumbs(title, pathparts),
             rows,
             package_url: env!("CARGO_PKG_REPOSITORY"),
             package_version: env!("CARGO_PKG_VERSION"),
@@ -185,11 +185,11 @@ fn maybe_timestamp<S: Serializer>(
     }
 }
 
-fn make_breadcrumbs(pathparts: Vec<Component>) -> Vec<Link> {
+fn make_breadcrumbs(title: &str, pathparts: Vec<Component>) -> Vec<Link> {
     let mut links = Vec::with_capacity(pathparts.len().saturating_add(1));
     let mut cumpath = String::from("/");
     links.push(Link {
-        name: String::from("dandidav"),
+        name: title.to_owned(),
         href: Href::from_path(&cumpath),
     });
     for p in pathparts {

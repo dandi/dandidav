@@ -54,7 +54,7 @@ struct Arguments {
     #[arg(short, long, default_value_t = 8080)]
     port: u16,
 
-    /// Site name to include in HTML page titles
+    /// Site name to use in HTML collection pages
     #[arg(short = 'T', long, default_value = env!("CARGO_PKG_NAME"))]
     title: String,
 }

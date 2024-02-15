@@ -12,6 +12,8 @@ In Development
 - Added breadcrumbs to HTML views of collections
 - `FAST_NOT_EXIST` components are now checked for case-insensitively
 - Add links to version & asset metadata to the web view
+- Adjust the format of timestamps in the web view: Always use UTC, show the
+  timezone as "Z", prevent line breaking in the middle, wrap in `<time>` tag
 
 v0.2.0 (2024-02-07)
 -------------------

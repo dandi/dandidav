@@ -53,6 +53,11 @@ table.collection td.null {
     text-align: center;
 }
 
+time {
+    /* Don't wrap on whitespace or hyphens */
+    white-space: nowrap;
+}
+
 footer {
     font-size: 9px;
 }

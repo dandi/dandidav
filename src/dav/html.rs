@@ -177,6 +177,7 @@ fn maybe_timestamp<S: Serializer>(
     match ts.as_ref() {
         Some(ts) => {
             let s = ts
+                .to_offset(time::UtcOffset::UTC)
                 .format(&HTML_TIMESTAMP_FORMAT)
                 .expect("timestamp formatting should not fail");
             serializer.serialize_some(&s)

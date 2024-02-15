@@ -1,17 +1,17 @@
+body {
+    font: 11px SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+}
+
 div.breadcrumbs {
     margin-bottom: 16px;
-    font: 11px SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
 }
 
 table {
     border-collapse: collapse;
     border-spacing: 0;
-    margin-top: 0;
     margin-bottom: 16px;
-    /*display: block;*/
-    /*width: 100%;*/
+    margin-top: 0;
     overflow: auto;
-    font: 11px SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
 }
 
 table tr {
@@ -27,8 +27,12 @@ table th {
 }
 
 table td, table th {
-    padding: 6px 13px;
     border: 1px solid #DFE2E5;
+    padding: 6px 13px;
+}
+
+table.collection td.name.dir span.item-link a {
+    font-weight: bold;
 }
 
 div.link-with-metadata {
@@ -37,22 +41,18 @@ div.link-with-metadata {
     justify-content: space-between;
 }
 
-table td.name.dir span.item-link a {
-    font-weight: bold;
-}
-
-table td.name div.link-with-metadata span.fill {
+div.link-with-metadata span.fill {
     min-width: 1em;
 }
 
-table td.name div.link-with-metadata span.metadata-link a {
+div.link-with-metadata span.metadata-link a {
     text-decoration: underline;
 }
 
-table td.null {
+table.collection td.null {
     text-align: center;
 }
 
 footer {
-    font: 9px SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+    font-size: 9px;
 }

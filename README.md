@@ -98,5 +98,6 @@ Options
 - `-p <PORT>`, `--port <PORT>` — Specify the port for the server to listen on
   [default: 8080]
 
-- `-T <TITLE>`, `--title <TITLE>` — Specify the site name to include in the
-  `<title>`s of HTML pages for collections
+- `-T <TITLE>`, `--title <TITLE>` — Specify the site name to use in HTML/web
+  views of collections (used inside `<title>`'s and as the root breadcrumb
+  text) [default: dandidav]

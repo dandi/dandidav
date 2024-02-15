@@ -10,7 +10,7 @@
         <a href="{{bc.href}}">{{bc.name}}</a>{% if not loop.last %} / {% endif %}
         {%- endfor %}
     </div>
-    <table class="collection" border="1">
+    <table class="collection">
         <tr>
             <th>Name</th>
             <th>Type</th>
@@ -21,11 +21,13 @@
         {% for r in rows %}
         <tr>
             <td class="name{% if r.is_dir %} dir{% endif %}">
-                <span class="item-link"><a href="{{r.href}}">{{r.name}}{% if r.is_dir %}/{% endif %}</a></span>
-                {% if r.metadata_url is defined %}
-                <span class="fill"> </span>
-                <span class="metadata-link">[<a href="{{r.metadata_url}}">metadata</a>]</span>
-                {% endif %}
+                <div class="link-with-metadata">
+                    <span class="item-link"><a href="{{r.href}}">{{r.name}}{% if r.is_dir %}/{% endif %}</a></span>
+                    {% if r.metadata_url is defined %}
+                    <span class="fill"> </span>
+                    <span class="metadata-link">[<a href="{{r.metadata_url}}">metadata</a>]</span>
+                    {% endif %}
+                </div>
             </td>
 
             <td class="type">{{r.kind}}</td>

@@ -6,8 +6,8 @@
 </head>
 <body>
     <div class="breadcrumbs">
-        {% for bc in breadcrumbs -%}
-        <a href="{{bc.href}}">{{bc.name}}</a>{% if not loop.last %} / {% endif %}
+        {%- for bc in breadcrumbs %}
+        <a href="{{bc.href}}">{{bc.name}}</a>{% if not loop.last %} /{% endif %}
         {%- endfor %}
     </div>
     <table class="collection">
@@ -18,39 +18,36 @@
             <th>Created</th>
             <th>Modified</th>
         </tr>
-        {% for r in rows %}
+        {%- for r in rows %}
+
         <tr>
             <td class="name{% if r.is_dir %} dir{% endif %}">
                 <div class="link-with-metadata">
                     <span class="item-link"><a href="{{r.href}}">{{r.name}}{% if r.is_dir %}/{% endif %}</a></span>
-                    {% if r.metadata_url is defined %}
+                    {%- if r.metadata_url is defined %}
                     <span class="fill"> </span>
                     <span class="metadata-link">[<a href="{{r.metadata_url}}">metadata</a>]</span>
-                    {% endif %}
+                    {%- endif %}
                 </div>
             </td>
-
             <td class="type">{{r.kind}}</td>
-
-            {% if r.size is defined %}
+            {%- if r.size is defined %}
             <td class="size">{{r.size}}</td>
-            {% else %}
+            {%- else %}
             <td class="null">&#x2014;</td>
-            {% endif %}
-
-            {% if r.created is defined %}
+            {%- endif %}
+            {%- if r.created is defined %}
             <td class="created">{{r.created}}</td>
-            {% else %}
+            {%- else %}
             <td class="null">&#x2014;</td>
-            {% endif %}
-
-            {% if r.modified is defined %}
+            {%- endif %}
+            {%- if r.modified is defined %}
             <td class="modified">{{r.modified}}</td>
-            {% else %}
+            {%- else %}
             <td class="null">&#x2014;</td>
-            {% endif %}
+            {%- endif %}
         </tr>
-        {% endfor %}
+        {%- endfor %}
     </table>
     <footer>
         <a href="{{package_url}}">dandidav</a>, v{{package_version}}{% if package_commit is defined %}, commit {{package_commit}}{% endif %}

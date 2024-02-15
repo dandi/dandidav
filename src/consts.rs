@@ -34,9 +34,8 @@ pub(crate) static DAV_XML_CONTENT_TYPE: &str = "text/xml; charset=utf-8";
 
 pub(crate) static DAV_XMLNS: &str = "DAV:";
 
-pub(crate) static HTML_TIMESTAMP_FORMAT: &[FormatItem<'_>] = format_description!(
-    "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour sign:mandatory]:[offset_minute]"
-);
+pub(crate) static HTML_TIMESTAMP_FORMAT: &[FormatItem<'_>] =
+    format_description!("[year]-[month]-[day]\u{A0}[hour]:[minute]:[second]Z");
 
 /// If a client makes a request for a resource with one of these names as a
 /// component (case insensitive), assume it doesn't exist without bothering to

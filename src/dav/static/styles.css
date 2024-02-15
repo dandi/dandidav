@@ -49,6 +49,11 @@ div.link-with-metadata span.metadata-link a {
     text-decoration: underline;
 }
 
+table.collection td.created, table.collection td.modified {
+    /* Don't wrap on whitespace or hyphens */
+    white-space: nowrap;
+}
+
 table.collection td.null {
     text-align: center;
 }

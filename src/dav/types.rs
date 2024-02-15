@@ -212,13 +212,6 @@ impl DavCollection {
         }
     }
 
-    pub(super) fn parent_web_link(&self) -> Href {
-        match self.path.as_ref().and_then(PureDirPath::parent) {
-            Some(ref p) => Href::from_path(&format!("/{p}")),
-            None => Href::from_path("/"),
-        }
-    }
-
     pub(super) fn under_version_path(
         mut self,
         dandiset_id: &DandisetId,

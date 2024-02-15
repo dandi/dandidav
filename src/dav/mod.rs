@@ -93,25 +93,8 @@ impl DandiDav {
         pathparts: Vec<Component>,
     ) -> Result<Response<Body>, DavError> {
         match self.resolve_with_children(path).await? {
-            DavResourceWithChildren::Collection { col, children } => {
-                let mut rows = children.into_iter().map(ColRow::from).collect::<Vec<_>>();
-                rows.sort_unstable();
-                if path != &DavPath::Root {
-                    rows.insert(0, ColRow::parentdir(col.parent_web_link()));
-                }
-                let mut title = format!("{} \u{2014} /", self.title);
-                for p in &pathparts {
-                    title.push_str(p);
-                    title.push('/');
-                }
-                let context = CollectionContext {
-                    title,
-                    breadcrumbs: make_breadcrumbs(pathparts),
-                    rows,
-                    package_url: env!("CARGO_PKG_REPOSITORY"),
-                    package_version: env!("CARGO_PKG_VERSION"),
-                    package_commit: option_env!("GIT_COMMIT"),
-                };
+            DavResourceWithChildren::Collection { children, .. } => {
+                let context = CollectionContext::new(children, &self.title, pathparts);
                 let html = self.templater.render_collection(context)?;
                 Ok(([(CONTENT_TYPE, HTML_CONTENT_TYPE)], html).into_response())
             }

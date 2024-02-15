@@ -51,6 +51,33 @@ pub(super) struct CollectionContext {
     pub(super) package_commit: Option<&'static str>,
 }
 
+impl CollectionContext {
+    pub(super) fn new(
+        entries: Vec<DavResource>,
+        title: &str,
+        pathparts: Vec<Component>,
+    ) -> CollectionContext {
+        let mut rows = entries.into_iter().map(ColRow::from).collect::<Vec<_>>();
+        rows.sort_unstable();
+        if let Some((_, pp)) = pathparts.split_last() {
+            rows.insert(
+                0,
+                ColRow::parentdir(Href::from_path(&abs_dir_from_components(pp))),
+            );
+        }
+        let title_path = abs_dir_from_components(&pathparts);
+        let full_title = format!("{title} \u{2014} {title_path}");
+        CollectionContext {
+            title: full_title,
+            breadcrumbs: make_breadcrumbs(pathparts),
+            rows,
+            package_url: env!("CARGO_PKG_REPOSITORY"),
+            package_version: env!("CARGO_PKG_VERSION"),
+            package_commit: option_env!("GIT_COMMIT"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub(super) struct Link {
     name: String,
@@ -158,7 +185,7 @@ fn maybe_timestamp<S: Serializer>(
     }
 }
 
-pub(super) fn make_breadcrumbs(pathparts: Vec<Component>) -> Vec<Link> {
+fn make_breadcrumbs(pathparts: Vec<Component>) -> Vec<Link> {
     let mut links = Vec::with_capacity(pathparts.len().saturating_add(1));
     let mut cumpath = String::from("/");
     links.push(Link {
@@ -174,4 +201,155 @@ pub(super) fn make_breadcrumbs(pathparts: Vec<Component>) -> Vec<Link> {
         });
     }
     links
+}
+
+fn abs_dir_from_components<'a, I>(iter: I) -> String
+where
+    I: IntoIterator<Item = &'a Component>,
+{
+    let mut s = String::from("/");
+    for p in iter {
+        s.push_str(p);
+        s.push('/');
+    }
+    s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod render_collection {
+        use super::*;
+        use crate::dav::{DavContent, DavResourceWithChildren};
+        use pretty_assertions::assert_eq;
+        use std::borrow::Cow;
+        use time::macros::datetime;
+
+        #[test]
+        fn basic() {
+            let templater = Templater::load().unwrap();
+            let entries = vec![
+                DavResource::Collection(DavCollection {
+                    path: Some("foo/bar/baz/a.zarr/".parse().unwrap()),
+                    created: Some(datetime!(2021-01-01 01:23:45 UTC)),
+                    modified: Some(datetime!(2023-12-31 12:34:56 UTC)),
+                    size: Some(1234567890),
+                    kind: ResourceKind::Zarr,
+                    metadata_url: None,
+                }),
+                DavResource::Collection(DavCollection {
+                    path: Some(r#"foo/bar/baz/"quoted"/"#.parse().unwrap()),
+                    created: None,
+                    modified: None,
+                    size: None,
+                    kind: ResourceKind::Directory,
+                    metadata_url: None,
+                }),
+                DavResource::Item(DavItem {
+                    path: "foo/bar/baz/empty.txt".parse().unwrap(),
+                    created: Some(datetime!(2024-02-14 22:13:22 -5)),
+                    modified: Some(datetime!(2024-02-14 22:13:35 -5)),
+                    content_type: "text/plain".into(),
+                    size: Some(0),
+                    etag: Some(r#""00000000""#.into()),
+                    kind: ResourceKind::Blob,
+                    content: DavContent::Redirect(
+                        "https://dandiarchive-test.s3.amazonaws.com/blobs/empty.txt"
+                            .parse()
+                            .unwrap(),
+                    ),
+                    metadata_url: Some(
+                        "https://api-test.dandiarchive.org/blobs/?name=empty.txt"
+                            .parse()
+                            .unwrap(),
+                    ),
+                }),
+                DavResource::Item(DavItem {
+                    path: "foo/bar/baz/spaced file.dat".parse().unwrap(),
+                    created: Some(datetime!(2021-02-03 06:47:50 UTC)),
+                    modified: Some(datetime!(2022-03-10 12:03:29 UTC)),
+                    content_type: "application/octet-stream".into(),
+                    size: Some(123456),
+                    etag: Some(r#""abcdefgh""#.into()),
+                    kind: ResourceKind::Blob,
+                    content: DavContent::Redirect(
+                        "https://dandiarchive-test.s3.amazonaws.com/blobs/spaced%20file.dat"
+                            .parse()
+                            .unwrap(),
+                    ),
+                    metadata_url: Some(
+                        "https://api-test.dandiarchive.org/blobs/?name=spaced%20file.dat"
+                            .parse()
+                            .unwrap(),
+                    ),
+                }),
+                DavResource::Item(DavItem {
+                    path: "foo/bar/baz/dandiset.yaml".parse().unwrap(),
+                    created: None,
+                    modified: None,
+                    content_type: "text/yaml".into(),
+                    size: Some(42),
+                    etag: None,
+                    kind: ResourceKind::VersionMetadata,
+                    content: DavContent::Blob(Vec::new()),
+                    metadata_url: None,
+                }),
+            ];
+            let context = CollectionContext::new(
+                entries,
+                "Dandidav Test",
+                vec![
+                    "foo".parse().unwrap(),
+                    "bar".parse().unwrap(),
+                    "baz".parse().unwrap(),
+                ],
+            );
+            let rendered = templater.render_collection(context).unwrap();
+            let commit_str = match option_env!("GIT_COMMIT") {
+                Some(s) => Cow::from(format!(", commit {s}")),
+                None => Cow::from(""),
+            };
+            let expected = include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/src/testdata/render-collection/basic.html"
+            ))
+            .replacen(
+                "{package_url}",
+                &env!("CARGO_PKG_REPOSITORY").replace('/', "&#x2F;"),
+                1,
+            )
+            .replacen("{version}", env!("CARGO_PKG_VERSION"), 1)
+            .replacen("{commit}", &commit_str, 1);
+            assert_eq!(rendered, expected);
+        }
+
+        #[test]
+        fn root() {
+            let templater = Templater::load().unwrap();
+            let DavResourceWithChildren::Collection { children, .. } =
+                DavResourceWithChildren::root()
+            else {
+                panic!("DavResourceWithChildren::root() should be a Collection");
+            };
+            let context = CollectionContext::new(children, "Dandidav Test", Vec::new());
+            let rendered = templater.render_collection(context).unwrap();
+            let commit_str = match option_env!("GIT_COMMIT") {
+                Some(s) => Cow::from(format!(", commit {s}")),
+                None => Cow::from(""),
+            };
+            let expected = include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/src/testdata/render-collection/root.html"
+            ))
+            .replacen(
+                "{package_url}",
+                &env!("CARGO_PKG_REPOSITORY").replace('/', "&#x2F;"),
+                1,
+            )
+            .replacen("{version}", env!("CARGO_PKG_VERSION"), 1)
+            .replacen("{commit}", &commit_str, 1);
+            assert_eq!(rendered, expected);
+        }
+    }
 }

@@ -37,12 +37,12 @@
             <td class="null">&#x2014;</td>
             {%- endif %}
             {%- if r.created is defined %}
-            <td class="created">{{r.created}}</td>
+            <td class="created"><time>{{r.created}}</time></td>
             {%- else %}
             <td class="null">&#x2014;</td>
             {%- endif %}
             {%- if r.modified is defined %}
-            <td class="modified">{{r.modified}}</td>
+            <td class="modified"><time>{{r.modified}}</time></td>
             {%- else %}
             <td class="null">&#x2014;</td>
             {%- endif %}

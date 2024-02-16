@@ -2,8 +2,10 @@ use super::util::Href;
 use super::{DavCollection, DavItem, DavResource, ResourceKind};
 use crate::consts::HTML_TIMESTAMP_FORMAT;
 use crate::paths::Component;
+use humansize::{format_size_i, BINARY};
 use serde::{ser::Serializer, Serialize};
-use tera::{Context, Error, Tera};
+use std::collections::HashMap;
+use tera::{Context, Error, Filter, Tera, Value};
 use thiserror::Error;
 use time::OffsetDateTime;
 
@@ -14,6 +16,7 @@ pub(crate) struct Templater(Tera);
 impl Templater {
     pub(crate) fn load() -> Result<Self, TemplateError> {
         let mut engine = Tera::default();
+        engine.register_filter("formatsize", FormatSizeFilter);
         engine
             .add_raw_template("collection.html", COLLECTION_TEMPLATE)
             .map_err(|source| TemplateError::Load {
@@ -216,9 +219,45 @@ where
     s
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+struct FormatSizeFilter;
+
+impl Filter for FormatSizeFilter {
+    fn filter(&self, value: &Value, _args: &HashMap<String, Value>) -> Result<Value, Error> {
+        match value.as_i64() {
+            Some(size) => Ok(formatsize(size).into()),
+            None => Err(Error::msg("Input to formatsize filter must be an integer")),
+        }
+    }
+
+    fn is_safe(&self) -> bool {
+        true
+    }
+}
+
+fn formatsize(size: i64) -> String {
+    format_size_i(size, BINARY)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case(0, "0 B")]
+    #[case(42, "42 B")]
+    #[case(1000, "1000 B")]
+    #[case(1024, "1 KiB")]
+    #[case(1025, "1.00 KiB")]
+    #[case(1525, "1.49 KiB")]
+    #[case(1535, "1.50 KiB")]
+    #[case(1536, "1.50 KiB")]
+    #[case(10240, "10 KiB")]
+    #[case(10752, "10.50 KiB")]
+    fn test_formatsize(#[case] size: i64, #[case] s: &str) {
+        assert_eq!(formatsize(size), s);
+    }
 
     mod render_collection {
         use super::*;

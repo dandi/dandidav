@@ -32,7 +32,7 @@
             </td>
             <td class="type">{{r.kind}}</td>
             {%- if r.size is defined %}
-            <td class="size">{{r.size}}</td>
+            <td class="size">{{r.size|formatsize}}</td>
             {%- else %}
             <td class="null">&#x2014;</td>
             {%- endif %}

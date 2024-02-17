@@ -8,8 +8,7 @@
 
 This is a [Rust](https://www.rust-lang.org) implementation of a readonly
 [WebDAV](https://webdav.org) interface to [DANDI
-Archive](https://dandiarchive.org), written as a replacement for the Python
-implementation [dandi-webdav](https://github.com/dandi/dandi-webdav).
+Archive](https://dandiarchive.org).
 
 An active instance is currently accessible at
 <https://dandi.centerforopenneuroscience.org>.
@@ -23,10 +22,11 @@ Features
   and 3.
     - Not supported: Locking, mutating requests
 
-Advantages over dandi-webdav
-----------------------------
+- `GET` requests for collection resources are replied to with HTML tables of
+  the collections' entries
 
-- Accessing a non-collection resource results in a 307 redirect to S3.
+- `GET` requests for non-collection resources are replied to with 307 redirects
+  to S3
 
     - Note that HTML pages for collections link directly to S3 URLs, but this
       is just to save on a request; if you directly access, say,
@@ -34,21 +34,20 @@ Advantages over dandi-webdav
       either by editing the browser address bar or via the command line, you
       will see the redirect.
 
-    - Note that redirects first go to Archive API `/download` URLs, which
-      redirect again to S3.  This is necessary in order to obtain a signed S3
-      URL that specifies the download file name so that downloaded asset blobs
-      will be given the file name of their asset instead of the blob ID.
+    - Note that redirects for blob assets first go to Archive API `/download`
+      URLs, which redirect again to S3.  This is necessary in order to obtain a
+      signed S3 URL that specifies the download file name so that downloaded
+      asset blobs will be given the file name of their asset instead of the
+      blob ID.
 
-- The Archive instance to serve can be specified on the command line.
+- Hierarchies served:
 
-- Paths to resources under Dandiset versions are resolved all at once, rather
-  than component-by-component; cf.
-  [dandi-webdav#5](https://github.com/dandi/dandi-webdav/issues/5).
+    - `/dandisets/`: A view of Dandisets & assets (including Zarr entries, and
+      including version metadata as virtual `dandiset.yaml` files) in Dandi
+      Archive, retrieved via the Dandi Archive and S3 APIs
 
-- The S3 bucket used for Zarrs is determined by parsing Zarrs' `contentUrls`
-  rather than having to be hardcoded.
-
-- The S3 client is cached rather than being reinitialized for every Zarr.
+    - `/zarrs/`: A view of all Zarrs in the Dandi Archive at various points in
+      time, as recorded by/at <https://github.com/dandi/zarr-manifests>
 
 
 Building & Running
@@ -65,8 +64,8 @@ Building & Running
       with optimizations enabled.
 
 4. Run with `cargo run` (or `cargo run --release` if built with `--release`) to
-   run the server.  If any server CLI options are supplied, they must be
-   separated from `cargo run [--release]` by a `--` argument.
+   run the server.  If any server CLI options (see below) are supplied, they
+   must be separated from `cargo run [--release]` by a `--` argument.
 
     - The WebDAV server will be accessible for as long as the program is left
       running.  Shut it down by hitting Ctrl-C.
@@ -81,10 +80,10 @@ Usage
 
     cargo run [-r] -- [<options>]
 
-`dandidav` serves a WebDAV interface to the DANDI Archive at
-http://127.0.0.1:8080 by default.  It can be accessed by any WebDAV client or
-in a normal web browser.  (If your client asks you about login details, you may
-log in without authentication/as a guest.)
+`dandidav` serves an HTTP & WebDAV interface at http://127.0.0.1:8080 by
+default.  It can be accessed by any WebDAV client or in a normal web browser.
+(If your client asks you about login details, you may log in without
+authentication/as a guest.)
 
 Options
 -------

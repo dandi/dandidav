@@ -66,7 +66,8 @@ impl Middleware for SimpleReqwestLogger {
         extensions: &mut task_local_extensions::Extensions,
         next: Next<'_>,
     ) -> reqwest_middleware::Result<Response> {
-        let span = tracing::debug_span!("http-request", url = %req.url(), method = %req.method());
+        let span =
+            tracing::debug_span!("outgoing-request", url = %req.url(), method = %req.method());
         async move {
             tracing::debug!("Making HTTP request");
             let r = next.run(req, extensions).await;

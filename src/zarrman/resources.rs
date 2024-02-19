@@ -100,3 +100,21 @@ pub(crate) struct ManifestEntry {
     pub(crate) etag: String,
     pub(crate) url: Url,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_path_to_urls() {
+        let mp = ManifestPath {
+            prefix: "128/4a1/".parse().unwrap(),
+            zarr_id: "1284a14f-fe4f-4dc3-b10d-48e5db8bf18d".parse().unwrap(),
+            checksum: "6ddc4625befef8d6f9796835648162be-509--710206390"
+                .parse()
+                .unwrap(),
+        };
+        assert_eq!(mp.to_web_path(), "zarrs/128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390/");
+        assert_eq!(mp.urljoin(&"https://datasets.datalad.org/dandi/zarr-manifests/zarr-manifests-v2-sorted/".parse().unwrap()).as_str(), "https://datasets.datalad.org/dandi/zarr-manifests/zarr-manifests-v2-sorted/128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390.json");
+    }
+}

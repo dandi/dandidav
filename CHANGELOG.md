@@ -15,6 +15,7 @@ In Development
 - Adjust the format of timestamps in the web view: Always use UTC, show the
   timezone as "Z", prevent line breaking in the middle, wrap in `<time>` tag
 - Format sizes in the web view in "1.23 MiB" style
+- Zarr entries under `/zarrs/` are now served with ".zarr" extensions
 
 v0.2.0 (2024-02-07)
 -------------------

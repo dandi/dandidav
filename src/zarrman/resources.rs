@@ -37,7 +37,7 @@ impl ManifestPath {
 
     pub(crate) fn to_web_path(&self) -> PureDirPath {
         PureDirPath::try_from(format!(
-            "zarrs/{}{}/{}/",
+            "zarrs/{}{}/{}.zarr/",
             self.prefix, self.zarr_id, self.checksum
         ))
         .expect("ManifestPath should have valid web_path")
@@ -114,7 +114,7 @@ mod tests {
                 .parse()
                 .unwrap(),
         };
-        assert_eq!(mp.to_web_path(), "zarrs/128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390/");
+        assert_eq!(mp.to_web_path(), "zarrs/128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390.zarr/");
         assert_eq!(mp.urljoin(&"https://datasets.datalad.org/dandi/zarr-manifests/zarr-manifests-v2-sorted/".parse().unwrap()).as_str(), "https://datasets.datalad.org/dandi/zarr-manifests/zarr-manifests-v2-sorted/128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390.json");
     }
 }

@@ -29,6 +29,9 @@ impl ReqPath {
             prefix.push(&zarr_id);
             return Some(ReqPath::Dir(prefix));
         };
+        let Some(checksum) = checksum.strip_suffix(".zarr") else {
+            return None;
+        };
         if checksum.contains('.') {
             return None;
         }
@@ -72,7 +75,7 @@ mod tests {
 
     #[test]
     fn test_parse_manifest() {
-        let path = "128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390".parse::<PurePath>().unwrap();
+        let path = "128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390.zarr".parse::<PurePath>().unwrap();
         assert_matches!(
             ReqPath::parse_path(&path),
             Some(ReqPath::Manifest(ManifestPath {prefix, zarr_id, checksum})) => {
@@ -88,7 +91,7 @@ mod tests {
     #[case("0")]
     #[case("0/0/0")]
     fn test_parse_in_manifest(#[case] part2: PurePath) {
-        let part1 = "128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390".parse::<PurePath>().unwrap();
+        let part1 = "128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390.zarr".parse::<PurePath>().unwrap();
         let path = part1.to_dir_path().join(&part2);
         assert_matches!(
             ReqPath::parse_path(&path),
@@ -105,9 +108,11 @@ mod tests {
     }
 
     #[rstest]
+    #[case("128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390")]
+    #[case("128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390.json")]
     #[case("128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390.versionid")]
     #[case("128/4a1/1284a14f-fe4f-4dc3-b10d-48e5db8bf18d/6ddc4625befef8d6f9796835648162be-509--710206390.versionid/0")]
-    fn test_reject_versionid(#[case] path: PurePath) {
+    fn test_reject_bad_ext(#[case] path: PurePath) {
         assert_eq!(ReqPath::parse_path(&path), None);
     }
 }

@@ -1,5 +1,4 @@
 use super::*;
-use crate::consts::DAV_XMLNS;
 use crate::dav::util::Href;
 use std::collections::BTreeMap;
 use thiserror::Error;

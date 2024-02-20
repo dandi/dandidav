@@ -12,89 +12,87 @@
         <a href="&#x2F;foo&#x2F;bar&#x2F;baz&#x2F;">baz</a>
     </div>
     <table class="collection">
-        <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Size</th>
-            <th>Created</th>
-            <th>Modified</th>
-        </tr>
-
-        <tr>
-            <td class="name dir">
-                <div class="link-with-metadata">
-                    <span class="item-link"><a href="&#x2F;foo&#x2F;bar&#x2F;">../</a></span>
-                </div>
-            </td>
-            <td class="type">Parent directory</td>
-            <td class="null">&#x2014;</td>
-            <td class="null">&#x2014;</td>
-            <td class="null">&#x2014;</td>
-        </tr>
-
-        <tr>
-            <td class="name dir">
-                <div class="link-with-metadata">
-                    <span class="item-link"><a href="&#x2F;foo&#x2F;bar&#x2F;baz&#x2F;%22quoted%22&#x2F;">&quot;quoted&quot;/</a></span>
-                </div>
-            </td>
-            <td class="type">Directory</td>
-            <td class="null">&#x2014;</td>
-            <td class="null">&#x2014;</td>
-            <td class="null">&#x2014;</td>
-        </tr>
-
-        <tr>
-            <td class="name dir">
-                <div class="link-with-metadata">
-                    <span class="item-link"><a href="&#x2F;foo&#x2F;bar&#x2F;baz&#x2F;a.zarr&#x2F;">a.zarr/</a></span>
-                </div>
-            </td>
-            <td class="type">Zarr asset</td>
-            <td class="size">1.15 GiB</td>
-            <td class="created"><time>2021-01-01 01:23:45Z</time></td>
-            <td class="modified"><time>2023-12-31 12:34:56Z</time></td>
-        </tr>
-
-        <tr>
-            <td class="name">
-                <div class="link-with-metadata">
-                    <span class="item-link"><a href="&#x2F;foo&#x2F;bar&#x2F;baz&#x2F;dandiset.yaml">dandiset.yaml</a></span>
-                </div>
-            </td>
-            <td class="type">Version metadata</td>
-            <td class="size">42 B</td>
-            <td class="null">&#x2014;</td>
-            <td class="null">&#x2014;</td>
-        </tr>
-
-        <tr>
-            <td class="name">
-                <div class="link-with-metadata">
-                    <span class="item-link"><a href="https:&#x2F;&#x2F;dandiarchive-test.s3.amazonaws.com&#x2F;blobs&#x2F;empty.txt">empty.txt</a></span>
-                    <span class="fill"> </span>
-                    <span class="metadata-link">[<a href="https:&#x2F;&#x2F;api-test.dandiarchive.org&#x2F;blobs&#x2F;?name=empty.txt">metadata</a>]</span>
-                </div>
-            </td>
-            <td class="type">Blob asset</td>
-            <td class="size">0 B</td>
-            <td class="created"><time>2024-02-15 03:13:22Z</time></td>
-            <td class="modified"><time>2024-02-15 03:13:35Z</time></td>
-        </tr>
-
-        <tr>
-            <td class="name">
-                <div class="link-with-metadata">
-                    <span class="item-link"><a href="https:&#x2F;&#x2F;dandiarchive-test.s3.amazonaws.com&#x2F;blobs&#x2F;spaced%20file.dat">spaced file.dat</a></span>
-                    <span class="fill"> </span>
-                    <span class="metadata-link">[<a href="https:&#x2F;&#x2F;api-test.dandiarchive.org&#x2F;blobs&#x2F;?name=spaced%20file.dat">metadata</a>]</span>
-                </div>
-            </td>
-            <td class="type">Blob asset</td>
-            <td class="size">120.56 KiB</td>
-            <td class="created"><time>2021-02-03 06:47:50Z</time></td>
-            <td class="modified"><time>2022-03-10 12:03:29Z</time></td>
-        </tr>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Size</th>
+                <th>Created</th>
+                <th>Modified</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="name dir">
+                    <div class="link-with-metadata">
+                        <span class="item-link"><a href="&#x2F;foo&#x2F;bar&#x2F;">../</a></span>
+                    </div>
+                </td>
+                <td class="type">Parent directory</td>
+                <td class="null">&#x2014;</td>
+                <td class="null">&#x2014;</td>
+                <td class="null">&#x2014;</td>
+            </tr>
+            <tr>
+                <td class="name dir">
+                    <div class="link-with-metadata">
+                        <span class="item-link"><a href="&#x2F;foo&#x2F;bar&#x2F;baz&#x2F;%22quoted%22&#x2F;">&quot;quoted&quot;/</a></span>
+                    </div>
+                </td>
+                <td class="type">Directory</td>
+                <td class="null">&#x2014;</td>
+                <td class="null">&#x2014;</td>
+                <td class="null">&#x2014;</td>
+            </tr>
+            <tr>
+                <td class="name dir">
+                    <div class="link-with-metadata">
+                        <span class="item-link"><a href="&#x2F;foo&#x2F;bar&#x2F;baz&#x2F;a.zarr&#x2F;">a.zarr/</a></span>
+                    </div>
+                </td>
+                <td class="type">Zarr asset</td>
+                <td class="size">1.15 GiB</td>
+                <td class="created"><time>2021-01-01 01:23:45Z</time></td>
+                <td class="modified"><time>2023-12-31 12:34:56Z</time></td>
+            </tr>
+            <tr>
+                <td class="name">
+                    <div class="link-with-metadata">
+                        <span class="item-link"><a href="&#x2F;foo&#x2F;bar&#x2F;baz&#x2F;dandiset.yaml">dandiset.yaml</a></span>
+                    </div>
+                </td>
+                <td class="type">Version metadata</td>
+                <td class="size">42 B</td>
+                <td class="null">&#x2014;</td>
+                <td class="null">&#x2014;</td>
+            </tr>
+            <tr>
+                <td class="name">
+                    <div class="link-with-metadata">
+                        <span class="item-link"><a href="https:&#x2F;&#x2F;dandiarchive-test.s3.amazonaws.com&#x2F;blobs&#x2F;empty.txt">empty.txt</a></span>
+                        <span class="fill"> </span>
+                        <span class="metadata-link">[<a href="https:&#x2F;&#x2F;api-test.dandiarchive.org&#x2F;blobs&#x2F;?name=empty.txt">metadata</a>]</span>
+                    </div>
+                </td>
+                <td class="type">Blob asset</td>
+                <td class="size">0 B</td>
+                <td class="created"><time>2024-02-15 03:13:22Z</time></td>
+                <td class="modified"><time>2024-02-15 03:13:35Z</time></td>
+            </tr>
+            <tr>
+                <td class="name">
+                    <div class="link-with-metadata">
+                        <span class="item-link"><a href="https:&#x2F;&#x2F;dandiarchive-test.s3.amazonaws.com&#x2F;blobs&#x2F;spaced%20file.dat">spaced file.dat</a></span>
+                        <span class="fill"> </span>
+                        <span class="metadata-link">[<a href="https:&#x2F;&#x2F;api-test.dandiarchive.org&#x2F;blobs&#x2F;?name=spaced%20file.dat">metadata</a>]</span>
+                    </div>
+                </td>
+                <td class="type">Blob asset</td>
+                <td class="size">120.56 KiB</td>
+                <td class="created"><time>2021-02-03 06:47:50Z</time></td>
+                <td class="modified"><time>2022-03-10 12:03:29Z</time></td>
+            </tr>
+        </tbody>
     </table>
     <footer>
         <a href="{package_url}">dandidav</a>, v{version}{commit}

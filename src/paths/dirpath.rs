@@ -151,4 +151,83 @@ mod tests {
         let p = "foo/".parse::<PureDirPath>().unwrap();
         assert_matches!(p.parent(), None);
     }
+
+    #[rstest]
+    #[case("foo/", "foo")]
+    #[case("foo/bar/", "bar")]
+    fn test_name(#[case] dirpath: PureDirPath, #[case] name: &str) {
+        assert_eq!(dirpath.name(), name);
+        assert_eq!(dirpath.name_str(), name);
+    }
+
+    #[rstest]
+    #[case("foo/", "bar", "foo/bar")]
+    #[case("foo/", "baz/quux", "foo/baz/quux")]
+    #[case("foo/bar/", "quux", "foo/bar/quux")]
+    #[case("foo/bar/", "gnusto/cleesh", "foo/bar/gnusto/cleesh")]
+    fn test_join(#[case] dirpath: PureDirPath, #[case] path: PurePath, #[case] res: PurePath) {
+        assert_eq!(dirpath.join(&path), res);
+    }
+
+    #[rstest]
+    #[case("foo/", "bar/", "foo/bar/")]
+    #[case("foo/", "baz/quux/", "foo/baz/quux/")]
+    #[case("foo/bar/", "quux/", "foo/bar/quux/")]
+    #[case("foo/bar/", "gnusto/cleesh/", "foo/bar/gnusto/cleesh/")]
+    fn test_join_dir(
+        #[case] dirpath: PureDirPath,
+        #[case] path: PureDirPath,
+        #[case] res: PureDirPath,
+    ) {
+        assert_eq!(dirpath.join_dir(&path), res);
+    }
+
+    #[rstest]
+    #[case("foo/", "bar", "foo/bar/")]
+    #[case("foo/bar/", "quux", "foo/bar/quux/")]
+    fn test_join_one_dir(
+        #[case] dirpath: PureDirPath,
+        #[case] c: Component,
+        #[case] res: PureDirPath,
+    ) {
+        assert_eq!(dirpath.join_one_dir(&c), res);
+    }
+
+    #[rstest]
+    #[case("foo/", "bar", "foo/bar/")]
+    #[case("foo/bar/", "quux", "foo/bar/quux/")]
+    fn test_push(#[case] mut dirpath: PureDirPath, #[case] c: Component, #[case] res: PureDirPath) {
+        dirpath.push(&c);
+        assert_eq!(dirpath, res);
+    }
+
+    #[rstest]
+    #[case("foo/bar/", "foo/", Some("bar/"))]
+    #[case("foo/bar/quux/", "foo/", Some("bar/quux/"))]
+    #[case("foo/bar/quux/", "foo/bar/", Some("quux/"))]
+    #[case("foo/", "foo/bar/", None)]
+    #[case("bar/quux/", "foo/bar/quux/", None)]
+    #[case("foo/bar/", "quux/bar/", None)]
+    fn test_relative_to(
+        #[case] path: PureDirPath,
+        #[case] dirpath: PureDirPath,
+        #[case] relpath: Option<&str>,
+    ) {
+        assert_eq!(path.relative_to(&dirpath).as_deref(), relpath);
+    }
+
+    #[rstest]
+    #[case("foo/", vec!["foo"])]
+    #[case("foo/bar/", vec!["foo", "bar"])]
+    #[case("foo/bar/quux/", vec!["foo", "bar", "quux"])]
+    fn test_component_strs(#[case] dirpath: PureDirPath, #[case] comps: Vec<&str>) {
+        assert_eq!(dirpath.component_strs().collect::<Vec<_>>(), comps);
+    }
+
+    #[test]
+    fn test_from_component() {
+        let c = "foo".parse::<Component>().unwrap();
+        let p = PureDirPath::from(c);
+        assert_eq!(p, "foo/");
+    }
 }

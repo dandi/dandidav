@@ -11,43 +11,46 @@
         {%- endfor %}
     </div>
     <table class="collection">
-        <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Size</th>
-            <th>Created</th>
-            <th>Modified</th>
-        </tr>
-        {%- for r in rows %}
-
-        <tr>
-            <td class="name{% if r.is_dir %} dir{% endif %}">
-                <div class="link-with-metadata">
-                    <span class="item-link"><a href="{{r.href}}">{{r.name}}{% if r.is_dir %}/{% endif %}</a></span>
-                    {%- if r.metadata_url is defined %}
-                    <span class="fill"> </span>
-                    <span class="metadata-link">[<a href="{{r.metadata_url}}">metadata</a>]</span>
-                    {%- endif %}
-                </div>
-            </td>
-            <td class="type">{{r.kind}}</td>
-            {%- if r.size is defined %}
-            <td class="size">{{r.size|formatsize}}</td>
-            {%- else %}
-            <td class="null">&#x2014;</td>
-            {%- endif %}
-            {%- if r.created is defined %}
-            <td class="created"><time>{{r.created}}</time></td>
-            {%- else %}
-            <td class="null">&#x2014;</td>
-            {%- endif %}
-            {%- if r.modified is defined %}
-            <td class="modified"><time>{{r.modified}}</time></td>
-            {%- else %}
-            <td class="null">&#x2014;</td>
-            {%- endif %}
-        </tr>
-        {%- endfor %}
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Size</th>
+                <th>Created</th>
+                <th>Modified</th>
+            </tr>
+        </thead>
+        <tbody>
+            {%- for r in rows %}
+            <tr>
+                <td class="name{% if r.is_dir %} dir{% endif %}">
+                    <div class="link-with-metadata">
+                        <span class="item-link"><a href="{{r.href}}">{{r.name}}{% if r.is_dir %}/{% endif %}</a></span>
+                        {%- if r.metadata_url is defined %}
+                        <span class="fill"> </span>
+                        <span class="metadata-link">[<a href="{{r.metadata_url}}">metadata</a>]</span>
+                        {%- endif %}
+                    </div>
+                </td>
+                <td class="type">{{r.kind}}</td>
+                {%- if r.size is defined %}
+                <td class="size">{{r.size|formatsize}}</td>
+                {%- else %}
+                <td class="null">&#x2014;</td>
+                {%- endif %}
+                {%- if r.created is defined %}
+                <td class="created"><time>{{r.created}}</time></td>
+                {%- else %}
+                <td class="null">&#x2014;</td>
+                {%- endif %}
+                {%- if r.modified is defined %}
+                <td class="modified"><time>{{r.modified}}</time></td>
+                {%- else %}
+                <td class="null">&#x2014;</td>
+                {%- endif %}
+            </tr>
+            {%- endfor %}
+        </tbody>
     </table>
     <footer>
         <a href="{{package_url}}">dandidav</a>, v{{package_version}}{% if package_commit is defined %}, commit {{package_commit}}{% endif %}

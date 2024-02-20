@@ -16,6 +16,7 @@ In Development
   timezone as "Z", prevent line breaking in the middle, wrap in `<time>` tag
 - Format sizes in the web view in "1.23 MiB" style
 - Zarr entries under `/zarrs/` are now served with ".zarr" extensions
+- Use `<thead>` and `<tbody>` in collection tables in web view
 
 v0.2.0 (2024-02-07)
 -------------------

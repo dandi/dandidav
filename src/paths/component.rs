@@ -81,4 +81,15 @@ mod tests {
         let r = s.parse::<Component>();
         assert_matches!(r, Err(_));
     }
+
+    #[rstest]
+    #[case("foo.json", ".json", Some("foo"))]
+    #[case("foo.json", ".txt", None)]
+    #[case("foo.json", "foo", None)]
+    #[case(".json", ".json", None)]
+    #[case("foo.ome.zarr", ".ome", None)]
+    #[case("foo.ome.zarr", ".zarr", Some("foo.ome"))]
+    fn test_strip_suffix(#[case] c: Component, #[case] suffix: &str, #[case] res: Option<&str>) {
+        assert_eq!(c.strip_suffix(suffix).as_deref(), res);
+    }
 }

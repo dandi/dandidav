@@ -160,7 +160,7 @@ mod tests {
     #[rstest]
     #[case("foo", "foo")]
     #[case("foo/bar/baz", "baz")]
-    fn test_name(#[case] p: PurePath, #[case] name: &str) {
+    fn test_name_str(#[case] p: PurePath, #[case] name: &str) {
         assert_eq!(p.name_str(), name);
     }
 
@@ -201,6 +201,58 @@ mod tests {
     #[case("foobar", "foo/", false)]
     fn test_is_strictly_under(#[case] p1: PurePath, #[case] p2: PureDirPath, #[case] r: bool) {
         assert_eq!(p1.is_strictly_under(&p2), r);
+    }
+
+    #[rstest]
+    #[case("foo", "bar", "foo/bar")]
+    #[case("foo/bar", "quux", "foo/bar/quux")]
+    fn test_join_one(#[case] path: PurePath, #[case] c: Component, #[case] res: PurePath) {
+        assert_eq!(path.join_one(&c), res);
+    }
+
+    #[rstest]
+    #[case("foo/bar", "foo/", Some("bar"))]
+    #[case("foo/bar/quux", "foo/", Some("bar/quux"))]
+    #[case("foo/bar/quux", "foo/bar/", Some("quux"))]
+    #[case("foo", "foo/bar/", None)]
+    #[case("bar/quux", "foo/bar/quux/", None)]
+    #[case("foo/bar", "quux/bar/", None)]
+    fn test_relative_to(
+        #[case] path: PurePath,
+        #[case] dirpath: PureDirPath,
+        #[case] relpath: Option<&str>,
+    ) {
+        assert_eq!(path.relative_to(&dirpath).as_deref(), relpath);
+    }
+
+    #[rstest]
+    #[case("foo", vec!["foo"])]
+    #[case("foo/bar", vec!["foo", "bar"])]
+    #[case("foo/bar/quux", vec!["foo", "bar", "quux"])]
+    fn test_components(#[case] path: PurePath, #[case] comps: Vec<&str>) {
+        assert_eq!(path.components().collect::<Vec<_>>(), comps);
+        assert_eq!(path.component_strs().collect::<Vec<_>>(), comps);
+    }
+
+    #[rstest]
+    #[case("foo", "bar", "foo/bar")]
+    #[case("foo/bar", "quux", "foo/bar/quux")]
+    fn test_push(#[case] mut path: PurePath, #[case] c: Component, #[case] res: PurePath) {
+        path.push(&c);
+        assert_eq!(path, res);
+    }
+
+    #[rstest]
+    #[case(Vec::new(), None)]
+    #[case(vec!["foo"], Some("foo"))]
+    #[case(vec!["foo", "bar"], Some("foo/bar"))]
+    #[case(vec!["foo", "bar", "quux"], Some("foo/bar/quux"))]
+    fn test_from_components(#[case] comps: Vec<&str>, #[case] path: Option<&str>) {
+        assert_eq!(
+            PurePath::from_components(comps.into_iter().map(|s| s.parse::<Component>().unwrap()))
+                .as_deref(),
+            path
+        );
     }
 
     mod split_zarr_candidates {

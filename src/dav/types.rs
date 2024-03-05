@@ -8,6 +8,7 @@ use crate::zarrman::*;
 use enum_dispatch::enum_dispatch;
 use serde::{ser::Serializer, Serialize};
 use time::OffsetDateTime;
+use url::Url;
 
 #[enum_dispatch]
 pub(super) trait HasProperties {
@@ -40,6 +41,7 @@ pub(super) trait HasProperties {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[enum_dispatch(HasProperties)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DavResource {
@@ -197,7 +199,7 @@ pub(super) struct DavCollection {
     pub(super) modified: Option<OffsetDateTime>,
     pub(super) size: Option<i64>,
     pub(super) kind: ResourceKind,
-    pub(super) metadata_url: Option<url::Url>,
+    pub(super) metadata_url: Option<Url>,
 }
 
 impl DavCollection {
@@ -431,7 +433,7 @@ pub(super) struct DavItem {
     pub(super) etag: Option<String>,
     pub(super) kind: ResourceKind,
     pub(super) content: DavContent,
-    pub(super) metadata_url: Option<url::Url>,
+    pub(super) metadata_url: Option<Url>,
 }
 
 impl DavItem {
@@ -440,10 +442,10 @@ impl DavItem {
     }
 
     pub(super) fn web_link(&self) -> Href {
-        if let DavContent::Redirect(ref url) = self.content {
+        if let DavContent::Redirect(ref redir) = self.content {
             // Link directly to the download URL in the web view in order to
             // save a request
-            url.into()
+            redir.get_url(false).into()
         } else {
             Href::from_path(&format!("/{}", self.path))
         }
@@ -522,10 +524,14 @@ impl From<BlobAsset> for DavItem {
             .unwrap_or(DEFAULT_CONTENT_TYPE)
             .to_owned();
         let etag = blob.etag().map(String::from);
-        let content = match blob.download_url() {
-            Some(url) => DavContent::Redirect(url.clone()),
+        let content = match (blob.archive_url(), blob.s3_url()) {
+            (Some(archive), Some(s3)) => DavContent::Redirect(Redirect::Alt {
+                s3: s3.clone(),
+                archive: archive.clone(),
+            }),
+            (Some(u), None) | (None, Some(u)) => DavContent::Redirect(Redirect::Direct(u.clone())),
             // TODO: Log a warning when asset doesn't have a download URL?
-            None => DavContent::Missing,
+            (None, None) => DavContent::Missing,
         };
         DavItem {
             path: blob.path,
@@ -551,7 +557,7 @@ impl From<ZarrEntry> for DavItem {
             size: Some(entry.size),
             etag: Some(entry.etag),
             kind: ResourceKind::ZarrEntry,
-            content: DavContent::Redirect(entry.url),
+            content: DavContent::Redirect(Redirect::Direct(entry.url)),
             metadata_url: None,
         }
     }
@@ -567,7 +573,7 @@ impl From<ManifestEntry> for DavItem {
             size: Some(entry.size),
             etag: Some(entry.etag),
             kind: ResourceKind::ZarrEntry,
-            content: DavContent::Redirect(entry.url),
+            content: DavContent::Redirect(Redirect::Direct(entry.url)),
             metadata_url: None,
         }
     }
@@ -576,9 +582,30 @@ impl From<ManifestEntry> for DavItem {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DavContent {
     Blob(Vec<u8>),
-    Redirect(url::Url),
+    Redirect(Redirect),
     // Used when a blob asset lacks an S3 download URL
     Missing,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum Redirect {
+    Direct(Url),
+    Alt { s3: Url, archive: Url },
+}
+
+impl Redirect {
+    pub(super) fn get_url(&self, prefer_s3: bool) -> &Url {
+        match self {
+            Redirect::Direct(u) => u,
+            Redirect::Alt { s3, archive } => {
+                if prefer_s3 {
+                    s3
+                } else {
+                    archive
+                }
+            }
+        }
+    }
 }
 
 // For use in rendering the "Type" column in HTML views

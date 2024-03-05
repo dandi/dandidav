@@ -35,6 +35,7 @@ pub(crate) struct DandiDav {
     pub(crate) zarrman: ZarrManClient,
     pub(crate) templater: Templater,
     pub(crate) title: String,
+    pub(crate) prefer_s3_redirects: bool,
 }
 
 impl DandiDav {
@@ -104,9 +105,12 @@ impl DandiDav {
                 ..
             }) => Ok(([(CONTENT_TYPE, content_type)], blob).into_response()),
             DavResourceWithChildren::Item(DavItem {
-                content: DavContent::Redirect(url),
+                content: DavContent::Redirect(redir),
                 ..
-            }) => Ok(Redirect::temporary(url.as_str()).into_response()),
+            }) => Ok(
+                Redirect::temporary(redir.get_url(self.prefer_s3_redirects).as_str())
+                    .into_response(),
+            ),
             DavResourceWithChildren::Item(DavItem {
                 content: DavContent::Missing,
                 ..

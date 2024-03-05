@@ -54,6 +54,11 @@ struct Arguments {
     #[arg(short, long, default_value_t = 8080)]
     port: u16,
 
+    /// Redirect requests for blob assets directly to S3 instead of to Archive
+    /// URLs that redirect to signed S3 URLs
+    #[arg(long)]
+    prefer_s3_redirects: bool,
+
     /// Site name to use in HTML collection pages
     #[arg(short = 'T', long, default_value = env!("CARGO_PKG_NAME"))]
     title: String,
@@ -85,6 +90,7 @@ async fn main() -> anyhow::Result<()> {
         zarrman,
         templater,
         title: args.title,
+        prefer_s3_redirects: args.prefer_s3_redirects,
     });
     let app = Router::new()
         .route(

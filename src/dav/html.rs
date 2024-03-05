@@ -242,6 +242,7 @@ fn formatsize(size: i64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dav::types::Redirect;
     use rstest::rstest;
 
     #[rstest]
@@ -294,11 +295,11 @@ mod tests {
                     size: Some(0),
                     etag: Some(r#""00000000""#.into()),
                     kind: ResourceKind::Blob,
-                    content: DavContent::Redirect(
+                    content: DavContent::Redirect(Redirect::Direct(
                         "https://dandiarchive-test.s3.amazonaws.com/blobs/empty.txt"
                             .parse()
                             .unwrap(),
-                    ),
+                    )),
                     metadata_url: Some(
                         "https://api-test.dandiarchive.org/blobs/?name=empty.txt"
                             .parse()
@@ -313,11 +314,11 @@ mod tests {
                     size: Some(123456),
                     etag: Some(r#""abcdefgh""#.into()),
                     kind: ResourceKind::Blob,
-                    content: DavContent::Redirect(
+                    content: DavContent::Redirect(Redirect::Direct(
                         "https://dandiarchive-test.s3.amazonaws.com/blobs/spaced%20file.dat"
                             .parse()
                             .unwrap(),
-                    ),
+                    )),
                     metadata_url: Some(
                         "https://api-test.dandiarchive.org/blobs/?name=spaced%20file.dat"
                             .parse()

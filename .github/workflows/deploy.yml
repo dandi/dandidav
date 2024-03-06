@@ -1,0 +1,39 @@
+name: Deploy `dandidav` to Heroku
+
+on:
+  release:
+    types: [released]
+
+concurrency:
+  # If this workflow is already running, cancel it to avoid a scenario
+  # where the older run finishes *after* the newer run and overwrites
+  # the deployment with an older version of the app.
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deploy:
+    name: Deploy to Heroku
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # fetch history for all branches and tags
+
+      - name: Compile the Rust appication
+        run: cargo build --release
+
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
+
+      - name: Install builds plugin
+        run: heroku plugins:install heroku-builds
+
+      - name: Create Heroku Build
+        run: heroku builds:create --app dandidav
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY  }}
+          HEROKU_EMAIL: ${{ secrets.HEROKU_EMAIL  }}

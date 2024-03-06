@@ -178,17 +178,18 @@ impl BlobAsset {
         self.metadata.digest.dandi_etag.as_deref()
     }
 
-    pub(crate) fn download_url(&self) -> Option<&Url> {
-        // Prefer the non-S3 URLs with the expectation that they are Archive
-        // download URLs that redirect to signed S3 URLs that set
-        // `Content-Disposition`, thereby ensuring that the file gets the right
-        // filename when downloaded in a browser.
-        let (s3urls, non_s3urls): (Vec<_>, Vec<_>) = self
-            .metadata
+    pub(crate) fn archive_url(&self) -> Option<&Url> {
+        self.metadata
             .content_url
             .iter()
-            .partition(|url| S3Location::parse_url(url).is_ok());
-        non_s3urls.first().or_else(|| s3urls.first()).copied()
+            .find(|url| S3Location::parse_url(url).is_err())
+    }
+
+    pub(crate) fn s3_url(&self) -> Option<&Url> {
+        self.metadata
+            .content_url
+            .iter()
+            .find(|url| S3Location::parse_url(url).is_ok())
     }
 }
 

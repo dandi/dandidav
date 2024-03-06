@@ -28,8 +28,9 @@ Features
 - `GET` requests for non-collection resources are replied to with 307 redirects
   to S3
 
-    - Note that HTML pages for collections link directly to S3 URLs, but this
-      is just to save on a request; if you directly access, say,
+    - Note that HTML pages for collections link blob assets & Zarr entries
+      directly to download URLs rather than to URLs served by `dandidav`, but
+      this is just to save on a request; if you directly access, say,
       <http://localhost:8080/dandisets/000027/draft/sub-RAT123/sub-RAT123.nwb>,
       either by editing the browser address bar or via the command line, you
       will see the redirect.
@@ -39,6 +40,9 @@ Features
       signed S3 URL that specifies the download file name so that downloaded
       asset blobs will be given the file name of their asset instead of the
       blob ID.
+
+        - This can be changed via the `--prefer-s3-redirects` command-line
+          option.
 
 - Hierarchies served:
 
@@ -96,6 +100,13 @@ Options
 
 - `-p <PORT>`, `--port <PORT>` — Specify the port for the server to listen on
   [default: 8080]
+
+- `--prefer-s3-redirects` — Redirect requests for blob assets directly to S3
+  instead of to Archive URLs that redirect to signed S3 URLs.
+
+    Note that this only affects `GET` requests made directly to blob assets.
+    Links to blob assets in the web view will continue to point to Archive
+    URLs.
 
 - `-T <TITLE>`, `--title <TITLE>` — Specify the site name to use in HTML/web
   views of collections (used inside `<title>`'s and as the root breadcrumb

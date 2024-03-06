@@ -17,6 +17,8 @@ In Development
 - Format sizes in the web view in "1.23 MiB" style
 - Zarr entries under `/zarrs/` are now served with ".zarr" extensions
 - Use `<thead>` and `<tbody>` in collection tables in web view
+- Add `--prefer-s3-redirects` option for redirecting requests for blob assets
+  directly to S3 instead of to Archive URLs that redirect to signed S3 URLs
 
 v0.2.0 (2024-02-07)
 -------------------

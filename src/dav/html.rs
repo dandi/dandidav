@@ -51,6 +51,7 @@ pub(super) struct CollectionContext {
     pub(super) rows: Vec<ColRow>,
     pub(super) package_url: &'static str,
     pub(super) package_version: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) package_commit: Option<&'static str>,
 }
 

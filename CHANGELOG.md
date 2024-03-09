@@ -9,6 +9,7 @@ In Development
     - Disable log coloration when stderr is not a terminal
     - Suppress noisy & irrelevant log messages from various dependencies
     - Log errors that cause 404 and 500 responses
+    - Use local timezone offset for log timestamps
 - Added breadcrumbs to HTML views of collections
 - `FAST_NOT_EXIST` components are now checked for case-insensitively
 - Add links to version & asset metadata to the web view

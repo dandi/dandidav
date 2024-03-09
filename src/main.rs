@@ -32,7 +32,7 @@ use std::sync::Arc;
 use tower::service_fn;
 use tower_http::{set_header::response::SetResponseHeaderLayer, trace::TraceLayer};
 use tracing::Level;
-use tracing_subscriber::{filter::Targets, prelude::*};
+use tracing_subscriber::{filter::Targets, fmt::time::OffsetTime, prelude::*};
 
 static STYLESHEET: &str = include_str!("dav/static/styles.css");
 
@@ -64,12 +64,16 @@ struct Arguments {
     title: String,
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let args = Arguments::parse();
+// See
+// <https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/time/struct.OffsetTime.html#method.local_rfc_3339>
+// for an explanation of the main + #[tokio::main]run thing
+fn main() -> anyhow::Result<()> {
+    let timer =
+        OffsetTime::local_rfc_3339().context("failed to determine local timezone offset")?;
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::fmt::layer()
+                .with_timer(timer)
                 .with_ansi(stderr().is_terminal())
                 .with_writer(stderr),
         )
@@ -82,6 +86,12 @@ async fn main() -> anyhow::Result<()> {
                 .with_default(Level::INFO),
         )
         .init();
+    run()
+}
+
+#[tokio::main]
+async fn run() -> anyhow::Result<()> {
+    let args = Arguments::parse();
     let dandi = DandiClient::new(args.api_url)?;
     let zarrman = ZarrManClient::new()?;
     let templater = Templater::load()?;

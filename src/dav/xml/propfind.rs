@@ -103,6 +103,9 @@ impl PropFind {
     }
 }
 
+// vv Workaround for <https://github.com/dtolnay/async-trait/issues/259>;
+// vv remove once that's fixed
+#[allow(unused_qualifications)]
 #[async_trait]
 impl<S: Send + Sync> FromRequest<S> for PropFind
 where

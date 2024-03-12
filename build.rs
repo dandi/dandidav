@@ -1,5 +1,5 @@
 use anyhow::{bail, Context};
-use std::env::{var, VarError};
+use std::env;
 use std::io::ErrorKind;
 use std::process::{Command, Stdio};
 
@@ -7,11 +7,7 @@ fn main() -> anyhow::Result<()> {
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-changed=.git/refs");
     let pkg_version = getenv("CARGO_PKG_VERSION")?;
-    let mut commit = get_commit_hash()?;
-    if commit.is_none() {
-        commit = get_heroku_slug_commit()?;
-    }
-    match commit {
+    match get_commit_hash()? {
         Some(commit) => {
             println!("cargo:rustc-env=GIT_COMMIT={commit}");
             println!("cargo:rustc-env=VERSION_WITH_GIT={pkg_version} (commit: {commit})");
@@ -62,14 +58,6 @@ fn get_commit_hash() -> anyhow::Result<Option<String>> {
     }
 }
 
-fn get_heroku_slug_commit() -> anyhow::Result<Option<String>> {
-    match var("HEROKU_SLUG_COMMIT") {
-        Ok(slug) => Ok(Some(slug.chars().take(7).collect())),
-        Err(VarError::NotPresent) => Ok(None),
-        Err(VarError::NotUnicode(_)) => bail!("HEROKU_SLUG_COMMIT is not UTF-8"),
-    }
-}
-
 fn getenv(name: &str) -> anyhow::Result<String> {
-    var(name).with_context(|| format!("{name} envvar not set"))
+    env::var(name).with_context(|| format!("{name} envvar not set"))
 }

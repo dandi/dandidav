@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compile the Rust appication
+      - name: Compile the Rust application
         run: cargo build --release
 
       - name: Install Heroku CLI

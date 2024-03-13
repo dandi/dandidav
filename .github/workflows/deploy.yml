@@ -35,5 +35,5 @@ jobs:
       - name: Create Heroku Build
         run: heroku builds:create --app dandidav
         env:
-          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY  }}
-          HEROKU_EMAIL: ${{ secrets.HEROKU_EMAIL  }}
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_EMAIL: ${{ secrets.HEROKU_EMAIL }}

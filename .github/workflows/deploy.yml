@@ -21,6 +21,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Activate cache
+        if: "!startsWith(github.head_ref, 'dependabot/')"
+        uses: Swatinem/rust-cache@v2
+
       - name: Compile the Rust application
         run: cargo build --release
 

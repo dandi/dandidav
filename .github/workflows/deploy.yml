@@ -1,8 +1,9 @@
 name: Deploy `dandidav` to Heroku
 
 on:
-  release:
-    types: [released]
+  push:
+    branches:
+      - main
 
 concurrency:
   # If this workflow is already running, cancel it to avoid a scenario
@@ -18,6 +19,7 @@ jobs:
   deploy:
     name: Deploy to Heroku
     runs-on: ubuntu-latest
+    if: "github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')"
     steps:
       - uses: actions/checkout@v4
 

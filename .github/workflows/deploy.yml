@@ -37,7 +37,14 @@ jobs:
         run: heroku plugins:install heroku-builds
 
       - name: Create Heroku Build
-        run: heroku builds:create --app dandidav
+        run: |
+          temp_dir=$(mktemp -d)
+
+          # Procfile and dandidav binary are needed for running the app in Heroku
+          mv target/release/dandidav $temp_dir
+          mv Procfile $temp_dir
+
+          heroku builds:create --app dandidav --dir $temp_dir
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
           HEROKU_EMAIL: ${{ secrets.HEROKU_EMAIL }}

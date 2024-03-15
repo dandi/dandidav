@@ -17,7 +17,7 @@ use axum::{
     body::Body,
     extract::Request,
     http::{
-        header::{HeaderValue, CONTENT_TYPE, SERVER},
+        header::{HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE, SERVER},
         response::Response,
         Method,
     },
@@ -122,6 +122,10 @@ async fn run() -> anyhow::Result<()> {
         .layer(SetResponseHeaderLayer::if_not_present(
             SERVER,
             HeaderValue::from_static(SERVER_VALUE),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            ACCESS_CONTROL_ALLOW_ORIGIN,
+            HeaderValue::from_static("*"),
         ))
         .layer(TraceLayer::new_for_http());
     let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))

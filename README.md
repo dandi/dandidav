@@ -10,8 +10,9 @@ This is a [Rust](https://www.rust-lang.org) implementation of a readonly
 [WebDAV](https://webdav.org) interface to [DANDI
 Archive](https://dandiarchive.org).
 
-An active instance is currently accessible at
-<https://dandi.centerforopenneuroscience.org>.
+Active instances are currently accessible at
+<https://dandi.centerforopenneuroscience.org> and
+<https://webdav.dandiarchive.org>.
 
 Features
 ========

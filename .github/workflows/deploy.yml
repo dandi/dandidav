@@ -1,0 +1,44 @@
+name: Deploy to Heroku
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - closed
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: "github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'skip deployment')"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Activate cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build crate
+        run: cargo build --release --verbose
+
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
+
+      - name: Install builds plugin
+        run: heroku plugins:install heroku-builds
+
+      - name: Create Heroku Build
+        run: |
+          tempdir="$(mktemp -d)"
+          mv Procfile target/release/dandidav "$tempdir"
+          heroku builds:create --app dandidav --dir "$tempdir"
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_EMAIL: ${{ secrets.HEROKU_EMAIL }}

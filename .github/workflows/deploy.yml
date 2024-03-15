@@ -1,4 +1,4 @@
-name: Deploy `dandidav` to Heroku
+name: Deploy to Heroku
 
 on:
   pull_request_target:
@@ -8,9 +8,6 @@ on:
       - closed
 
 concurrency:
-  # If this workflow is already running, cancel it to avoid a scenario
-  # where the older run finishes *after* the newer run and overwrites
-  # the deployment with an older version of the app.
   group: ${{ github.workflow }}
   cancel-in-progress: true
 
@@ -19,17 +16,17 @@ env:
 
 jobs:
   deploy:
-    name: Deploy to Heroku
     runs-on: ubuntu-latest
     if: "github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'skip deployment')"
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Activate cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Compile the Rust application
-        run: cargo build --release
+      - name: Build crate
+        run: cargo build --release --verbose
 
       - name: Install Heroku CLI
         run: curl https://cli-assets.heroku.com/install.sh | sh
@@ -39,13 +36,9 @@ jobs:
 
       - name: Create Heroku Build
         run: |
-          temp_dir=$(mktemp -d)
-
-          # Procfile and dandidav binary are needed for running the app in Heroku
-          mv target/release/dandidav $temp_dir
-          mv Procfile $temp_dir
-
-          heroku builds:create --app dandidav --dir $temp_dir
+          tempdir="$(mktemp -d)"
+          mv Procfile target/release/dandidav "$tempdir"
+          heroku builds:create --app dandidav --dir "$tempdir"
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
           HEROKU_EMAIL: ${{ secrets.HEROKU_EMAIL }}

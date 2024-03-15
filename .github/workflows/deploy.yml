@@ -1,9 +1,11 @@
 name: Deploy `dandidav` to Heroku
 
 on:
-  push:
+  pull_request_target:
     branches:
       - main
+    types:
+      - closed
 
 concurrency:
   # If this workflow is already running, cancel it to avoid a scenario

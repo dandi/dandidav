@@ -21,7 +21,7 @@ jobs:
   deploy:
     name: Deploy to Heroku
     runs-on: ubuntu-latest
-    if: "github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')"
+    if: "github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'skip deployment')"
     steps:
       - uses: actions/checkout@v4
 

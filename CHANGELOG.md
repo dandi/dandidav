@@ -1,5 +1,5 @@
-In Development
---------------
+v0.3.0 (2024-03-15)
+-------------------
 - Respond to undecodable "Depth" header values with a 400 response instead of
   acting like no value was specified
 - Improve logging:

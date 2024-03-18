@@ -72,9 +72,6 @@ pub(super) enum FiniteDepth {
     One,
 }
 
-// vv Workaround for <https://github.com/dtolnay/async-trait/issues/259>;
-// vv remove once that's fixed
-#[allow(unused_qualifications)]
 #[async_trait]
 impl<S: Send + Sync> FromRequestParts<S> for FiniteDepth {
     type Rejection = Response<Body>;

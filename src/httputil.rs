@@ -58,9 +58,6 @@ impl Client {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 struct SimpleReqwestLogger;
 
-// vv Workaround for <https://github.com/dtolnay/async-trait/issues/259>;
-// vv remove once that's fixed
-#[allow(unused_qualifications)]
 #[async_trait::async_trait]
 impl Middleware for SimpleReqwestLogger {
     async fn handle(

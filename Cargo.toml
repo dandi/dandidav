@@ -15,13 +15,13 @@ exclude = ["/.*"]
 publish = false
 
 [dependencies]
-anyhow = "1.0.80"
+anyhow = "1.0.81"
 async-stream = "0.3.5"
-async-trait = "0.1.77"
-aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.17.0"
+async-trait = "0.1.78"
+aws-config = { version = "1.1.8", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.19.1"
 aws-smithy-runtime-api = "1.1.7"
-aws-smithy-types-convert = { version = "0.60.6", features = ["convert-time"] }
+aws-smithy-types-convert = { version = "0.60.8", features = ["convert-time"] }
 axum = { version = "0.7.4", default-features = false, features = ["http1", "tokio", "tower-log"] }
 bytes = "1.5.0"
 clap = { version = "4.4.18", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
@@ -32,15 +32,15 @@ indoc = "2.0.4"
 itertools = "0.12.1"
 moka = { version = "0.12.5", features = ["future"] }
 percent-encoding = "2.3.1"
-reqwest = { version = "0.11.25", default-features = false, features = ["json", "rustls-tls-native-roots"] }
-reqwest-middleware = "0.2.4"
+reqwest = { version = "0.11.26", default-features = false, features = ["json", "rustls-tls-native-roots"] }
+reqwest-middleware = "0.2.5"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = { version = "1.0.114", features = ["preserve_order"] }
-serde_yaml = "0.9.32"
+serde_yaml = "0.9.33"
 smartstring = "1.0.1"
 task-local-extensions = "0.1.4"
 tera = { version = "1.19.1", default-features = false }
-thiserror = "1.0.57"
+thiserror = "1.0.58"
 time = { version = "0.3.34", features = ["formatting", "macros", "parsing", "serde"] }
 tokio = { version = "1.36.0", features = ["macros", "net", "rt-multi-thread"] }
 tower = "0.4.13"
@@ -56,7 +56,7 @@ pretty_assertions = "1.4.0"
 rstest = { version = "0.18.2", default-features = false }
 
 [build-dependencies]
-anyhow = "1.0.80"
+anyhow = "1.0.81"
 
 [lints.rust]
 # Lint groups:

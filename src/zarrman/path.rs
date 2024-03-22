@@ -29,9 +29,7 @@ impl ReqPath {
             prefix.push(&zarr_id);
             return Some(ReqPath::Dir(prefix));
         };
-        let Some(checksum) = checksum.strip_suffix(".zarr") else {
-            return None;
-        };
+        let checksum = checksum.strip_suffix(".zarr")?;
         if checksum.contains('.') {
             return None;
         }

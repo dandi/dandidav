@@ -16,6 +16,7 @@ updates:
     labels:
       - dependencies
       - d:cargo
+      - skip deployment
 
   - package-ecosystem: github-actions
     directory: /
@@ -27,3 +28,4 @@ updates:
     labels:
       - dependencies
       - d:github-actions
+      - skip deployment

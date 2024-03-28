@@ -1,6 +1,7 @@
 In Development
 --------------
 - Set `Access-Control-Allow-Origin: *` header in all responses
+- Log current memory usage before & after handling each request
 
 v0.3.0 (2024-03-15)
 -------------------

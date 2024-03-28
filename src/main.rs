@@ -114,8 +114,13 @@ async fn run() -> anyhow::Result<()> {
             "/",
             service_fn(move |req: Request| {
                 let dav = Arc::clone(&dav);
-                // Box the large future:
-                async move { Box::pin(dav.handle_request(req)).await }
+                async move {
+                    log_memory();
+                    // Box the large future:
+                    let r = Box::pin(dav.handle_request(req)).await;
+                    log_memory();
+                    r
+                }
             }),
         )
         .layer(middleware::from_fn(handle_head))
@@ -145,5 +150,17 @@ async fn handle_head(method: Method, mut request: Request<Body>, next: Next) -> 
         resp
     } else {
         next.run(request).await
+    }
+}
+
+fn log_memory() {
+    if let Some(stats) = memory_stats::memory_stats() {
+        tracing::info!(
+            "Current memory usage: {} physical, {} virtual",
+            stats.physical_mem,
+            stats.virtual_mem,
+        );
+    } else {
+        tracing::info!("Failed to get current memory usage");
     }
 }

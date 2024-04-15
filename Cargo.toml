@@ -39,7 +39,6 @@ serde = { version = "1.0.197", features = ["derive"] }
 serde_json = { version = "1.0.115", features = ["preserve_order"] }
 serde_yaml = "0.9.34"
 smartstring = "1.0.1"
-task-local-extensions = "0.1.4"
 tera = { version = "1.19.1", default-features = false }
 thiserror = "1.0.58"
 time = { version = "0.3.36", features = ["formatting", "macros", "parsing", "serde"] }

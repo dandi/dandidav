@@ -63,7 +63,7 @@ impl Middleware for SimpleReqwestLogger {
     async fn handle(
         &self,
         req: Request,
-        extensions: &mut task_local_extensions::Extensions,
+        extensions: &mut axum::http::Extensions,
         next: Next<'_>,
     ) -> reqwest_middleware::Result<Response> {
         let span =

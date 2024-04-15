@@ -116,8 +116,7 @@ async fn run() -> anyhow::Result<()> {
                 let dav = Arc::clone(&dav);
                 async move {
                     log_memory();
-                    // Box the large future:
-                    let r = Box::pin(dav.handle_request(req)).await;
+                    let r = dav.handle_request(req).await;
                     log_memory();
                     r
                 }

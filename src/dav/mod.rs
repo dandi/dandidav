@@ -62,10 +62,7 @@ impl DandiDav {
 
     async fn inner_handle_request(&self, req: Request<Body>) -> Result<Response<Body>, DavError> {
         let uri_path = req.uri().path();
-        // Performing this assignment outside the `match` magically makes this
-        // compile on pre-1.74 Rusts:
-        let m = req.method();
-        match m {
+        match req.method() {
             &Method::GET => {
                 let Some(parts) = split_uri_path(uri_path) else {
                     return Ok(not_found());

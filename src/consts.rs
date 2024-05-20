@@ -59,12 +59,10 @@ pub(crate) static FAST_NOT_EXIST: &[&str] = &[".bzr", ".git", ".nols", ".svn"];
 #[cfg(test)]
 mod tests {
     use super::*;
+    use itertools::Itertools;
 
     #[test]
     fn test_fast_not_exist_is_sorted() {
-        assert!(FAST_NOT_EXIST.windows(2).all(|ab| {
-            assert!(ab.len() == 2);
-            ab[0] < ab[1]
-        }));
+        assert!(FAST_NOT_EXIST.iter().tuple_windows().all(|(a, b)| a < b));
     }
 }

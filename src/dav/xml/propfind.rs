@@ -1,3 +1,6 @@
+use super::multistatus::{DavResponse, PropStat};
+use super::{PropValue, Property, Tag};
+use crate::dav::types::HasProperties;
 use axum::{
     async_trait,
     body::Body,
@@ -5,10 +8,6 @@ use axum::{
     http::{response::Response, StatusCode},
     response::IntoResponse,
 };
-
-use super::multistatus::{DavResponse, PropStat};
-use super::{PropValue, Property, Tag};
-use crate::dav::types::HasProperties;
 use bytes::{Buf, Bytes};
 use std::collections::BTreeMap;
 use std::fmt;

@@ -3,6 +3,7 @@ In Development
 - Set `Access-Control-Allow-Origin: *` header in all responses
 - Log current memory usage before & after handling each request
 - Increased MSRV to 1.74
+- Retry failed outgoing non-S3 HTTP requests
 
 v0.3.0 (2024-03-15)
 -------------------

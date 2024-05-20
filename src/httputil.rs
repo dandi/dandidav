@@ -1,6 +1,7 @@
 use crate::consts::USER_AGENT;
 use reqwest::{Method, Request, Response, StatusCode};
 use reqwest_middleware::{Middleware, Next};
+use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
 use tracing::Instrument;
@@ -11,12 +12,18 @@ pub(crate) struct Client(reqwest_middleware::ClientWithMiddleware);
 
 impl Client {
     pub(crate) fn new() -> Result<Client, BuildClientError> {
+        let retry_policy = ExponentialBackoff::builder()
+            .base(2)
+            .build_with_max_retries(4);
         let client = reqwest_middleware::ClientBuilder::new(
             reqwest::ClientBuilder::new()
                 .user_agent(USER_AGENT)
                 .build()?,
         )
         .with(SimpleReqwestLogger)
+        // Retry network errors and responses of 408, 429, or 5xx up to four
+        // times, sleeping for 1s/2s/4s/8s before each retry attempt.
+        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
         .build();
         Ok(Client(client))
     }

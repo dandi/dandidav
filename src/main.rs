@@ -82,6 +82,7 @@ fn main() -> anyhow::Result<()> {
                 .with_target(env!("CARGO_CRATE_NAME"), Level::TRACE)
                 .with_target("aws_config", Level::DEBUG)
                 .with_target("reqwest", Level::TRACE)
+                .with_target("reqwest_retry", Level::TRACE)
                 .with_target("tower_http", Level::TRACE)
                 .with_default(Level::INFO),
         )

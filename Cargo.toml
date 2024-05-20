@@ -35,6 +35,7 @@ moka = { version = "0.12.7", features = ["future"] }
 percent-encoding = "2.3.1"
 reqwest = { version = "0.12.4", default-features = false, features = ["json", "rustls-tls-native-roots"] }
 reqwest-middleware = "0.3.1"
+reqwest-retry = "0.5.0"
 serde = { version = "1.0.202", features = ["derive"] }
 serde_json = { version = "1.0.117", features = ["preserve_order"] }
 serde_yaml = "0.9.34"

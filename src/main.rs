@@ -26,6 +26,7 @@ use axum::{
     Router,
 };
 use clap::Parser;
+use std::fmt;
 use std::io::{stderr, IsTerminal};
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -115,15 +116,11 @@ async fn run() -> anyhow::Result<()> {
             "/",
             service_fn(move |req: Request| {
                 let dav = Arc::clone(&dav);
-                async move {
-                    log_memory();
-                    let r = dav.handle_request(req).await;
-                    log_memory();
-                    r
-                }
+                async move { dav.handle_request(req).await }
             }),
         )
         .layer(middleware::from_fn(handle_head))
+        .layer(middleware::from_fn(log_memory))
         .layer(SetResponseHeaderLayer::if_not_present(
             SERVER,
             HeaderValue::from_static(SERVER_VALUE),
@@ -153,14 +150,56 @@ async fn handle_head(method: Method, mut request: Request<Body>, next: Next) -> 
     }
 }
 
-fn log_memory() {
-    if let Some(stats) = memory_stats::memory_stats() {
+async fn log_memory(request: Request<Body>, next: Next) -> Response<Body> {
+    fn getmem(rel: &str) -> Option<memory_stats::MemoryStats> {
+        if let Some(stats) = memory_stats::memory_stats() {
+            tracing::info!(
+                "Memory usage {} request: {} physical, {} virtual",
+                rel,
+                stats.physical_mem,
+                stats.virtual_mem,
+            );
+            Some(stats)
+        } else {
+            tracing::info!("Failed to get memory usage {rel} request");
+            None
+        }
+    }
+
+    let mem_before = getmem("before");
+    let r = next.run(request).await;
+    let mem_after = getmem("after");
+    if let Some((before, after)) = mem_before.zip(mem_after) {
         tracing::info!(
-            "Current memory usage: {} physical, {} virtual",
-            stats.physical_mem,
-            stats.virtual_mem,
+            "Change in memory usage: physical {}, virtual {}",
+            UsizeDiff::new(before.physical_mem, after.physical_mem),
+            UsizeDiff::new(before.virtual_mem, after.virtual_mem),
         );
     } else {
-        tracing::info!("Failed to get current memory usage");
+        tracing::info!("Change in memory usage could not be computed");
+    }
+    r
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+struct UsizeDiff {
+    before: usize,
+    after: usize,
+}
+
+impl UsizeDiff {
+    fn new(before: usize, after: usize) -> UsizeDiff {
+        UsizeDiff { before, after }
+    }
+}
+
+impl fmt::Display for UsizeDiff {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{}",
+            if self.after < self.before { '-' } else { '+' },
+            self.before.abs_diff(self.after)
+        )
     }
 }

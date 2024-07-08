@@ -8,6 +8,9 @@ repos:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
+        # releasing.md uses trailing whitespace to create hard line breaks in a
+        # sample quote:
+        exclude: "^doc/releasing.md$"
 
   - repo: https://github.com/doublify/pre-commit-rust
     rev: v1.0

@@ -4,6 +4,8 @@ In Development
 - Log current memory usage before & after handling each request
 - Increased MSRV to 1.76
 - Retry failed outgoing non-S3 HTTP requests
+- Accept `PROPFIND` request bodies in which the "include" tag comes before
+  "allprop"
 
 v0.3.0 (2024-03-15)
 -------------------

@@ -54,8 +54,8 @@ well.  The possible values are:
   descendant resources.  This is the default if no `Depth` header is specified.
 
 A server may choose to not support the `infinity` option for performance
-reasons.  If it does so, then infinite-depth requests should be rejected with a
-403 status and a response body of:
+reasons, in which case infinite-depth requests should be rejected with a 403
+status and a response body of:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -106,7 +106,7 @@ the following:
     ```
 
 3. A "prop" element containing empty property elements of specific properties
-   to query on the resource(s).
+   to query on the resource(s)
 
    Example request:
 
@@ -155,8 +155,8 @@ In detail:
   descendant resource.  The responses are organized as a flat list for which
   order is not significant.
 
-- A "responsedescription" element contains text to optionally be displayed to
-  the user.
+- A "responsedescription" element contains text to optionally display to the
+  user.
 
 - An "href" element inside a "response" contains the URL of the resource that
   the response describes, as either a complete URL or as the absolute path
@@ -180,11 +180,11 @@ In detail:
       will contain the corresponding properties' values; otherwise, the
       elements will be empty.
 
-    - A "status" element contains an HTTP status line (e.g., "HTTP/1.1 200 OK"
-      or "HTTP/1.1 404 NOT FOUND") describing the server's success in obtaining
-      the properties in the neighboring "prop" element.  The status code may be
-      any code in the 2xx, 3xx, 4xx, or 5xx range (though it is unclear when a
-      3xx code would be used).
+    - A "status" element contains an HTTP status line (e.g., "`HTTP/1.1 200
+      OK`" or "`HTTP/1.1 404 NOT FOUND`") describing the server's success in
+      obtaining the properties in the sibling "prop" element.  The status code
+      may be any code in the 2xx, 3xx, 4xx, or 5xx range (though it is unclear
+      when a 3xx code would be used).
 
 - It appears that the `(href*, status)` production listed as an alternative to
   "propstat" in the DTD is only used for responses to verbs other than

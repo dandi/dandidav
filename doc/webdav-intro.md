@@ -180,11 +180,11 @@ In detail:
       will contain the corresponding properties' values; otherwise, the
       elements will be empty.
 
-    - A "status" element contains an HTTP status line (e.g., "200 OK" or "404
-      NOT FOUND") describing the server's success in obtaining the properties
-      in the neighboring "prop" element.  The status code may be any code in
-      the 2xx, 3xx, 4xx, or 5xx range (though it is unclear when a 3xx code
-      would be used).
+    - A "status" element contains an HTTP status line (e.g., "HTTP/1.1 200 OK"
+      or "HTTP/1.1 404 NOT FOUND") describing the server's success in obtaining
+      the properties in the neighboring "prop" element.  The status code may be
+      any code in the 2xx, 3xx, 4xx, or 5xx range (though it is unclear when a
+      3xx code would be used).
 
 - It appears that the `(href*, status)` production listed as an alternative to
   "propstat" in the DTD is only used for responses to verbs other than
@@ -223,8 +223,10 @@ the properties' values.
 
 The properties defined by the RFC that do not involve locks are as follows.
 Unless otherwise specified, the contents of the corresponding XML elements are
-`#PCDATA`.  Properties that mirror HTTP response headers use the values as
-would be returned for a `GET` request without any `Accept` headers.
+`#PCDATA`.  Properties that mirror HTTP response headers use the headers'
+values as would be returned for a `GET` request without any `Accept` headers,
+and such properties must be defined if the respective headers are present in a
+`GET` response.
 
 - `creationdate` — timestamp of when the resource was created, in RFC 3339
   format
@@ -246,12 +248,20 @@ would be returned for a `GET` request without any `Accept` headers.
       `strftime` format, is `%a, %d %b %Y %H:%M:%S GMT`, e.g., "Mon, 08 Jul
       2024 19:05:32 GMT".
 
-- `resourcetype` — Specifies the nature of the resource.  In XML, the
-  "resourcetype" element contains zero or more child elements, each of which is
-  an identifier for a resource type that the resource belongs to.  The only
-  resource type defined by the RFC is "collection".  Thus, if a "resourcetype"
-  element contains a "collection" element, the resource is a collection, and if
-  it does not contain a "collection" element, the resource is a non-collection.
+- `resourcetype` — Specifies the nature of the resource.  This property must be
+  defined for all resources.  In XML, the "resourcetype" element contains zero
+  or more child elements, each of which is an identifier for a resource type
+  that the resource belongs to.  The only resource type defined by the RFC is
+  "collection", represented by an empty element of that name.  Thus, if a
+  "resourcetype" element contains a "collection" element, the resource is a
+  collection, and if it does not contain a "collection" element, the resource
+  is a non-collection.
+
+Except where otherwise noted, a resource need not have all properties defined
+on it.  If a property is not defined, it will not be listed in responses to
+"allprop" or "propname" requests, and if it is requested in a "prop" request,
+the property will be returned as an empty element in a "propstat" with a status
+of 404.
 
 
 XML Extensibility

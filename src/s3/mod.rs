@@ -2,13 +2,14 @@ mod streams;
 use self::streams::ListEntryPages;
 use crate::httputil::{self, BuildClientError, HttpError};
 use crate::paths::{ParsePureDirPathError, ParsePurePathError, PureDirPath, PurePath};
+use crate::streamutil::TryStreamUtil;
 use crate::validstr::TryFromStringError;
-use async_stream::try_stream;
 use aws_sdk_s3::{operation::list_objects_v2::ListObjectsV2Error, types::CommonPrefix, Client};
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
 use aws_smithy_types_convert::date_time::DateTimeExt;
 use futures_util::{Stream, TryStreamExt};
 use smartstring::alias::CompactString;
+use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::sync::Arc;
 use thiserror::Error;
@@ -24,7 +25,7 @@ pub(crate) struct S3Client {
 }
 
 impl S3Client {
-    pub(crate) async fn new(bucket: CompactString, region: String) -> S3Client {
+    async fn new(bucket: CompactString, region: String) -> S3Client {
         let config = aws_config::from_env()
             .app_name(
                 aws_config::AppName::new("dandidav")
@@ -46,26 +47,20 @@ impl S3Client {
     }
 
     // `key_prefix` may or may not end with `/`; it is used as-is
-    fn list_entry_pages<'a>(&'a self, key_prefix: &'a str) -> ListEntryPages<'a> {
+    fn list_entry_pages<S: Into<String>>(&self, key_prefix: S) -> ListEntryPages {
         ListEntryPages::new(self, key_prefix)
     }
 
-    pub(crate) fn get_folder_entries<'a>(
-        &'a self,
-        key_prefix: &'a PureDirPath,
-    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + 'a {
-        try_stream! {
-            let mut stream = self.list_entry_pages(key_prefix.as_ref());
-            while let Some(page) = stream.try_next().await? {
-                for entry in page {
-                    yield entry;
-                }
-            }
-        }
+    fn get_folder_entries<P: Borrow<PureDirPath>>(
+        &self,
+        key_prefix: P,
+    ) -> impl Stream<Item = Result<S3Entry, S3Error>> {
+        self.list_entry_pages(key_prefix.borrow())
+            .try_flat_iter_map(|page| page)
     }
 
     // Returns `None` if nothing found at path
-    pub(crate) async fn get_path(&self, path: &PurePath) -> Result<Option<S3Entry>, S3Error> {
+    async fn get_path(&self, path: &PurePath) -> Result<Option<S3Entry>, S3Error> {
         let mut surpassed_objects = false;
         let mut surpassed_folders = false;
         let folder_cutoff = format!("{path}/");
@@ -113,33 +108,21 @@ pub(crate) struct PrefixedS3Client {
 
 impl PrefixedS3Client {
     pub(crate) fn get_root_entries(&self) -> impl Stream<Item = Result<S3Entry, S3Error>> + '_ {
-        let stream = self.inner.get_folder_entries(&self.prefix);
-        try_stream! {
-            tokio::pin!(stream);
-            while let Some(entry) = stream.try_next().await? {
-                if let Some(entry) = entry.relative_to(&self.prefix) {
-                    yield entry;
-                }
-                // TODO: Else: Error? Warn?
-            }
-        }
+        self.inner
+            .get_folder_entries(&self.prefix)
+            .try_flat_iter_map(|entry| entry.relative_to(&self.prefix))
+        // TODO: Do something when relative_to() fails (Error? Warn?)
     }
 
-    pub(crate) fn get_folder_entries<'a>(
-        &'a self,
-        dirpath: &'a PureDirPath,
-    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + 'a {
-        try_stream! {
-            let key_prefix = self.prefix.join_dir(dirpath);
-            let stream = self.inner.get_folder_entries(&key_prefix);
-            tokio::pin!(stream);
-            while let Some(entry) = stream.try_next().await? {
-                if let Some(entry) = entry.relative_to(&self.prefix) {
-                    yield entry;
-                }
-                // TODO: Else: Error? Warn?
-            }
-        }
+    pub(crate) fn get_folder_entries(
+        &self,
+        dirpath: &PureDirPath,
+    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + '_ {
+        let key_prefix = self.prefix.join_dir(dirpath);
+        self.inner
+            .get_folder_entries(key_prefix)
+            .try_flat_iter_map(|entry| entry.relative_to(&self.prefix))
+        // TODO: Do something when relative_to() fails (Error? Warn?)
     }
 
     // Returns `None` if nothing found at path

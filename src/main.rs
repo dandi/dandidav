@@ -7,6 +7,7 @@ mod dav;
 mod httputil;
 mod paths;
 mod s3;
+mod streamutil;
 mod zarrman;
 use crate::consts::{CSS_CONTENT_TYPE, DEFAULT_API_URL, SERVER_VALUE};
 use crate::dandi::DandiClient;

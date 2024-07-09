@@ -15,6 +15,13 @@ macro_rules! validstr {
             }
         }
 
+        impl From<&$t> for String {
+            #[allow(clippy::string_to_string)]
+            fn from(value: &$t) -> String {
+                value.0.to_string()
+            }
+        }
+
         impl std::fmt::Debug for $t {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{:?}", self.0)

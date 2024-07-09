@@ -9,6 +9,9 @@ use smartstring::alias::CompactString;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 
+// Implementing list_entry_pages() as a manually-implemented Stream instead of
+// via async_stream lets us save about 3500 bytes on dandidav's top-level
+// Futures.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub(super) struct ListEntryPages {

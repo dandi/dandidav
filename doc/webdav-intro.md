@@ -87,9 +87,9 @@ the following:
    (almost) all properties defined on the resource(s).  Specifically, this
    requests all "live properties" (those enforced or calculated by the server,
    like `getcontentlength`) that are defined by the RFC, along with all
-   available "dead properties" (those freely settable by clients).  The
-   "allprop" element may optionally be followed by an "include" element
-   containing empty property elements of additional live properties to query.
+   available "dead properties" (those freely settable by clients).  There may
+   optionally also be an "include" element containing empty property elements
+   of additional live properties to query.
 
    Example request:
 
@@ -129,7 +129,8 @@ A successful or partially-successful `PROPFIND` response uses status code 207
 containing elements in the "`DAV:`" namespace (but see "XML Extensibility"
 below) whose root element is named "multistatus".
 
-The DTD for "multistatus" and related elements is as follows:
+The DTD for "multistatus" and related elements is as follows, except that
+element order is irrelevant:
 
 ```xml
 <!ELEMENT multistatus (response*, responsedescription?)>
@@ -164,7 +165,7 @@ In detail:
   server root, and the complete URL is calculated by resolving this path
   against the URL of the request (roughly, by combining the non-path portions
   of the request URL with the path).  All "href" elements values within a
-  Multi-Status response must be unique and must use the same choice of URL or
+  Multi-Status response must be unique and must use the same choice of URL vs.
   absolute path.
 
 - The "propstat" elements inside a "response" contain the names and possibly
@@ -256,7 +257,13 @@ would be returned for a `GET` request without any `Accept` headers.
 XML Extensibility
 -----------------
 
-TODO
+Custom properties and other elements can be added to WebDAV request & response
+bodies by placing them in an XML namespace other than "`DAV:`" (which is
+reserved for elements defined by RFCs).  If a server or client receives a
+document containing elements it does not recognize, it must ignore those
+elements and all of their children, except when a client attempts to set one or
+more unrecognized dead properties on a resource, in which case all of the
+properties must be recorded.
 
 
 [RFC 2518]: http://webdav.org/specs/rfc2518.html

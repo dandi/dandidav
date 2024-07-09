@@ -1,5 +1,5 @@
-In Development
---------------
+v0.4.0 (2024-07-09)
+-------------------
 - Set `Access-Control-Allow-Origin: *` header in all responses
 - Log current memory usage before & after handling each request
 - Increased MSRV to 1.76

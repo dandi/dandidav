@@ -9,6 +9,8 @@ use smartstring::alias::CompactString;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 
+#[derive(Debug)]
+#[must_use = "streams do nothing unless polled"]
 pub(super) struct ListEntryPages<'a> {
     bucket: &'a CompactString,
     key_prefix: &'a str,

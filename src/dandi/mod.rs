@@ -1,7 +1,9 @@
 mod dandiset_id;
+mod streams;
 mod types;
 mod version_id;
 pub(crate) use self::dandiset_id::*;
+use self::streams::Paginate;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
 use crate::consts::S3CLIENT_CACHE_SIZE;
@@ -51,20 +53,8 @@ impl DandiClient {
         self.inner.get_json(url).await.map_err(Into::into)
     }
 
-    fn paginate<T: DeserializeOwned + 'static>(
-        &self,
-        url: Url,
-    ) -> impl Stream<Item = Result<T, DandiError>> + '_ {
-        try_stream! {
-            let mut url = Some(url);
-            while let Some(u) = url {
-                let page = self.inner.get_json::<Page<T>>(u).await?;
-                for r in page.results {
-                    yield r;
-                }
-                url = page.next;
-            }
-        }
+    fn paginate<T: DeserializeOwned + 'static>(&self, url: Url) -> Paginate<T> {
+        Paginate::new(self, url)
     }
 
     async fn get_s3client(&self, loc: S3Location) -> Result<PrefixedS3Client, ZarrToS3Error> {

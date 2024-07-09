@@ -179,9 +179,15 @@ impl PropFindParser {
         }
         match self.state.mode {
             Some(Mode::PropName) => Ok(PropFind::PropName),
-            Some(Mode::AllProp) => Ok(PropFind::AllProp {
+            Some(Mode::AllProp {
+                seen_allprop: true, ..
+            }) => Ok(PropFind::AllProp {
                 include: self.state.properties,
             }),
+            Some(Mode::AllProp {
+                seen_allprop: false,
+                ..
+            }) => Err(PropFindError::IncludeSansAllprop),
             Some(Mode::Prop) => Ok(PropFind::Prop(self.state.properties)),
             None => Err(PropFindError::EmptyPropFind),
         }
@@ -197,7 +203,10 @@ struct State {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum Mode {
     PropName,
-    AllProp,
+    AllProp {
+        seen_allprop: bool,
+        seen_include: bool,
+    },
     Prop,
 }
 
@@ -221,16 +230,43 @@ impl PropFindTag {
                 state.mode = Some(Mode::PropName);
                 Some(PropFindTag::PropName)
             }
-            (PropFindTag::PropFind, Some("allprop")) => {
-                state.mode = Some(Mode::AllProp);
-                Some(PropFindTag::AllProp)
-            }
+            (PropFindTag::PropFind, Some("allprop")) => match state.mode {
+                None => {
+                    state.mode = Some(Mode::AllProp {
+                        seen_allprop: true,
+                        seen_include: false,
+                    });
+                    Some(PropFindTag::AllProp)
+                }
+                Some(Mode::AllProp {
+                    ref mut seen_allprop,
+                    ..
+                }) if !*seen_allprop => {
+                    *seen_allprop = true;
+                    Some(PropFindTag::AllProp)
+                }
+                _ => None,
+            },
+            (PropFindTag::PropFind, Some("include")) => match state.mode {
+                None => {
+                    state.mode = Some(Mode::AllProp {
+                        seen_allprop: false,
+                        seen_include: true,
+                    });
+                    Some(PropFindTag::Include)
+                }
+                Some(Mode::AllProp {
+                    ref mut seen_include,
+                    ..
+                }) if !*seen_include => {
+                    *seen_include = true;
+                    Some(PropFindTag::Include)
+                }
+                _ => None,
+            },
             (PropFindTag::PropFind, Some("prop")) => {
                 state.mode = Some(Mode::Prop);
                 Some(PropFindTag::Prop)
-            }
-            (PropFindTag::PropFind, Some("include")) if state.mode.is_some() => {
-                Some(PropFindTag::Include)
             }
             (PropFindTag::PropFind, _) => None,
             (PropFindTag::PropName, _) => None,
@@ -291,6 +327,8 @@ pub(crate) enum PropFindError {
     FinishedInMiddle,
     #[error("<propfind> is empty")]
     EmptyPropFind,
+    #[error("<propfind> contains <include> but not <allprop>")]
+    IncludeSansAllprop,
     #[error("too many end tags")]
     TooManyEnds,
 }
@@ -412,5 +450,121 @@ mod tests {
                 ]
             }
         );
+    }
+
+    #[test]
+    fn parse_include_allprop() {
+        let s = indoc! {r#"
+            <?xml version="1.0" encoding="utf-8" ?>
+            <D:propfind xmlns:D="DAV:">
+                <D:include>
+                    <D:supported-live-property-set/>
+                    <D:supported-report-set/>
+                </D:include>
+                <D:allprop/>
+            </D:propfind>
+        "#};
+        let propfind = PropFind::from_xml(Bytes::from(s)).unwrap();
+        assert_eq!(
+            propfind,
+            PropFind::AllProp {
+                include: vec![
+                    Property::Custom(Tag {
+                        namespace: "DAV:".into(),
+                        name: "supported-live-property-set".into()
+                    }),
+                    Property::Custom(Tag {
+                        namespace: "DAV:".into(),
+                        name: "supported-report-set".into()
+                    }),
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_include_only() {
+        let s = indoc! {r#"
+            <?xml version="1.0" encoding="utf-8" ?>
+            <D:propfind xmlns:D="DAV:">
+                <D:include>
+                    <D:supported-live-property-set/>
+                    <D:supported-report-set/>
+                </D:include>
+            </D:propfind>
+        "#};
+        let r = PropFind::from_xml(Bytes::from(s));
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn parse_allprop_double_include() {
+        let s = indoc! {r#"
+            <?xml version="1.0" encoding="utf-8" ?>
+            <D:propfind xmlns:D="DAV:">
+                <D:allprop/>
+                <D:include>
+                    <D:supported-live-property-set/>
+                </D:include>
+                <D:include>
+                    <D:supported-report-set/>
+                </D:include>
+            </D:propfind>
+        "#};
+        let r = PropFind::from_xml(Bytes::from(s));
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn parse_include_allprop_include() {
+        let s = indoc! {r#"
+            <?xml version="1.0" encoding="utf-8" ?>
+            <D:propfind xmlns:D="DAV:">
+                <D:include>
+                    <D:supported-live-property-set/>
+                </D:include>
+                <D:allprop/>
+                <D:include>
+                    <D:supported-report-set/>
+                </D:include>
+            </D:propfind>
+        "#};
+        let r = PropFind::from_xml(Bytes::from(s));
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn parse_empty_include_allprop_include() {
+        let s = indoc! {r#"
+            <?xml version="1.0" encoding="utf-8" ?>
+            <D:propfind xmlns:D="DAV:">
+                <D:include>
+                </D:include>
+                <D:allprop/>
+                <D:include>
+                    <D:supported-live-property-set/>
+                    <D:supported-report-set/>
+                </D:include>
+            </D:propfind>
+        "#};
+        let r = PropFind::from_xml(Bytes::from(s));
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn parse_allprop_include_allprop() {
+        let s = indoc! {r#"
+            <?xml version="1.0" encoding="utf-8" ?>
+            <D:propfind xmlns:D="DAV:">
+                <D:allprop/>
+                <D:include>
+                    <D:supported-live-property-set/>
+                    <D:supported-report-set/>
+                </D:include>
+                <D:allprop/>
+            </D:propfind>
+        "#};
+        let r = PropFind::from_xml(Bytes::from(s));
+        assert!(r.is_err());
     }
 }

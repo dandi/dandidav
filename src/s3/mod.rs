@@ -55,8 +55,7 @@ impl S3Client {
         key_prefix: &'a PureDirPath,
     ) -> impl Stream<Item = Result<S3Entry, S3Error>> + 'a {
         try_stream! {
-            let stream = self.list_entry_pages(key_prefix.as_ref());
-            tokio::pin!(stream);
+            let mut stream = self.list_entry_pages(key_prefix.as_ref());
             while let Some(page) = stream.try_next().await? {
                 for entry in page {
                     yield entry;
@@ -70,8 +69,7 @@ impl S3Client {
         let mut surpassed_objects = false;
         let mut surpassed_folders = false;
         let folder_cutoff = format!("{path}/");
-        let stream = self.list_entry_pages(path);
-        tokio::pin!(stream);
+        let mut stream = self.list_entry_pages(path);
         while let Some(page) = stream.try_next().await? {
             if !surpassed_objects {
                 for obj in page.objects {

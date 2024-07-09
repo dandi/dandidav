@@ -87,7 +87,7 @@ repository collaborator or user with write access.
 
     ```shell
     git tag -s -m "Version $VERSION" "v$VERSION"
-    git push "v$VERSION"
+    git push origin "v$VERSION"
     ```
 
    where `$VERSION` is the version of the new release.  Note that the above

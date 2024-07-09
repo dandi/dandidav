@@ -1,3 +1,5 @@
+mod streams;
+use self::streams::ListEntryPages;
 use crate::httputil::{self, BuildClientError, HttpError};
 use crate::paths::{ParsePureDirPathError, ParsePurePathError, PureDirPath, PurePath};
 use crate::validstr::TryFromStringError;
@@ -12,6 +14,8 @@ use std::sync::Arc;
 use thiserror::Error;
 use time::OffsetDateTime;
 use url::{Host, Url};
+
+type ListObjectsError = SdkError<ListObjectsV2Error, HttpResponse>;
 
 #[derive(Clone, Debug)]
 pub(crate) struct S3Client {
@@ -42,53 +46,8 @@ impl S3Client {
     }
 
     // `key_prefix` may or may not end with `/`; it is used as-is
-    fn list_entry_pages<'a>(
-        &'a self,
-        key_prefix: &'a str,
-    ) -> impl Stream<Item = Result<S3EntryPage, S3Error>> + 'a {
-        try_stream! {
-            let mut stream = self.inner
-                .list_objects_v2()
-                .bucket(&*self.bucket)
-                .prefix(key_prefix)
-                .delimiter("/")
-                .into_paginator()
-                .send();
-            while let Some(r) = stream.next().await {
-                let page = match r {
-                    Ok(page) => page,
-                    Err(source) => Err(
-                        S3Error::ListObjects {
-                            bucket: self.bucket.clone(),
-                            prefix: key_prefix.to_owned(),
-                            source,
-                        }
-                    )?,
-                };
-                let objects = page
-                    .contents
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|obj| S3Object::try_from_aws_object(obj, &self.bucket))
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|source| S3Error::BadObject {
-                        bucket: self.bucket.clone(),
-                        prefix: key_prefix.to_owned(),
-                        source,
-                    })?;
-                let folders = page.common_prefixes
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(S3Folder::try_from)
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|source| S3Error::BadPrefix {
-                        bucket: self.bucket.clone(),
-                        prefix: key_prefix.to_owned(),
-                        source,
-                    })?;
-                yield S3EntryPage {folders, objects};
-            }
-        }
+    fn list_entry_pages<'a>(&'a self, key_prefix: &'a str) -> ListEntryPages<'a> {
+        ListEntryPages::new(self, key_prefix)
     }
 
     pub(crate) fn get_folder_entries<'a>(
@@ -431,7 +390,7 @@ pub(crate) enum S3Error {
     ListObjects {
         bucket: CompactString,
         prefix: String,
-        source: SdkError<ListObjectsV2Error, HttpResponse>,
+        source: ListObjectsError,
     },
     #[error("invalid object found in S3 bucket {bucket:?} under prefix {prefix:?}")]
     BadObject {

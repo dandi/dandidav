@@ -247,8 +247,7 @@ impl DandiDav {
             DavPath::DandisetIndex => {
                 let col = DavCollection::dandiset_index();
                 let mut children = Vec::new();
-                let stream = self.dandi.get_all_dandisets();
-                tokio::pin!(stream);
+                let mut stream = self.dandi.get_all_dandisets();
                 while let Some(ds) = stream.try_next().await? {
                     children.push(DavResource::Collection(ds.into()));
                 }
@@ -282,8 +281,7 @@ impl DandiDav {
                 let col = DavCollection::dandiset_releases(dandiset_id);
                 let mut children = Vec::new();
                 let endpoint = self.dandi.dandiset(dandiset_id.clone());
-                let stream = endpoint.get_all_versions();
-                tokio::pin!(stream);
+                let mut stream = endpoint.get_all_versions();
                 while let Some(v) = stream.try_next().await? {
                     if let VersionId::Published(ref pvid) = v.version {
                         let path = version_path(dandiset_id, &VersionSpec::Published(pvid.clone()));

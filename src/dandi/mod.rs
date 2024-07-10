@@ -12,7 +12,6 @@ use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
 use crate::s3::{
     BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Error, S3Location,
 };
-use async_stream::try_stream;
 use futures_util::{Stream, TryStreamExt};
 use moka::future::{Cache, CacheBuilder};
 use serde::de::DeserializeOwned;
@@ -237,21 +236,19 @@ impl<'a> VersionEndpoint<'a> {
     pub(crate) fn get_root_children(
         &self,
     ) -> impl Stream<Item = Result<DandiResource, DandiError>> + '_ {
-        try_stream! {
-            let mut stream = self.get_entries_under_path(None);
-            while let Some(entry) = stream.try_next().await? {
+        self.get_entries_under_path(None)
+            .and_then(move |entry| async move {
                 match entry {
-                    FolderEntry::Folder(subf) => yield DandiResource::Folder(subf),
+                    FolderEntry::Folder(subf) => Ok(DandiResource::Folder(subf)),
                     FolderEntry::Asset { id, path } => match self.get_asset_by_id(&id).await {
-                        Ok(asset) => yield DandiResource::Asset(asset),
+                        Ok(asset) => Ok(DandiResource::Asset(asset)),
                         Err(DandiError::Http(HttpError::NotFound { .. })) => {
-                            Err(DandiError::DisappearingAsset { asset_id: id, path })?;
+                            Err(DandiError::DisappearingAsset { asset_id: id, path })
                         }
-                        Err(e) => Err(e)?,
+                        Err(e) => Err(e),
                     },
                 }
-            }
-        }
+            })
     }
 
     fn get_folder_entries(&self, path: &AssetFolder) -> Paginate<FolderEntry> {

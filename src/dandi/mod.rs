@@ -238,8 +238,7 @@ impl<'a> VersionEndpoint<'a> {
         &self,
     ) -> impl Stream<Item = Result<DandiResource, DandiError>> + '_ {
         try_stream! {
-            let stream = self.get_entries_under_path(None);
-            tokio::pin!(stream);
+            let mut stream = self.get_entries_under_path(None);
             while let Some(entry) = stream.try_next().await? {
                 match entry {
                     FolderEntry::Folder(subf) => yield DandiResource::Folder(subf),
@@ -288,8 +287,7 @@ impl<'a> VersionEndpoint<'a> {
             .append_pair("metadata", "1")
             .append_pair("order", "path");
         let dirpath = path.to_dir_path();
-        let stream = self.client.paginate::<RawAsset>(url.clone());
-        tokio::pin!(stream);
+        let mut stream = self.client.paginate::<RawAsset>(url.clone());
         while let Some(asset) = stream.try_next().await? {
             if &asset.path == path {
                 return Ok(AtAssetPath::Asset(asset.try_into_asset(self)?));
@@ -355,8 +353,7 @@ impl<'a> VersionEndpoint<'a> {
         match self.get_resource_with_s3(path).await? {
             DandiResourceWithS3::Folder(folder) => {
                 let mut children = Vec::new();
-                let stream = self.get_folder_entries(&folder);
-                tokio::pin!(stream);
+                let mut stream = self.get_folder_entries(&folder);
                 while let Some(child) = stream.try_next().await? {
                     let child = match child {
                         FolderEntry::Folder(subf) => DandiResource::Folder(subf),
@@ -377,8 +374,7 @@ impl<'a> VersionEndpoint<'a> {
                 let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
                 let mut children = Vec::new();
                 {
-                    let stream = s3.get_root_entries();
-                    tokio::pin!(stream);
+                    let mut stream = s3.get_root_entries();
                     while let Some(child) = stream.try_next().await? {
                         children.push(zarr.make_resource(child));
                     }
@@ -388,8 +384,7 @@ impl<'a> VersionEndpoint<'a> {
             DandiResourceWithS3::ZarrFolder { folder, s3 } => {
                 let mut children = Vec::new();
                 {
-                    let stream = s3.get_folder_entries(&folder.path);
-                    tokio::pin!(stream);
+                    let mut stream = s3.get_folder_entries(&folder.path);
                     while let Some(child) = stream.try_next().await? {
                         children.push(folder.make_resource(child));
                     }

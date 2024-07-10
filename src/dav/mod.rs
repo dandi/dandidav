@@ -167,12 +167,9 @@ impl DandiDav {
         &self,
         dandiset_id: &DandisetId,
         version: &VersionSpec,
+        endpoint: &VersionEndpoint<'_>,
     ) -> Result<DavItem, DavError> {
-        let md = self
-            .get_version_endpoint(dandiset_id, version)
-            .await?
-            .get_metadata()
-            .await?;
+        let md = endpoint.get_metadata().await?;
         Ok(DavItem::from(md).under_version_path(dandiset_id, version))
     }
 
@@ -214,7 +211,11 @@ impl DandiDav {
                 dandiset_id,
                 version,
             } => self
-                .get_dandiset_yaml(dandiset_id, version)
+                .get_dandiset_yaml(
+                    dandiset_id,
+                    version,
+                    &self.get_version_endpoint(dandiset_id, version).await?,
+                )
                 .await
                 .map(DavResource::Item),
             DavPath::DandiResource {
@@ -303,7 +304,7 @@ impl DandiDav {
                     .try_collect::<Vec<_>>()
                     .await?;
                 children.push(
-                    self.get_dandiset_yaml(dandiset_id, version)
+                    self.get_dandiset_yaml(dandiset_id, version, &endpoint)
                         .await
                         .map(DavResource::Item)?,
                 );
@@ -313,7 +314,11 @@ impl DandiDav {
                 dandiset_id,
                 version,
             } => self
-                .get_dandiset_yaml(dandiset_id, version)
+                .get_dandiset_yaml(
+                    dandiset_id,
+                    version,
+                    &self.get_version_endpoint(dandiset_id, version).await?,
+                )
                 .await
                 .map(DavResourceWithChildren::Item),
             DavPath::DandiResource {

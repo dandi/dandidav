@@ -245,11 +245,12 @@ impl DandiDav {
             DavPath::Root => Ok(DavResourceWithChildren::root()),
             DavPath::DandisetIndex => {
                 let col = DavCollection::dandiset_index();
-                let mut children = Vec::new();
-                let mut stream = self.dandi.get_all_dandisets();
-                while let Some(ds) = stream.try_next().await? {
-                    children.push(DavResource::Collection(ds.into()));
-                }
+                let children = self
+                    .dandi
+                    .get_all_dandisets()
+                    .map_ok(|ds| DavResource::Collection(ds.into()))
+                    .try_collect::<Vec<_>>()
+                    .await?;
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
             DavPath::Dandiset { dandiset_id } => {
@@ -296,12 +297,11 @@ impl DandiDav {
                 version,
             } => {
                 let (col, endpoint) = self.get_dandiset_version(dandiset_id, version).await?;
-                let mut children = Vec::new();
-                let stream = endpoint.get_root_children();
-                tokio::pin!(stream);
-                while let Some(res) = stream.try_next().await? {
-                    children.push(DavResource::from(res).under_version_path(dandiset_id, version));
-                }
+                let mut children = endpoint
+                    .get_root_children()
+                    .map_ok(|res| DavResource::from(res).under_version_path(dandiset_id, version))
+                    .try_collect::<Vec<_>>()
+                    .await?;
                 children.push(
                     self.get_dandiset_yaml(dandiset_id, version)
                         .await

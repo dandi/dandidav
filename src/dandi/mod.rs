@@ -369,23 +369,19 @@ impl<'a> VersionEndpoint<'a> {
             DandiResourceWithS3::Asset(Asset::Blob(r)) => Ok(DandiResourceWithChildren::Blob(r)),
             DandiResourceWithS3::Asset(Asset::Zarr(zarr)) => {
                 let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
-                let mut children = Vec::new();
-                {
-                    let mut stream = s3.get_root_entries();
-                    while let Some(child) = stream.try_next().await? {
-                        children.push(zarr.make_resource(child));
-                    }
-                }
+                let children = s3
+                    .get_root_entries()
+                    .map_ok(|child| zarr.make_resource(child))
+                    .try_collect::<Vec<_>>()
+                    .await?;
                 Ok(DandiResourceWithChildren::Zarr { zarr, children })
             }
             DandiResourceWithS3::ZarrFolder { folder, s3 } => {
-                let mut children = Vec::new();
-                {
-                    let mut stream = s3.get_folder_entries(&folder.path);
-                    while let Some(child) = stream.try_next().await? {
-                        children.push(folder.make_resource(child));
-                    }
-                }
+                let children = s3
+                    .get_folder_entries(&folder.path)
+                    .map_ok(|child| folder.make_resource(child))
+                    .try_collect::<Vec<_>>()
+                    .await?;
                 Ok(DandiResourceWithChildren::ZarrFolder { folder, children })
             }
             DandiResourceWithS3::ZarrEntry(r) => Ok(DandiResourceWithChildren::ZarrEntry(r)),

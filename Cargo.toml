@@ -16,10 +16,10 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.86"
-async-stream = "0.3.5"
 async-trait = "0.1.81"
 aws-config = { version = "1.5.3", features = ["behavior-version-latest"] }
 aws-sdk-s3 = "1.39.0"
+aws-smithy-async = "1.2.1"
 aws-smithy-runtime-api = "1.7.1"
 aws-smithy-types-convert = { version = "0.60.8", features = ["convert-time"] }
 axum = { version = "0.7.5", default-features = false, features = ["http1", "tokio", "tower-log"] }
@@ -33,6 +33,7 @@ itertools = "0.13.0"
 memory-stats = "1.2.0"
 moka = { version = "0.12.8", features = ["future"] }
 percent-encoding = "2.3.1"
+pin-project-lite = "0.2.14"
 reqwest = { version = "0.12.5", default-features = false, features = ["json", "rustls-tls-native-roots"] }
 reqwest-middleware = "0.3.2"
 reqwest-retry = "0.6.0"

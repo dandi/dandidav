@@ -1,7 +1,9 @@
 mod dandiset_id;
+mod streams;
 mod types;
 mod version_id;
 pub(crate) use self::dandiset_id::*;
+use self::streams::Paginate;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
 use crate::consts::S3CLIENT_CACHE_SIZE;
@@ -10,7 +12,6 @@ use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
 use crate::s3::{
     BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Error, S3Location,
 };
-use async_stream::try_stream;
 use futures_util::{Stream, TryStreamExt};
 use moka::future::{Cache, CacheBuilder};
 use serde::de::DeserializeOwned;
@@ -51,20 +52,8 @@ impl DandiClient {
         self.inner.get_json(url).await.map_err(Into::into)
     }
 
-    fn paginate<T: DeserializeOwned + 'static>(
-        &self,
-        url: Url,
-    ) -> impl Stream<Item = Result<T, DandiError>> + '_ {
-        try_stream! {
-            let mut url = Some(url);
-            while let Some(u) = url {
-                let page = self.inner.get_json::<Page<T>>(u).await?;
-                for r in page.results {
-                    yield r;
-                }
-                url = page.next;
-            }
-        }
+    fn paginate<T: DeserializeOwned + 'static>(&self, url: Url) -> Paginate<T> {
+        Paginate::new(self, url)
     }
 
     async fn get_s3client(&self, loc: S3Location) -> Result<PrefixedS3Client, ZarrToS3Error> {
@@ -247,35 +236,26 @@ impl<'a> VersionEndpoint<'a> {
     pub(crate) fn get_root_children(
         &self,
     ) -> impl Stream<Item = Result<DandiResource, DandiError>> + '_ {
-        try_stream! {
-            let stream = self.get_entries_under_path(None);
-            tokio::pin!(stream);
-            while let Some(entry) = stream.try_next().await? {
+        self.get_entries_under_path(None)
+            .and_then(move |entry| async move {
                 match entry {
-                    FolderEntry::Folder(subf) => yield DandiResource::Folder(subf),
+                    FolderEntry::Folder(subf) => Ok(DandiResource::Folder(subf)),
                     FolderEntry::Asset { id, path } => match self.get_asset_by_id(&id).await {
-                        Ok(asset) => yield DandiResource::Asset(asset),
+                        Ok(asset) => Ok(DandiResource::Asset(asset)),
                         Err(DandiError::Http(HttpError::NotFound { .. })) => {
-                            Err(DandiError::DisappearingAsset { asset_id: id, path })?;
+                            Err(DandiError::DisappearingAsset { asset_id: id, path })
                         }
-                        Err(e) => Err(e)?,
+                        Err(e) => Err(e),
                     },
                 }
-            }
-        }
+            })
     }
 
-    fn get_folder_entries(
-        &self,
-        path: &AssetFolder,
-    ) -> impl Stream<Item = Result<FolderEntry, DandiError>> + '_ {
+    fn get_folder_entries(&self, path: &AssetFolder) -> Paginate<FolderEntry> {
         self.get_entries_under_path(Some(&path.path))
     }
 
-    fn get_entries_under_path(
-        &self,
-        path: Option<&PureDirPath>,
-    ) -> impl Stream<Item = Result<FolderEntry, DandiError>> + '_ {
+    fn get_entries_under_path(&self, path: Option<&PureDirPath>) -> Paginate<FolderEntry> {
         let mut url = self.client.get_url([
             "dandisets",
             self.dandiset_id.as_ref(),
@@ -304,8 +284,7 @@ impl<'a> VersionEndpoint<'a> {
             .append_pair("metadata", "1")
             .append_pair("order", "path");
         let dirpath = path.to_dir_path();
-        let stream = self.client.paginate::<RawAsset>(url.clone());
-        tokio::pin!(stream);
+        let mut stream = self.client.paginate::<RawAsset>(url.clone());
         while let Some(asset) = stream.try_next().await? {
             if &asset.path == path {
                 return Ok(AtAssetPath::Asset(asset.try_into_asset(self)?));
@@ -371,8 +350,7 @@ impl<'a> VersionEndpoint<'a> {
         match self.get_resource_with_s3(path).await? {
             DandiResourceWithS3::Folder(folder) => {
                 let mut children = Vec::new();
-                let stream = self.get_folder_entries(&folder);
-                tokio::pin!(stream);
+                let mut stream = self.get_folder_entries(&folder);
                 while let Some(child) = stream.try_next().await? {
                     let child = match child {
                         FolderEntry::Folder(subf) => DandiResource::Folder(subf),
@@ -391,25 +369,19 @@ impl<'a> VersionEndpoint<'a> {
             DandiResourceWithS3::Asset(Asset::Blob(r)) => Ok(DandiResourceWithChildren::Blob(r)),
             DandiResourceWithS3::Asset(Asset::Zarr(zarr)) => {
                 let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
-                let mut children = Vec::new();
-                {
-                    let stream = s3.get_root_entries();
-                    tokio::pin!(stream);
-                    while let Some(child) = stream.try_next().await? {
-                        children.push(zarr.make_resource(child));
-                    }
-                }
+                let children = s3
+                    .get_root_entries()
+                    .map_ok(|child| zarr.make_resource(child))
+                    .try_collect::<Vec<_>>()
+                    .await?;
                 Ok(DandiResourceWithChildren::Zarr { zarr, children })
             }
             DandiResourceWithS3::ZarrFolder { folder, s3 } => {
-                let mut children = Vec::new();
-                {
-                    let stream = s3.get_folder_entries(&folder.path);
-                    tokio::pin!(stream);
-                    while let Some(child) = stream.try_next().await? {
-                        children.push(folder.make_resource(child));
-                    }
-                }
+                let children = s3
+                    .get_folder_entries(&folder.path)
+                    .map_ok(|child| folder.make_resource(child))
+                    .try_collect::<Vec<_>>()
+                    .await?;
                 Ok(DandiResourceWithChildren::ZarrFolder { folder, children })
             }
             DandiResourceWithS3::ZarrEntry(r) => Ok(DandiResourceWithChildren::ZarrEntry(r)),

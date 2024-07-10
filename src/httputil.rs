@@ -3,6 +3,7 @@ use reqwest::{Method, Request, Response, StatusCode};
 use reqwest_middleware::{Middleware, Next};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::de::DeserializeOwned;
+use std::future::Future;
 use thiserror::Error;
 use tracing::Instrument;
 use url::Url;
@@ -53,12 +54,23 @@ impl Client {
         self.request(Method::GET, url).await
     }
 
-    pub(crate) async fn get_json<T: DeserializeOwned>(&self, url: Url) -> Result<T, HttpError> {
-        self.get(url.clone())
-            .await?
-            .json::<T>()
-            .await
-            .map_err(move |source| HttpError::Deserialize { url, source })
+    pub(crate) fn get_json<T: DeserializeOwned>(
+        &self,
+        url: Url,
+    ) -> impl Future<Output = Result<T, HttpError>> {
+        // Clone the client and move it into an async block (as opposed to just
+        // writing a "normal" async function) so that the resulting Future will
+        // be 'static rather than retaining a reference to &self, thereby
+        // facilitating the Future's use by the Paginate stream.
+        let client = self.clone();
+        async move {
+            client
+                .get(url.clone())
+                .await?
+                .json::<T>()
+                .await
+                .map_err(move |source| HttpError::Deserialize { url, source })
+        }
     }
 }
 

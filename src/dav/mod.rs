@@ -43,8 +43,7 @@ impl DandiDav {
         &self,
         req: Request<Body>,
     ) -> Result<Response<Body>, Infallible> {
-        // Box large future:
-        let resp = match Box::pin(self.inner_handle_request(req)).await {
+        let resp = match self.inner_handle_request(req).await {
             Ok(r) => r,
             Err(e) if e.is_404() => {
                 let e = anyhow::Error::from(e);
@@ -246,12 +245,12 @@ impl DandiDav {
             DavPath::Root => Ok(DavResourceWithChildren::root()),
             DavPath::DandisetIndex => {
                 let col = DavCollection::dandiset_index();
-                let mut children = Vec::new();
-                let stream = self.dandi.get_all_dandisets();
-                tokio::pin!(stream);
-                while let Some(ds) = stream.try_next().await? {
-                    children.push(DavResource::Collection(ds.into()));
-                }
+                let children = self
+                    .dandi
+                    .get_all_dandisets()
+                    .map_ok(|ds| DavResource::Collection(ds.into()))
+                    .try_collect::<Vec<_>>()
+                    .await?;
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
             DavPath::Dandiset { dandiset_id } => {
@@ -282,8 +281,7 @@ impl DandiDav {
                 let col = DavCollection::dandiset_releases(dandiset_id);
                 let mut children = Vec::new();
                 let endpoint = self.dandi.dandiset(dandiset_id.clone());
-                let stream = endpoint.get_all_versions();
-                tokio::pin!(stream);
+                let mut stream = endpoint.get_all_versions();
                 while let Some(v) = stream.try_next().await? {
                     if let VersionId::Published(ref pvid) = v.version {
                         let path = version_path(dandiset_id, &VersionSpec::Published(pvid.clone()));
@@ -299,12 +297,11 @@ impl DandiDav {
                 version,
             } => {
                 let (col, endpoint) = self.get_dandiset_version(dandiset_id, version).await?;
-                let mut children = Vec::new();
-                let stream = endpoint.get_root_children();
-                tokio::pin!(stream);
-                while let Some(res) = stream.try_next().await? {
-                    children.push(DavResource::from(res).under_version_path(dandiset_id, version));
-                }
+                let mut children = endpoint
+                    .get_root_children()
+                    .map_ok(|res| DavResource::from(res).under_version_path(dandiset_id, version))
+                    .try_collect::<Vec<_>>()
+                    .await?;
                 children.push(
                     self.get_dandiset_yaml(dandiset_id, version)
                         .await

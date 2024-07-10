@@ -1,17 +1,22 @@
+mod streams;
+use self::streams::ListEntryPages;
 use crate::httputil::{self, BuildClientError, HttpError};
 use crate::paths::{ParsePureDirPathError, ParsePurePathError, PureDirPath, PurePath};
+use crate::streamutil::TryStreamUtil;
 use crate::validstr::TryFromStringError;
-use async_stream::try_stream;
 use aws_sdk_s3::{operation::list_objects_v2::ListObjectsV2Error, types::CommonPrefix, Client};
 use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkError};
 use aws_smithy_types_convert::date_time::DateTimeExt;
 use futures_util::{Stream, TryStreamExt};
 use smartstring::alias::CompactString;
+use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::sync::Arc;
 use thiserror::Error;
 use time::OffsetDateTime;
 use url::{Host, Url};
+
+type ListObjectsError = SdkError<ListObjectsV2Error, HttpResponse>;
 
 #[derive(Clone, Debug)]
 pub(crate) struct S3Client {
@@ -20,7 +25,7 @@ pub(crate) struct S3Client {
 }
 
 impl S3Client {
-    pub(crate) async fn new(bucket: CompactString, region: String) -> S3Client {
+    async fn new(bucket: CompactString, region: String) -> S3Client {
         let config = aws_config::from_env()
             .app_name(
                 aws_config::AppName::new("dandidav")
@@ -42,77 +47,24 @@ impl S3Client {
     }
 
     // `key_prefix` may or may not end with `/`; it is used as-is
-    fn list_entry_pages<'a>(
-        &'a self,
-        key_prefix: &'a str,
-    ) -> impl Stream<Item = Result<S3EntryPage, S3Error>> + 'a {
-        try_stream! {
-            let mut stream = self.inner
-                .list_objects_v2()
-                .bucket(&*self.bucket)
-                .prefix(key_prefix)
-                .delimiter("/")
-                .into_paginator()
-                .send();
-            while let Some(r) = stream.next().await {
-                let page = match r {
-                    Ok(page) => page,
-                    Err(source) => Err(
-                        S3Error::ListObjects {
-                            bucket: self.bucket.clone(),
-                            prefix: key_prefix.to_owned(),
-                            source,
-                        }
-                    )?,
-                };
-                let objects = page
-                    .contents
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|obj| S3Object::try_from_aws_object(obj, &self.bucket))
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|source| S3Error::BadObject {
-                        bucket: self.bucket.clone(),
-                        prefix: key_prefix.to_owned(),
-                        source,
-                    })?;
-                let folders = page.common_prefixes
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(S3Folder::try_from)
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|source| S3Error::BadPrefix {
-                        bucket: self.bucket.clone(),
-                        prefix: key_prefix.to_owned(),
-                        source,
-                    })?;
-                yield S3EntryPage {folders, objects};
-            }
-        }
+    fn list_entry_pages<S: Into<String>>(&self, key_prefix: S) -> ListEntryPages {
+        ListEntryPages::new(self, key_prefix)
     }
 
-    pub(crate) fn get_folder_entries<'a>(
-        &'a self,
-        key_prefix: &'a PureDirPath,
-    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + 'a {
-        try_stream! {
-            let stream = self.list_entry_pages(key_prefix.as_ref());
-            tokio::pin!(stream);
-            while let Some(page) = stream.try_next().await? {
-                for entry in page {
-                    yield entry;
-                }
-            }
-        }
+    fn get_folder_entries<P: Borrow<PureDirPath>>(
+        &self,
+        key_prefix: P,
+    ) -> impl Stream<Item = Result<S3Entry, S3Error>> {
+        self.list_entry_pages(key_prefix.borrow())
+            .try_flat_iter_map(|page| page)
     }
 
     // Returns `None` if nothing found at path
-    pub(crate) async fn get_path(&self, path: &PurePath) -> Result<Option<S3Entry>, S3Error> {
+    async fn get_path(&self, path: &PurePath) -> Result<Option<S3Entry>, S3Error> {
         let mut surpassed_objects = false;
         let mut surpassed_folders = false;
         let folder_cutoff = format!("{path}/");
-        let stream = self.list_entry_pages(path);
-        tokio::pin!(stream);
+        let mut stream = self.list_entry_pages(path);
         while let Some(page) = stream.try_next().await? {
             if !surpassed_objects {
                 for obj in page.objects {
@@ -156,33 +108,21 @@ pub(crate) struct PrefixedS3Client {
 
 impl PrefixedS3Client {
     pub(crate) fn get_root_entries(&self) -> impl Stream<Item = Result<S3Entry, S3Error>> + '_ {
-        let stream = self.inner.get_folder_entries(&self.prefix);
-        try_stream! {
-            tokio::pin!(stream);
-            while let Some(entry) = stream.try_next().await? {
-                if let Some(entry) = entry.relative_to(&self.prefix) {
-                    yield entry;
-                }
-                // TODO: Else: Error? Warn?
-            }
-        }
+        self.inner
+            .get_folder_entries(&self.prefix)
+            .try_flat_iter_map(|entry| entry.relative_to(&self.prefix))
+        // TODO: Do something when relative_to() fails (Error? Warn?)
     }
 
-    pub(crate) fn get_folder_entries<'a>(
-        &'a self,
-        dirpath: &'a PureDirPath,
-    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + 'a {
-        try_stream! {
-            let key_prefix = self.prefix.join_dir(dirpath);
-            let stream = self.inner.get_folder_entries(&key_prefix);
-            tokio::pin!(stream);
-            while let Some(entry) = stream.try_next().await? {
-                if let Some(entry) = entry.relative_to(&self.prefix) {
-                    yield entry;
-                }
-                // TODO: Else: Error? Warn?
-            }
-        }
+    pub(crate) fn get_folder_entries(
+        &self,
+        dirpath: &PureDirPath,
+    ) -> impl Stream<Item = Result<S3Entry, S3Error>> + '_ {
+        let key_prefix = self.prefix.join_dir(dirpath);
+        self.inner
+            .get_folder_entries(key_prefix)
+            .try_flat_iter_map(|entry| entry.relative_to(&self.prefix))
+        // TODO: Do something when relative_to() fails (Error? Warn?)
     }
 
     // Returns `None` if nothing found at path
@@ -431,7 +371,7 @@ pub(crate) enum S3Error {
     ListObjects {
         bucket: CompactString,
         prefix: String,
-        source: SdkError<ListObjectsV2Error, HttpResponse>,
+        source: ListObjectsError,
     },
     #[error("invalid object found in S3 bucket {bucket:?} under prefix {prefix:?}")]
     BadObject {

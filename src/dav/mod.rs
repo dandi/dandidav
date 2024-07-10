@@ -12,6 +12,7 @@ use self::xml::*;
 use crate::consts::{DAV_XML_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
 use crate::paths::Component;
+use crate::paths::PurePath;
 use crate::zarrman::*;
 use axum::{
     body::Body,
@@ -145,44 +146,29 @@ impl DandiDav {
             .into_response())
     }
 
-    async fn get_version_endpoint(
-        &self,
-        dandiset_id: &DandisetId,
-        version: &VersionSpec,
-    ) -> Result<VersionEndpoint<'_>, DavError> {
+    async fn get_version_handler<'a>(
+        &'a self,
+        dandiset_id: &'a DandisetId,
+        version_spec: &'a VersionSpec,
+    ) -> Result<VersionHandler<'a>, DavError> {
         let d = self.dandi.dandiset(dandiset_id.clone());
-        match version {
-            VersionSpec::Draft => Ok(d.version(VersionId::Draft)),
-            VersionSpec::Published(v) => Ok(d.version(VersionId::Published(v.clone()))),
+        let endpoint = match version_spec {
+            VersionSpec::Draft => d.version(VersionId::Draft),
+            VersionSpec::Published(v) => d.version(VersionId::Published(v.clone())),
             VersionSpec::Latest => match d.get().await?.most_recent_published_version {
-                Some(DandisetVersion { version, .. }) => Ok(d.version(version)),
-                None => Err(DavError::NoLatestVersion {
-                    dandiset_id: dandiset_id.clone(),
-                }),
+                Some(DandisetVersion { version, .. }) => d.version(version),
+                None => {
+                    return Err(DavError::NoLatestVersion {
+                        dandiset_id: dandiset_id.clone(),
+                    })
+                }
             },
-        }
-    }
-
-    async fn get_dandiset_yaml(
-        &self,
-        dandiset_id: &DandisetId,
-        version: &VersionSpec,
-        endpoint: &VersionEndpoint<'_>,
-    ) -> Result<DavItem, DavError> {
-        let md = endpoint.get_metadata().await?;
-        Ok(DavItem::from(md).under_version_path(dandiset_id, version))
-    }
-
-    async fn get_dandiset_version(
-        &self,
-        dandiset_id: &DandisetId,
-        version: &VersionSpec,
-    ) -> Result<(DavCollection, VersionEndpoint<'_>), DavError> {
-        let endpoint = self.get_version_endpoint(dandiset_id, version).await?;
-        let v = endpoint.get().await?;
-        let path = version_path(dandiset_id, version);
-        let col = DavCollection::dandiset_version(v, path);
-        Ok((col, endpoint))
+        };
+        Ok(VersionHandler {
+            dandiset_id,
+            version_spec,
+            endpoint,
+        })
     }
 
     async fn resolve(&self, path: &DavPath) -> Result<DavResource, DavError> {
@@ -204,18 +190,18 @@ impl DandiDav {
                 dandiset_id,
                 version,
             } => self
-                .get_dandiset_version(dandiset_id, version)
+                .get_version_handler(dandiset_id, version)
+                .await?
+                .get()
                 .await
-                .map(|(col, _)| DavResource::Collection(col)),
+                .map(DavResource::Collection),
             DavPath::DandisetYaml {
                 dandiset_id,
                 version,
             } => self
-                .get_dandiset_yaml(
-                    dandiset_id,
-                    version,
-                    &self.get_version_endpoint(dandiset_id, version).await?,
-                )
+                .get_version_handler(dandiset_id, version)
+                .await?
+                .get_dandiset_yaml()
                 .await
                 .map(DavResource::Item),
             DavPath::DandiResource {
@@ -223,12 +209,10 @@ impl DandiDav {
                 version,
                 path,
             } => {
-                let res = self
-                    .get_version_endpoint(dandiset_id, version)
+                self.get_version_handler(dandiset_id, version)
                     .await?
                     .get_resource(path)
-                    .await?;
-                Ok(DavResource::from(res).under_version_path(dandiset_id, version))
+                    .await
             }
             DavPath::ZarrIndex => Ok(DavResource::Collection(DavCollection::zarr_index())),
             DavPath::ZarrPath { path } => {
@@ -297,28 +281,19 @@ impl DandiDav {
                 dandiset_id,
                 version,
             } => {
-                let (col, endpoint) = self.get_dandiset_version(dandiset_id, version).await?;
-                let mut children = endpoint
-                    .get_root_children()
-                    .map_ok(|res| DavResource::from(res).under_version_path(dandiset_id, version))
-                    .try_collect::<Vec<_>>()
-                    .await?;
-                children.push(
-                    self.get_dandiset_yaml(dandiset_id, version, &endpoint)
-                        .await
-                        .map(DavResource::Item)?,
-                );
+                let handler = self.get_version_handler(dandiset_id, version).await?;
+                let col = handler.get().await?;
+                let mut children = handler.get_root_children().await?;
+                children.push(handler.get_dandiset_yaml().await.map(DavResource::Item)?);
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
             DavPath::DandisetYaml {
                 dandiset_id,
                 version,
             } => self
-                .get_dandiset_yaml(
-                    dandiset_id,
-                    version,
-                    &self.get_version_endpoint(dandiset_id, version).await?,
-                )
+                .get_version_handler(dandiset_id, version)
+                .await?
+                .get_dandiset_yaml()
                 .await
                 .map(DavResourceWithChildren::Item),
             DavPath::DandiResource {
@@ -326,12 +301,10 @@ impl DandiDav {
                 version,
                 path,
             } => {
-                let res = self
-                    .get_version_endpoint(dandiset_id, version)
+                self.get_version_handler(dandiset_id, version)
                     .await?
                     .get_resource_with_children(path)
-                    .await?;
-                Ok(DavResourceWithChildren::from(res).under_version_path(dandiset_id, version))
+                    .await
             }
             DavPath::ZarrIndex => {
                 let col = DavCollection::zarr_index();
@@ -349,6 +322,50 @@ impl DandiDav {
                 Ok(DavResourceWithChildren::from(res))
             }
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct VersionHandler<'a> {
+    dandiset_id: &'a DandisetId,
+    version_spec: &'a VersionSpec,
+    endpoint: VersionEndpoint<'a>,
+}
+
+impl VersionHandler<'_> {
+    async fn get(&self) -> Result<DavCollection, DavError> {
+        let v = self.endpoint.get().await?;
+        let path = version_path(self.dandiset_id, self.version_spec);
+        Ok(DavCollection::dandiset_version(v, path))
+    }
+
+    async fn get_root_children(&self) -> Result<Vec<DavResource>, DandiError> {
+        self.endpoint
+            .get_root_children()
+            .map_ok(|res| {
+                DavResource::from(res).under_version_path(self.dandiset_id, self.version_spec)
+            })
+            .try_collect::<Vec<_>>()
+            .await
+    }
+
+    async fn get_dandiset_yaml(&self) -> Result<DavItem, DavError> {
+        let md = self.endpoint.get_metadata().await?;
+        Ok(DavItem::from(md).under_version_path(self.dandiset_id, self.version_spec))
+    }
+
+    async fn get_resource(&self, path: &PurePath) -> Result<DavResource, DavError> {
+        let res = self.endpoint.get_resource(path).await?;
+        Ok(DavResource::from(res).under_version_path(self.dandiset_id, self.version_spec))
+    }
+
+    async fn get_resource_with_children(
+        &self,
+        path: &PurePath,
+    ) -> Result<DavResourceWithChildren, DavError> {
+        let res = self.endpoint.get_resource_with_children(path).await?;
+        Ok(DavResourceWithChildren::from(res)
+            .under_version_path(self.dandiset_id, self.version_spec))
     }
 }
 

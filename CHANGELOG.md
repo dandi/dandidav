@@ -1,3 +1,7 @@
+In Development
+--------------
+- Reduced the sizes of a number of streams & futures
+
 v0.4.0 (2024-07-09)
 -------------------
 - Set `Access-Control-Allow-Origin: *` header in all responses

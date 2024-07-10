@@ -43,8 +43,7 @@ impl DandiDav {
         &self,
         req: Request<Body>,
     ) -> Result<Response<Body>, Infallible> {
-        // Box large future:
-        let resp = match Box::pin(self.inner_handle_request(req)).await {
+        let resp = match self.inner_handle_request(req).await {
             Ok(r) => r,
             Err(e) if e.is_404() => {
                 let e = anyhow::Error::from(e);

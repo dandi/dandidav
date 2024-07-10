@@ -255,17 +255,11 @@ impl<'a> VersionEndpoint<'a> {
         }
     }
 
-    fn get_folder_entries(
-        &self,
-        path: &AssetFolder,
-    ) -> impl Stream<Item = Result<FolderEntry, DandiError>> + '_ {
+    fn get_folder_entries(&self, path: &AssetFolder) -> Paginate<FolderEntry> {
         self.get_entries_under_path(Some(&path.path))
     }
 
-    fn get_entries_under_path(
-        &self,
-        path: Option<&PureDirPath>,
-    ) -> impl Stream<Item = Result<FolderEntry, DandiError>> + '_ {
+    fn get_entries_under_path(&self, path: Option<&PureDirPath>) -> Paginate<FolderEntry> {
         let mut url = self.client.get_url([
             "dandisets",
             self.dandiset_id.as_ref(),

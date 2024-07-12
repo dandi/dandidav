@@ -65,11 +65,15 @@ impl DandiClient {
             key.push('/');
         }
         let prefix = PureDirPath::try_from(key).map_err(ZarrToS3Error::BadS3Key)?;
-        // Box large future:
-        match Box::pin(self.s3clients.try_get_with_by_ref(&bucket_spec, async {
-            bucket_spec.clone().into_s3client().await.map(Arc::new)
-        }))
-        .await
+        // Box the future passed to moka in order to minimize the size of the
+        // moka future (cf. <https://github.com/moka-rs/moka/issues/212>):
+        match self
+            .s3clients
+            .try_get_with_by_ref(
+                &bucket_spec,
+                Box::pin(async { bucket_spec.clone().into_s3client().await.map(Arc::new) }),
+            )
+            .await
         {
             Ok(client) => Ok(client.with_prefix(prefix)),
             Err(source) => Err(ZarrToS3Error::LocateBucket {

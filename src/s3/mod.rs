@@ -1,3 +1,4 @@
+//! Facilities for retrieving information from an S3 bucket
 mod streams;
 use self::streams::ListEntryPages;
 use crate::httputil::{self, BuildClientError, HttpError};

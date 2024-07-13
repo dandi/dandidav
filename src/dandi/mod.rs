@@ -1,3 +1,4 @@
+//! The implementation of the data source for the `/dandisets/` hierarchy
 mod dandiset_id;
 mod streams;
 mod types;

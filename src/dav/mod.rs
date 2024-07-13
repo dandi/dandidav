@@ -1,3 +1,4 @@
+//! The WebDAV component of `dandidav`
 mod html;
 mod path;
 mod types;

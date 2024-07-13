@@ -1,3 +1,4 @@
+//! Path types with restricted formats
 mod component;
 mod dirpath;
 mod purepath;

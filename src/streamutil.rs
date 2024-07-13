@@ -1,8 +1,10 @@
+//! Extensions for stream types
 use futures_util::{Stream, TryStream};
 use pin_project_lite::pin_project;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 
+/// Extension methods for [`futures_util::TryStream`]
 pub(crate) trait TryStreamUtil: TryStream {
     /// Wraps the current stream in a new stream that maps the success values
     /// through `f` to produce an iterator; the success values of the new
@@ -21,6 +23,7 @@ pub(crate) trait TryStreamUtil: TryStream {
 impl<S: TryStream> TryStreamUtil for S {}
 
 pin_project! {
+    /// Return type of [`TryStreamUtil::try_flat_iter_map()`]
     #[derive(Clone, Debug)]
     #[must_use = "streams do nothing unless polled"]
     pub(crate) struct TryFlatIterMap<S, I: IntoIterator, F> {
@@ -32,6 +35,7 @@ pin_project! {
 }
 
 impl<S, I: IntoIterator, F> TryFlatIterMap<S, I, F> {
+    /// Construct a `TryFlatIterMap` for a call to `inner.try_flat_iter_map(f)`
     fn new(inner: S, f: F) -> Self {
         TryFlatIterMap {
             inner,

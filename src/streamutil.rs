@@ -4,6 +4,10 @@ use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 
 pub(crate) trait TryStreamUtil: TryStream {
+    /// Wraps the current stream in a new stream that maps the success values
+    /// through `f` to produce an iterator; the success values of the new
+    /// stream will then be the elements of the concatenation of those
+    /// iterators.
     fn try_flat_iter_map<I, F>(self, f: F) -> TryFlatIterMap<Self, I, F>
     where
         F: FnMut(Self::Ok) -> I,
@@ -61,5 +65,29 @@ where
                 None => return None.into(),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures_util::TryStreamExt;
+
+    #[tokio::test]
+    async fn test_try_flat_iter_map() {
+        let mut stream = futures_util::stream::iter(vec![Ok(5), Ok(2), Err(42), Ok(3)])
+            .try_flat_iter_map(|x| 0..x);
+        assert_eq!(stream.try_next().await, Ok(Some(0)));
+        assert_eq!(stream.try_next().await, Ok(Some(1)));
+        assert_eq!(stream.try_next().await, Ok(Some(2)));
+        assert_eq!(stream.try_next().await, Ok(Some(3)));
+        assert_eq!(stream.try_next().await, Ok(Some(4)));
+        assert_eq!(stream.try_next().await, Ok(Some(0)));
+        assert_eq!(stream.try_next().await, Ok(Some(1)));
+        assert_eq!(stream.try_next().await, Err(42));
+        assert_eq!(stream.try_next().await, Ok(Some(0)));
+        assert_eq!(stream.try_next().await, Ok(Some(1)));
+        assert_eq!(stream.try_next().await, Ok(Some(2)));
+        assert_eq!(stream.try_next().await, Ok(None));
     }
 }

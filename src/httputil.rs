@@ -120,6 +120,17 @@ pub(crate) enum HttpError {
     Deserialize { url: Url, source: reqwest::Error },
 }
 
+/// Create a URL by extending `url`'s path with the path segments `segments`.
+/// The resulting URL will not end with a slash (but see
+/// [`urljoin_slashed()`]).
+///
+/// If `url` does not end with a forward slash, one will be appended, and then
+/// the segments will be added after that.
+///
+/// # Panics
+///
+/// Panics if `url` cannot be a base URL.  (Note that HTTP(S) URLs can be base
+/// URLs.)
 pub(crate) fn urljoin<I>(url: &Url, segments: I) -> Url
 where
     I: IntoIterator,
@@ -133,6 +144,16 @@ where
     url
 }
 
+/// Create a URL by extending `url`'s path with the path segments `segments`
+/// and then terminating the result with a forward slash.
+///
+/// If `url` does not end with a forward slash, one will be appended, and then
+/// the segments will be added after that.
+///
+/// # Panics
+///
+/// Panics if `url` cannot be a base URL.  (Note that HTTP(S) URLs can be base
+/// URLs.)
 pub(crate) fn urljoin_slashed<I>(url: &Url, segments: I) -> Url
 where
     I: IntoIterator,

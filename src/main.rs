@@ -140,6 +140,8 @@ async fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Handle `HEAD` requests by converting them to `GET` requests and discarding
+/// the resulting response body
 async fn handle_head(method: Method, mut request: Request<Body>, next: Next) -> Response<Body> {
     if method == Method::HEAD {
         *request.method_mut() = Method::GET;

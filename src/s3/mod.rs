@@ -160,6 +160,18 @@ pub(crate) struct S3Location {
 }
 
 impl S3Location {
+    /// Parse an S3 URL into an `S3Location`.  The URL must have a scheme of
+    /// "http" or "https" and have a domain in one of the following formats:
+    ///
+    /// - `{bucket}.s3.{region}.amazonaws.com`
+    /// - `{bucket}.s3-{region}.amazonaws.com`
+    /// - `{bucket}.s3.amazonaws.com`
+    ///
+    /// The bucket and optional region are extracted from the domain and used
+    /// to construct the `bucket_spec` field of the resulting `S3Location`.
+    ///
+    /// The path component of the URL has its leading forward slash (if any)
+    /// stripped and is then percent-decoded to produce the `key` field.
     pub(crate) fn parse_url(url: &Url) -> Result<S3Location, S3UrlError> {
         // cf. <https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html>
         if !matches!(url.scheme(), "http" | "https") {

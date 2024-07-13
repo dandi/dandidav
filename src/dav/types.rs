@@ -133,6 +133,18 @@ impl DavResourceWithChildren {
             }
         }
     }
+
+    pub(super) fn into_vec(self) -> Vec<DavResource> {
+        match self {
+            DavResourceWithChildren::Collection { col, children } => {
+                let mut vec = Vec::with_capacity(children.len().saturating_add(1));
+                vec.push(DavResource::from(col));
+                vec.extend(children);
+                vec
+            }
+            DavResourceWithChildren::Item(item) => vec![DavResource::Item(item)],
+        }
+    }
 }
 
 impl From<DavItem> for DavResourceWithChildren {

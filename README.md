@@ -47,9 +47,16 @@ Features
 
 - Hierarchies served:
 
-    - `/dandisets/`: A view of Dandisets & assets (including Zarr entries, and
-      including version metadata as virtual `dandiset.yaml` files) in Dandi
-      Archive, retrieved via the Dandi Archive and S3 APIs
+    - `/dandisets/`: A view of Dandisets & assets in Dandi Archive, retrieved
+      via the Dandi Archive and S3 APIs
+
+        - Dandiset versions include a `dandiset.yaml` file as a top-level
+          resource.
+
+        - Zarr assets are represented as collections of their entries.
+
+        - HTML views of collections include links to version & asset metadata
+          on the API server.
 
     - `/zarrs/`: A view of all Zarrs in the Dandi Archive at various points in
       time, as recorded by/at <https://github.com/dandi/zarr-manifests>

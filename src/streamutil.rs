@@ -1,6 +1,6 @@
 //! Extensions for stream types
 use futures_util::{Stream, TryStream};
-use pin_project_lite::pin_project;
+use pin_project::pin_project;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 
@@ -22,16 +22,23 @@ pub(crate) trait TryStreamUtil: TryStream {
 
 impl<S: TryStream> TryStreamUtil for S {}
 
-pin_project! {
-    /// Return type of [`TryStreamUtil::try_flat_iter_map()`]
-    #[derive(Clone, Debug)]
-    #[must_use = "streams do nothing unless polled"]
-    pub(crate) struct TryFlatIterMap<S, I: IntoIterator, F> {
-        #[pin]
-        inner: S,
-        f: F,
-        iter: Option<I::IntoIter>,
-    }
+/// Return type of [`TryStreamUtil::try_flat_iter_map()`]
+#[derive(Clone, Debug)]
+// We need to use pin_project instead of pin_project_lite because the latter
+// doesn't seem to support comments on fields.
+#[pin_project]
+#[must_use = "streams do nothing unless polled"]
+pub(crate) struct TryFlatIterMap<S, I: IntoIterator, F> {
+    /// The stream that `try_flat_iter_map()` was called on
+    #[pin]
+    inner: S,
+
+    /// The function passed to `try_flat_iter_map()`
+    f: F,
+
+    /// The iterator produced by the current success element of `inner`, if any
+    /// and if not yet exhausted
+    iter: Option<I::IntoIter>,
 }
 
 impl<S, I: IntoIterator, F> TryFlatIterMap<S, I, F> {

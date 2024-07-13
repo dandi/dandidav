@@ -2,21 +2,19 @@ use super::types::Page;
 use super::{DandiClient, DandiError};
 use crate::httputil::{Client, HttpError};
 use futures_util::{future::BoxFuture, FutureExt, Stream};
-use pin_project_lite::pin_project;
+use pin_project::pin_project;
 use serde::de::DeserializeOwned;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 use url::Url;
 
-pin_project! {
-    // Implementing paginate() as a manually-implemented Stream instead of via
-    // async_stream lets us save about 4700 bytes on dandidav's top-level
-    // Futures.
-    #[must_use = "streams do nothing unless polled"]
-    pub(super) struct Paginate<T> {
-        client: Client,
-        state: PaginateState<T>,
-    }
+// Implementing paginate() as a manually-implemented Stream instead of via
+// async_stream lets us save about 4700 bytes on dandidav's top-level Futures.
+#[pin_project]
+#[must_use = "streams do nothing unless polled"]
+pub(super) struct Paginate<T> {
+    client: Client,
+    state: PaginateState<T>,
 }
 
 enum PaginateState<T> {

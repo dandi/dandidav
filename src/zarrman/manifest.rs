@@ -4,12 +4,16 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use time::OffsetDateTime;
 
+/// A parsed Zarr manifest
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub(super) struct Manifest {
+    /// A tree of the Zarr's entries
     pub(super) entries: ManifestFolder,
 }
 
 impl Manifest {
+    /// Retrieve a reference to the folder or entry in the manifest at `path`,
+    /// if any
     pub(super) fn get(&self, path: &PurePath) -> Option<EntryRef<'_>> {
         let mut folder = &self.entries;
         for (pos, p) in path.components().with_position() {
@@ -31,6 +35,8 @@ pub(super) enum EntryRef<'a> {
     Entry(&'a ManifestEntry),
 }
 
+/// A representation of a folder within a Zarr manifest: a mapping from entry &
+/// subdirectory names to the entries & subdirectories
 pub(super) type ManifestFolder = BTreeMap<Component, FolderEntry>;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
@@ -40,14 +46,23 @@ pub(super) enum FolderEntry {
     Entry(ManifestEntry),
 }
 
+/// Information on a Zarr entry in a manifest as of the point in time
+/// represented by the manifest
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub(super) struct ManifestEntry {
-    // Keep these fields in this order so that deserialization will work
-    // properly!
+    // IMPORTANT: Keep these fields in this order so that deserialization will
+    // work properly!
+    /// The S3 version ID of the entry's S3 object
     pub(super) version_id: String,
+
+    /// The entry's S3 object's modification time
     #[serde(with = "time::serde::rfc3339")]
     pub(super) modified: OffsetDateTime,
+
+    /// The size of the entry in bytes
     pub(super) size: i64,
+
+    /// The ETag of the entry's S3 object
     pub(super) etag: String,
 }
 

@@ -1,17 +1,32 @@
 use super::resources::ManifestPath;
 use crate::paths::{PureDirPath, PurePath};
 
+/// A parsed representation of a path under the `/zarrs/` hierarchy
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum ReqPath {
+    /// A directory path between the manifest root and the Zarr manifests.  The
+    /// path will have one of the following formats:
+    ///
+    /// - `{prefix1}/`
+    /// - `{prefix1}/{prefix2}/`
+    /// - `{prefix1}/{prefix2}/{zarr_id}/`
     Dir(PureDirPath),
+
+    /// A path to a manifest file
     Manifest(ManifestPath),
+
+    /// A path beneath a manifest file, i.e., inside a Zarr
     InManifest {
+        /// The path to the manifest file
         manifest_path: ManifestPath,
+        /// The portion of the path within the Zarr
         entry_path: PurePath,
     },
 }
 
 impl ReqPath {
+    /// Parse a path (sans leading `zarrs/`) to a resource in the `/zarrs/`
+    /// hierarchy into a `ReqPath`.  Returns `None` if the path is invalid.
     pub(super) fn parse_path(path: &PurePath) -> Option<ReqPath> {
         let mut components = path.components();
         let Some(c1) = components.next() else {

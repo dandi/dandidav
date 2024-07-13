@@ -133,8 +133,9 @@ impl DandiDav {
     ) -> Result<Response<Body>, DavError> {
         match self.get_resource_with_children(path).await? {
             DavResourceWithChildren::Collection { children, .. } => {
-                let context = CollectionContext::new(children, &self.title, pathparts);
-                let html = self.templater.render_collection(context)?;
+                let html = self
+                    .templater
+                    .render_collection(children, &self.title, pathparts)?;
                 Ok(([(CONTENT_TYPE, HTML_CONTENT_TYPE)], html).into_response())
             }
             DavResourceWithChildren::Item(DavItem {

@@ -1,3 +1,4 @@
+//! Rendering resource listings as HTML documents
 use super::util::Href;
 use super::{DavCollection, DavItem, DavResource, ResourceKind};
 use crate::consts::HTML_TIMESTAMP_FORMAT;
@@ -9,58 +10,89 @@ use tera::{Context, Error, Filter, Tera, Value};
 use thiserror::Error;
 use time::OffsetDateTime;
 
+/// The [Tera](https://keats.github.io/tera/) template for HTML collection
+/// views
 static COLLECTION_TEMPLATE: &str = include_str!("templates/collection.html.tera");
 
+/// A template manager
 pub(crate) struct Templater(Tera);
 
 impl Templater {
+    /// Create a new templater and load all templates into it
+    ///
+    /// # Errors
+    ///
+    /// If any template fails to load, a [`TemplateError::Load`] is returned.
     pub(crate) fn load() -> Result<Self, TemplateError> {
         let mut engine = Tera::default();
         engine.register_filter("formatsize", FormatSizeFilter);
         engine
             .add_raw_template("collection.html", COLLECTION_TEMPLATE)
             .map_err(|source| TemplateError::Load {
-                path: "collection.html",
+                template_name: "collection.html",
                 source,
             })?;
         Ok(Templater(engine))
     }
 
+    /// Render an HTML document containing a table listing the resources in
+    /// `entries` using the site title `title`.  `pathparts` contains the
+    /// individual components of the request URL path.
     pub(super) fn render_collection(
+        &self,
+        entries: Vec<DavResource>,
+        title: &str,
+        pathparts: Vec<Component>,
+    ) -> Result<String, TemplateError> {
+        self.render_collection_from_context(CollectionContext::new(entries, title, pathparts))
+    }
+
+    fn render_collection_from_context(
         &self,
         context: CollectionContext,
     ) -> Result<String, TemplateError> {
         let context =
             Context::from_serialize(context).map_err(|source| TemplateError::MakeContext {
-                path: "collection.html",
+                template_name: "collection.html",
                 source,
             })?;
         self.0
             .render("collection.html", &context)
             .map_err(|source| TemplateError::Render {
-                path: "collection.html",
+                template_name: "collection.html",
                 source,
             })
     }
 }
 
+/// Context to provide to the `collection.html` template
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-pub(super) struct CollectionContext {
-    pub(super) title: String,
-    pub(super) breadcrumbs: Vec<Link>,
-    pub(super) rows: Vec<ColRow>,
-    pub(super) package_url: &'static str,
-    pub(super) package_version: &'static str,
+struct CollectionContext {
+    /// Page title
+    title: String,
+
+    /// Breadcrumb links
+    breadcrumbs: Vec<Link>,
+
+    /// Rows of the table
+    rows: Vec<ColRow>,
+
+    /// URL to link "dandidav" in the page's footer to
+    package_url: &'static str,
+
+    /// `dandidav` version
+    package_version: &'static str,
+
+    /// Current `dandidav` commit hash (if known)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) package_commit: Option<&'static str>,
+    package_commit: Option<&'static str>,
 }
 
 impl CollectionContext {
-    pub(super) fn new(
-        entries: Vec<DavResource>,
-        title: &str,
-        pathparts: Vec<Component>,
-    ) -> CollectionContext {
+    /// Construct the context for displaying the given `entries` using the site
+    /// title `title`.  `pathparts` contains the individual components of the
+    /// request URL path.
+    fn new(entries: Vec<DavResource>, title: &str, pathparts: Vec<Component>) -> CollectionContext {
         let mut rows = entries.into_iter().map(ColRow::from).collect::<Vec<_>>();
         rows.sort_unstable();
         if let Some((_, pp)) = pathparts.split_last() {
@@ -82,36 +114,59 @@ impl CollectionContext {
     }
 }
 
+/// A hyperlink to display in an HTML document
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-pub(super) struct Link {
-    name: String,
+struct Link {
+    /// The text of the link
+    text: String,
+
+    /// The value of the link's `href` attribute
     href: Href,
 }
 
+/// A row of a table listing the resources within a collection
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct ColRow {
+struct ColRow {
+    /// Resource basename
     name: String,
+
+    /// URL to link the resource to
     href: Href,
+
+    /// `true` iff the resource is a collection
     is_dir: bool,
+
+    /// Type of resource
     kind: ResourceKind,
+
+    /// The size of the resource
     #[serde(skip_serializing_if = "Option::is_none")]
     size: Option<i64>,
+
+    /// The timestamp at which the resource was created
     #[serde(
         skip_serializing_if = "Option::is_none",
         serialize_with = "maybe_timestamp"
     )]
     created: Option<OffsetDateTime>,
+
+    /// The timestamp at which the resource was last modified
     #[serde(
         skip_serializing_if = "Option::is_none",
         serialize_with = "maybe_timestamp"
     )]
     modified: Option<OffsetDateTime>,
+
+    /// A URL for retrieving the resource's associated metadata (if any) from
+    /// the Archive instance
     #[serde(skip_serializing_if = "Option::is_none")]
     metadata_url: Option<Href>,
 }
 
 impl ColRow {
-    pub(super) fn parentdir(href: Href) -> ColRow {
+    /// Construct a `ColRow` representing the parent of the current collection,
+    /// served at `href`
+    fn parentdir(href: Href) -> ColRow {
         ColRow {
             name: "..".to_owned(),
             href,
@@ -166,14 +221,30 @@ impl From<DavItem> for ColRow {
 
 #[derive(Debug, Error)]
 pub(crate) enum TemplateError {
-    #[error("failed to load template {path:?}")]
-    Load { path: &'static str, source: Error },
-    #[error("failed to create context for template {path:?}")]
-    MakeContext { path: &'static str, source: Error },
-    #[error("failed to render template {path:?}")]
-    Render { path: &'static str, source: Error },
+    /// Failed to load a template
+    #[error("failed to load template {template_name:?}")]
+    Load {
+        template_name: &'static str,
+        source: Error,
+    },
+
+    /// Failed to create context for a template
+    #[error("failed to create context for template {template_name:?}")]
+    MakeContext {
+        template_name: &'static str,
+        source: Error,
+    },
+
+    /// Failed to render a template
+    #[error("failed to render template {template_name:?}")]
+    Render {
+        template_name: &'static str,
+        source: Error,
+    },
 }
 
+/// If `ts` is non-`None`, format it and serialize the resulting string to
+/// `serializer`
 fn maybe_timestamp<S: Serializer>(
     ts: &Option<OffsetDateTime>,
     serializer: S,
@@ -190,24 +261,29 @@ fn maybe_timestamp<S: Serializer>(
     }
 }
 
+/// Create breadcrumbs for the given request URL path components.
+///
+/// `title` is the site title, for use as the text of the first breadcrumb.
 fn make_breadcrumbs(title: &str, pathparts: Vec<Component>) -> Vec<Link> {
     let mut links = Vec::with_capacity(pathparts.len().saturating_add(1));
     let mut cumpath = String::from("/");
     links.push(Link {
-        name: title.to_owned(),
+        text: title.to_owned(),
         href: Href::from_path(&cumpath),
     });
     for p in pathparts {
         cumpath.push_str(&p);
         cumpath.push('/');
         links.push(Link {
-            name: p.into(),
+            text: p.into(),
             href: Href::from_path(&cumpath),
         });
     }
     links
 }
 
+/// Given an iterator of `&Component` values, join them together with forward
+/// slashes and add a leading & trailing slash.
 fn abs_dir_from_components<'a, I>(iter: I) -> String
 where
     I: IntoIterator<Item = &'a Component>,
@@ -220,6 +296,10 @@ where
     s
 }
 
+/// A custom Tera filter for formatting file sizes.
+///
+/// Unlike the `filesizeformat` filter built into Tera, this filter uses binary
+/// units with unambiguous abbreviations, e.g., "10 KiB".
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 struct FormatSizeFilter;
 
@@ -236,6 +316,9 @@ impl Filter for FormatSizeFilter {
     }
 }
 
+/// Format a file size in binary units using unambiguous abbreviations.
+///
+/// This function is separate from `FormatSizeFilter` for testing purposes.
 fn formatsize(size: i64) -> String {
     format_size_i(size, BINARY)
 }
@@ -261,7 +344,7 @@ mod tests {
         assert_eq!(formatsize(size), s);
     }
 
-    mod render_collection {
+    mod render_collection_from_context {
         use super::*;
         use crate::dav::{DavContent, DavResourceWithChildren};
         use pretty_assertions::assert_eq;
@@ -347,7 +430,7 @@ mod tests {
                     "baz".parse().unwrap(),
                 ],
             );
-            let rendered = templater.render_collection(context).unwrap();
+            let rendered = templater.render_collection_from_context(context).unwrap();
             let commit_str = match option_env!("GIT_COMMIT") {
                 Some(s) => Cow::from(format!(", commit {s}")),
                 None => Cow::from(""),
@@ -375,7 +458,7 @@ mod tests {
                 panic!("DavResourceWithChildren::root() should be a Collection");
             };
             let context = CollectionContext::new(children, "Dandidav Test", Vec::new());
-            let rendered = templater.render_collection(context).unwrap();
+            let rendered = templater.render_collection_from_context(context).unwrap();
             let commit_str = match option_env!("GIT_COMMIT") {
                 Some(s) => Cow::from(format!(", commit {s}")),
                 None => Cow::from(""),

@@ -19,11 +19,16 @@ use time::{
     OffsetDateTime,
 };
 
+/// Timestamp format for display of the "getlastmodified" property in WebDAV
+/// XML documents
 static RFC1123: &[FormatItem<'_>] = format_description!(
     "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT"
 );
 
-// Selection of safe characters based on Python's `urllib.parse.quote()`
+/// ASCII bytes in "href" values to percent-encode
+///
+/// The character set is based on the behavior of Python's
+/// `urllib.parse.quote()`
 static PERCENT_ESCAPED: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'-')
     .remove(b'.')
@@ -31,6 +36,8 @@ static PERCENT_ESCAPED: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'_')
     .remove(b'~');
 
+/// Response body to return in reply to `PROPFIND` requests with missing or
+/// "infinite" `Depth` headers
 static INFINITE_DEPTH_RESPONSE: &str = indoc! {r#"
 <?xml version="1.0" encoding="utf-8"?>
 <error xmlns="DAV:">
@@ -38,6 +45,14 @@ static INFINITE_DEPTH_RESPONSE: &str = indoc! {r#"
 </error>
 "#};
 
+/// Return the path at which `dandidav` serves the given Dandiset & version
+/// under `/dandisets/`.
+///
+/// The returned value will have one of the following formats:
+///
+/// - `dandiset/{dandiset_id}/draft/`
+/// - `dandiset/{dandiset_id}/latest/`
+/// - `dandiset/{dandiset_id}/releases/{version_id}/`
 pub(super) fn version_path(dandiset_id: &DandisetId, version: &VersionSpec) -> PureDirPath {
     fn writer(s: &mut String, dandiset_id: &DandisetId, version: &VersionSpec) -> fmt::Result {
         write!(s, "dandisets/{dandiset_id}/")?;
@@ -55,17 +70,22 @@ pub(super) fn version_path(dandiset_id: &DandisetId, version: &VersionSpec) -> P
     PureDirPath::try_from(s).expect("should be a valid dir path")
 }
 
+/// Format a timestamp for display as a "creationdate" property in a WebDAV XML
+/// document
 pub(super) fn format_creationdate(dt: OffsetDateTime) -> String {
     dt.format(&Rfc3339)
         .expect("formatting an OffsetDateTime in RFC 3339 format should not fail")
 }
 
+/// Format a timestamp for display as a "getlastmodified" property in a WebDAV
+/// XML document
 pub(super) fn format_modifieddate(dt: OffsetDateTime) -> String {
     dt.to_offset(time::UtcOffset::UTC)
         .format(&RFC1123)
         .expect("formatting an OffsetDateTime in RFC 1123 format should not fail")
 }
 
+/// A non-infinite `Depth` WebDAV header value
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(super) enum FiniteDepth {
     Zero,

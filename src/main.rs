@@ -36,6 +36,7 @@ use tower_http::{set_header::response::SetResponseHeaderLayer, trace::TraceLayer
 use tracing::Level;
 use tracing_subscriber::{filter::Targets, fmt::time::OffsetTime, prelude::*};
 
+/// The content of the CSS stylesheet to serve at `/.static/styles.css`
 static STYLESHEET: &str = include_str!("dav/static/styles.css");
 
 /// WebDAV view to DANDI Archive

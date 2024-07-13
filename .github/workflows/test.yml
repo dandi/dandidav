@@ -118,4 +118,24 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install nightly Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+
+      - name: Activate cache
+        if: "!startsWith(github.head_ref, 'renovate/')"
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check docs
+        run: cargo doc --no-deps --all-features --document-private-items
+        env:
+          RUSTDOCFLAGS: -Dwarnings
+
 # vim:set et sts=2:

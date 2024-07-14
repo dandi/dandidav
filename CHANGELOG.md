@@ -1,6 +1,7 @@
 In Development
 --------------
 - Reduced the sizes of a number of streams & futures
+- Added doc comments to much of the code
 
 v0.4.0 (2024-07-09)
 -------------------

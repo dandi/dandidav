@@ -98,12 +98,11 @@ async fn run() -> anyhow::Result<()> {
     let args = Arguments::parse();
     let dandi = DandiClient::new(args.api_url)?;
     let zarrman = ZarrManClient::new()?;
-    let templater = Templater::load()?;
+    let templater = Templater::new(args.title)?;
     let dav = Arc::new(DandiDav {
         dandi,
         zarrman,
         templater,
-        title: args.title,
         prefer_s3_redirects: args.prefer_s3_redirects,
     });
     let app = Router::new()

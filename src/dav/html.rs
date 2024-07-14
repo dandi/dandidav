@@ -15,15 +15,22 @@ use time::OffsetDateTime;
 static COLLECTION_TEMPLATE: &str = include_str!("templates/collection.html.tera");
 
 /// A template manager
-pub(crate) struct Templater(Tera);
+pub(crate) struct Templater {
+    /// Tera templater
+    engine: Tera,
+
+    /// Site title to display in HTML responses
+    title: String,
+}
 
 impl Templater {
-    /// Create a new templater and load all templates into it
+    /// Create a new templater with site title `title` and load all templates
+    /// into it
     ///
     /// # Errors
     ///
     /// If any template fails to load, a [`TemplateError::Load`] is returned.
-    pub(crate) fn load() -> Result<Self, TemplateError> {
+    pub(crate) fn new(title: String) -> Result<Self, TemplateError> {
         let mut engine = Tera::default();
         engine.register_filter("formatsize", FormatSizeFilter);
         engine
@@ -32,34 +39,28 @@ impl Templater {
                 template_name: "collection.html",
                 source,
             })?;
-        Ok(Templater(engine))
+        Ok(Templater { engine, title })
     }
 
     /// Render an HTML document containing a table listing the resources in
-    /// `entries` using the site title `title`.  `pathparts` contains the
-    /// individual components of the request URL path.
+    /// `entries`.  `pathparts` contains the individual components of the
+    /// request URL path.
     pub(super) fn render_collection(
         &self,
         entries: Vec<DavResource>,
-        title: &str,
         pathparts: Vec<Component>,
     ) -> Result<String, TemplateError> {
-        self.render_collection_from_context(CollectionContext::new(entries, title, pathparts))
-    }
-
-    fn render_collection_from_context(
-        &self,
-        context: CollectionContext,
-    ) -> Result<String, TemplateError> {
+        let template_name = "collection.html";
+        let colctx = CollectionContext::new(entries, &self.title, pathparts);
         let context =
-            Context::from_serialize(context).map_err(|source| TemplateError::MakeContext {
-                template_name: "collection.html",
+            Context::from_serialize(colctx).map_err(|source| TemplateError::MakeContext {
+                template_name,
                 source,
             })?;
-        self.0
-            .render("collection.html", &context)
+        self.engine
+            .render(template_name, &context)
             .map_err(|source| TemplateError::Render {
-                template_name: "collection.html",
+                template_name,
                 source,
             })
     }
@@ -344,7 +345,7 @@ mod tests {
         assert_eq!(formatsize(size), s);
     }
 
-    mod render_collection_from_context {
+    mod render_collection {
         use super::*;
         use crate::dav::{DavContent, DavResourceWithChildren};
         use pretty_assertions::assert_eq;
@@ -353,7 +354,7 @@ mod tests {
 
         #[test]
         fn basic() {
-            let templater = Templater::load().unwrap();
+            let templater = Templater::new("Dandidav Test".to_owned()).unwrap();
             let entries = vec![
                 DavResource::Collection(DavCollection {
                     path: Some("foo/bar/baz/a.zarr/".parse().unwrap()),
@@ -421,16 +422,16 @@ mod tests {
                     metadata_url: None,
                 }),
             ];
-            let context = CollectionContext::new(
-                entries,
-                "Dandidav Test",
-                vec![
-                    "foo".parse().unwrap(),
-                    "bar".parse().unwrap(),
-                    "baz".parse().unwrap(),
-                ],
-            );
-            let rendered = templater.render_collection_from_context(context).unwrap();
+            let rendered = templater
+                .render_collection(
+                    entries,
+                    vec![
+                        "foo".parse().unwrap(),
+                        "bar".parse().unwrap(),
+                        "baz".parse().unwrap(),
+                    ],
+                )
+                .unwrap();
             let commit_str = match option_env!("GIT_COMMIT") {
                 Some(s) => Cow::from(format!(", commit {s}")),
                 None => Cow::from(""),
@@ -451,14 +452,13 @@ mod tests {
 
         #[test]
         fn root() {
-            let templater = Templater::load().unwrap();
+            let templater = Templater::new("Dandidav Test".to_owned()).unwrap();
             let DavResourceWithChildren::Collection { children, .. } =
                 DavResourceWithChildren::root()
             else {
                 panic!("DavResourceWithChildren::root() should be a Collection");
             };
-            let context = CollectionContext::new(children, "Dandidav Test", Vec::new());
-            let rendered = templater.render_collection_from_context(context).unwrap();
+            let rendered = templater.render_collection(children, Vec::new()).unwrap();
             let commit_str = match option_env!("GIT_COMMIT") {
                 Some(s) => Cow::from(format!(", commit {s}")),
                 None => Cow::from(""),

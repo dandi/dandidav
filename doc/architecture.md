@@ -7,6 +7,13 @@ Overview of `dandidav` Architecture
 > A new architecture is currently being planned for the code.  See [issue
 > #67](https://github.com/dandi/dandidav/issues/67) for more information.
 
+This document is best augmented by the doc comments in the `dandidav` source.
+You can view the doc comments in rendered form in a browser by running the
+following inside a clone of this repository:
+
+```console
+cargo doc --open --document-private-items --no-deps
+```
 
 General
 -------

@@ -45,9 +45,6 @@ pub(crate) struct DandiDav {
     /// Manager for templating of HTML responses
     pub(crate) templater: Templater,
 
-    /// Site title to display in HTML responses
-    pub(crate) title: String,
-
     /// Whether `GET` requests for blob assets should be responded to with
     /// redirects to S3 (`true`) or to Archive download URLs that then redirect
     /// to S3 (`false`).  The latter setting results in the final response
@@ -133,9 +130,7 @@ impl DandiDav {
     ) -> Result<Response<Body>, DavError> {
         match self.get_resource_with_children(path).await? {
             DavResourceWithChildren::Collection { children, .. } => {
-                let html = self
-                    .templater
-                    .render_collection(children, &self.title, pathparts)?;
+                let html = self.templater.render_collection(children, pathparts)?;
                 Ok(([(CONTENT_TYPE, HTML_CONTENT_TYPE)], html).into_response())
             }
             DavResourceWithChildren::Item(DavItem {

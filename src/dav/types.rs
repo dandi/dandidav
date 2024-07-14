@@ -10,17 +10,47 @@ use serde::{ser::Serializer, Serialize};
 use time::OffsetDateTime;
 use url::Url;
 
+/// Trait for querying the values of WebDAV properties from WebDAV resources
+///
+/// If a property is queried on a resource that does not have it defined, the
+/// query method should return `None`.
 #[enum_dispatch]
 pub(super) trait HasProperties {
+    /// Return the value of the "href" element to use in a "response" for this
+    /// resource.
+    ///
+    /// For `dandidav`, this is the absolute path at which the resource is
+    /// served.
+    ///
+    /// This is technically not a WebDAV property, but it's close enough for
+    /// our purposes.
     fn href(&self) -> Href;
+
+    /// Return the value of the "creationdate" property in RFC 3339 format
     fn creationdate(&self) -> Option<String>;
+
+    /// Return the value of the "displayname" property
+    ///
+    /// For `dandidav`, this is the same as the resource's filename.
     fn displayname(&self) -> Option<String>;
+
+    /// Return the value of the "getcontentlength" property
     fn getcontentlength(&self) -> Option<i64>;
+
+    /// Return the value of the "getcontenttype" property
     fn getcontenttype(&self) -> Option<String>;
+
+    /// Return the value of the "getetag" property
     fn getetag(&self) -> Option<String>;
+
+    /// Return the value of the "getlastmodified" property in RFC 1123 format
     fn getlastmodified(&self) -> Option<String>;
+
+    /// Return `true` iff this is a collection resource
     fn is_collection(&self) -> bool;
 
+    /// Return the value of the given property.  `Property::Custom` inputs will
+    /// always evaluate to `None`.
     fn property(&self, prop: &Property) -> Option<PropValue> {
         match prop {
             Property::CreationDate => self.creationdate().map(Into::into),
@@ -36,11 +66,12 @@ pub(super) trait HasProperties {
                     Some(PropValue::Empty)
                 }
             }
-            Property::Custom { .. } => None,
+            Property::Custom(_) => None,
         }
     }
 }
 
+/// Information about a WebDAV resource, not including child resources
 #[allow(clippy::large_enum_variant)]
 #[enum_dispatch(HasProperties)]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -50,10 +81,16 @@ pub(super) enum DavResource {
 }
 
 impl DavResource {
+    /// Construct a `DavResource` representing the root of the hierarchy served
+    /// by `dandidav`
     pub(super) fn root() -> Self {
         DavResource::Collection(DavCollection::root())
     }
 
+    /// Prefix the resource's path with the path at which `dandidav` serves the
+    /// given Dandiset & version under `/dandisets/`.
+    ///
+    /// See [`version_path()`] for more information.
     pub(super) fn under_version_path(
         self,
         dandiset_id: &DandisetId,
@@ -93,16 +130,23 @@ impl From<ZarrManResource> for DavResource {
     }
 }
 
+/// Information about a WebDAV resource and its immediate child resources (if
+/// any)
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DavResourceWithChildren {
     Collection {
+        /// A collection resource
         col: DavCollection,
+
+        /// The child resources of the collection
         children: Vec<DavResource>,
     },
     Item(DavItem),
 }
 
 impl DavResourceWithChildren {
+    /// Construct a `DavResourceWithChildren` representing the root of the
+    /// hierarchy served by `dandidav`
     pub(super) fn root() -> Self {
         DavResourceWithChildren::Collection {
             col: DavCollection::root(),
@@ -113,6 +157,11 @@ impl DavResourceWithChildren {
         }
     }
 
+    /// Prefix the paths of the resource and its child resources with the path
+    /// at which `dandidav` serves the given Dandiset & version under
+    /// `/dandisets/`.
+    ///
+    /// See [`version_path()`] for more information.
     pub(super) fn under_version_path(
         self,
         dandiset_id: &DandisetId,
@@ -131,6 +180,19 @@ impl DavResourceWithChildren {
             DavResourceWithChildren::Item(item) => {
                 DavResourceWithChildren::Item(item.under_version_path(dandiset_id, version))
             }
+        }
+    }
+
+    /// Convert to a `Vec` of all `DavResources`s represented within `self`
+    pub(super) fn into_vec(self) -> Vec<DavResource> {
+        match self {
+            DavResourceWithChildren::Collection { col, children } => {
+                let mut vec = Vec::with_capacity(children.len().saturating_add(1));
+                vec.push(DavResource::from(col));
+                vec.extend(children);
+                vec
+            }
+            DavResourceWithChildren::Item(item) => vec![DavResource::Item(item)],
         }
     }
 }
@@ -192,21 +254,45 @@ impl From<ZarrManResourceWithChildren> for DavResourceWithChildren {
     }
 }
 
+/// Information on a collection resource
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DavCollection {
-    pub(super) path: Option<PureDirPath>, // None for root collection
+    /// The path at which the collection is served by `dandidav`.  This is
+    /// `None` iff the collection is the root collection.
+    ///
+    /// Note that collections inside a Dandiset version need to have
+    /// `under_version_path()` called on them in order for `path` to be
+    /// complete.
+    pub(super) path: Option<PureDirPath>,
+
+    /// The timestamp at which the resource was created
     pub(super) created: Option<OffsetDateTime>,
+
+    /// The timestamp at which the resource was last modified
     pub(super) modified: Option<OffsetDateTime>,
+
+    /// The size of the resource.
+    ///
+    /// When defined, this is the sum of the sizes of all descendant
+    /// non-collection resources within the collection.
     pub(super) size: Option<i64>,
+
+    /// The type of resource, for display in the "Type" column of HTML tables
     pub(super) kind: ResourceKind,
+
+    /// A URL for retrieving the resource's associated metadata (if any) from
+    /// the Archive instance
     pub(super) metadata_url: Option<Url>,
 }
 
 impl DavCollection {
+    /// Return the base name of the resource's path
     pub(super) fn name(&self) -> Option<&str> {
         self.path.as_ref().map(PureDirPath::name_str)
     }
 
+    /// Return the link to use for the resource in the HTML view of its parent
+    /// collection as an absolute URL path (including leading slash)
     pub(super) fn web_link(&self) -> Href {
         match self.path {
             Some(ref p) => Href::from_path(&format!("/{p}")),
@@ -214,6 +300,10 @@ impl DavCollection {
         }
     }
 
+    /// Prefix the resource's path with the path at which `dandidav` serves the
+    /// given Dandiset & version under `/dandisets/`.
+    ///
+    /// See [`version_path()`] for more information.
     pub(super) fn under_version_path(
         mut self,
         dandiset_id: &DandisetId,
@@ -228,6 +318,8 @@ impl DavCollection {
         self
     }
 
+    /// Construct a `DavCollection` representing the root of the hierarchy
+    /// served by `dandidav`
     pub(super) fn root() -> Self {
         DavCollection {
             path: None,
@@ -239,6 +331,8 @@ impl DavCollection {
         }
     }
 
+    /// Construct a `DavCollection` representing the list of Dandisets at
+    /// `/dandisets/`
     pub(super) fn dandiset_index() -> Self {
         DavCollection {
             path: Some(
@@ -254,6 +348,8 @@ impl DavCollection {
         }
     }
 
+    /// Construct a `DavCollection` representing the listing for the given
+    /// Dandiset's published versions at `/dandiset/{dandiset_id}/releases/`
     pub(super) fn dandiset_releases(dandiset_id: &DandisetId) -> Self {
         DavCollection {
             path: Some(
@@ -268,6 +364,8 @@ impl DavCollection {
         }
     }
 
+    /// Construct a `DavCollection` representing the Dandiset version `v`
+    /// as served at path `path`
     pub(super) fn dandiset_version(v: DandisetVersion, path: PureDirPath) -> Self {
         DavCollection {
             path: Some(path),
@@ -279,6 +377,8 @@ impl DavCollection {
         }
     }
 
+    /// Construct a `DavCollection` representing the top of the Zarr manifest
+    /// tree at `/zarrs/`
     pub(super) fn zarr_index() -> Self {
         DavCollection {
             path: Some(
@@ -423,24 +523,46 @@ impl From<ManifestFolder> for DavCollection {
     }
 }
 
+/// Information on a non-collection resource
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DavItem {
+    /// The path at which the resource is served by `dandidav`
     pub(super) path: PurePath,
+
+    /// The timestamp at which the resource was created
     pub(super) created: Option<OffsetDateTime>,
+
+    /// The timestamp at which the resource was last modified
     pub(super) modified: Option<OffsetDateTime>,
+
+    /// The resource's Content-Type/MIME type
     pub(super) content_type: String,
+
+    /// The size of the resource
     pub(super) size: Option<i64>,
+
+    /// The resource's ETag
     pub(super) etag: Option<String>,
+
+    /// The type of resource, for display in the "Type" column of HTML tables
     pub(super) kind: ResourceKind,
+
+    /// The content of the resource or a link to it
     pub(super) content: DavContent,
+
+    /// A URL for retrieving the resource's associated metadata (if any) from
+    /// the Archive instance
     pub(super) metadata_url: Option<Url>,
 }
 
 impl DavItem {
+    /// Return the base name of the resource's path
     pub(super) fn name(&self) -> &str {
         self.path.name_str()
     }
 
+    /// Return the link to use for the resource in the HTML view of its parent
+    /// collection as an absolute URL path (including leading slash)
     pub(super) fn web_link(&self) -> Href {
         if let DavContent::Redirect(ref redir) = self.content {
             // Link directly to the download URL in the web view in order to
@@ -451,6 +573,10 @@ impl DavItem {
         }
     }
 
+    /// Prefix the resource's path with the path at which `dandidav` serves the
+    /// given Dandiset & version under `/dandisets/`.
+    ///
+    /// See [`version_path()`] for more information.
     pub(super) fn under_version_path(
         mut self,
         dandiset_id: &DandisetId,
@@ -579,21 +705,40 @@ impl From<ManifestEntry> for DavItem {
     }
 }
 
+/// The content of a non-collection resource or a link thereto
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DavContent {
+    /// The raw content to serve in response to a `GET` request for the
+    /// resource.
+    ///
+    /// This is only used for `dandiset.yaml` resources, for which the content
+    /// is automatically generated by `dandidav`.
     Blob(Vec<u8>),
+
+    /// A URL that `dandidav` should redirect to when a `GET` request is made
+    /// for the resource
     Redirect(Redirect),
-    // Used when a blob asset lacks an S3 download URL
+
+    /// No download URL could be determined for the resource
     Missing,
 }
 
+/// A URL or choice of URLs to redirect a request to
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum Redirect {
+    /// A single URL to always redirect to
     Direct(Url),
+
+    /// An S3 URL and an Archive instance URL, to be selected between based on
+    /// whether `--prefer-s3-redirects` was supplied at program invocation
     Alt { s3: Url, archive: Url },
 }
 
 impl Redirect {
+    /// Resolve to a single URL.
+    ///
+    /// If `prefer_s3` is `true`, `Alt` variants resolve to their `s3` field;
+    /// otherwise, they resolve to their `archive` field.
     pub(super) fn get_url(&self, prefer_s3: bool) -> &Url {
         match self {
             Redirect::Direct(u) => u,
@@ -608,24 +753,49 @@ impl Redirect {
     }
 }
 
-// For use in rendering the "Type" column in HTML views
+/// An enumeration of resource types for use in the "Type" column of HTML views
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(super) enum ResourceKind {
+    /// The root of the hierarchy served by `dandidav`
     Root,
+
+    /// Link to parent directory
     Parent,
+
+    /// The list of Dandisets at `/dandisets/`
     DandisetIndex,
+
+    /// A listing for a Dandiset at `/dandiset/{dandiset_id}/`
     Dandiset,
+
+    /// A listing for a Dandiset's published versions at
+    /// `/dandiset/{dandiset_id}/releases/`
     DandisetReleases,
+
+    /// A listing of the top level of a Dandiset version's file hierarchy
     Version,
+
+    /// The `dandiset.yaml` file for a Dandiset version
     VersionMetadata,
+
+    /// A generic directory
     Directory,
+
+    /// A blob asset
     Blob,
+
+    /// A Zarr asset
     Zarr,
+
+    /// A Zarr entry
     ZarrEntry,
+
+    /// The top of the Zarr manifest tree at `/zarrs/`
     ZarrIndex,
 }
 
 impl ResourceKind {
+    /// Return a human-readable string to display in a "Type" column
     pub(super) fn as_str(&self) -> &'static str {
         match self {
             ResourceKind::Root => "Root", // Not actually shown

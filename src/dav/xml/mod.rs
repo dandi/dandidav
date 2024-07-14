@@ -1,3 +1,4 @@
+//! Working with WebDAV XML documents
 mod multistatus;
 mod propfind;
 pub(super) use self::multistatus::*;

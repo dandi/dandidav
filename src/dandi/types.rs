@@ -13,7 +13,7 @@ pub(super) struct Page<T> {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-pub(crate) struct RawDandiset {
+pub(super) struct RawDandiset {
     identifier: DandisetId,
     #[serde(with = "time::serde::rfc3339")]
     created: OffsetDateTime,
@@ -54,7 +54,7 @@ pub(crate) struct Dandiset {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-pub(crate) struct RawDandisetVersion {
+pub(super) struct RawDandisetVersion {
     pub(super) version: VersionId,
     //name: String,
     //asset_count: u64,
@@ -102,7 +102,7 @@ impl From<VersionMetadata> for Vec<u8> {
     }
 }
 
-// Item in a `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths`
+// Item in a `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths/`
 // response
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(from = "RawFolderEntry")]
@@ -131,7 +131,7 @@ impl From<RawFolderEntry> for FolderEntry {
     }
 }
 
-// Raw item in a `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths`
+// Raw item in a `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths/`
 // response
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 struct RawFolderEntry {
@@ -220,14 +220,17 @@ impl ZarrAsset {
         }
     }
 
-    pub(crate) fn make_folder(&self, folder: S3Folder) -> ZarrFolder {
+    /// Return a `ZarrFolder` for the folder within this Zarr described by
+    /// `folder`
+    fn make_folder(&self, folder: S3Folder) -> ZarrFolder {
         ZarrFolder {
             zarr_path: self.path.clone(),
             path: folder.key_prefix,
         }
     }
 
-    pub(crate) fn make_entry(&self, obj: S3Object) -> ZarrEntry {
+    /// Return a `ZarrEntry` for the entry within this Zarr described by `obj`
+    fn make_entry(&self, obj: S3Object) -> ZarrEntry {
         ZarrEntry {
             zarr_path: self.path.clone(),
             path: obj.key,

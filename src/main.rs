@@ -36,6 +36,7 @@ use tower_http::{set_header::response::SetResponseHeaderLayer, trace::TraceLayer
 use tracing::Level;
 use tracing_subscriber::{filter::Targets, fmt::time::OffsetTime, prelude::*};
 
+/// The content of the CSS stylesheet to serve at `/.static/styles.css`
 static STYLESHEET: &str = include_str!("dav/static/styles.css");
 
 /// WebDAV view to DANDI Archive
@@ -140,6 +141,8 @@ async fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Handle `HEAD` requests by converting them to `GET` requests and discarding
+/// the resulting response body
 async fn handle_head(method: Method, mut request: Request<Body>, next: Next) -> Response<Body> {
     if method == Method::HEAD {
         *request.method_mut() = Method::GET;

@@ -852,7 +852,7 @@ dependencies = [
  "memory-stats",
  "moka",
  "percent-encoding",
- "pin-project-lite",
+ "pin-project",
  "pretty_assertions",
  "reqwest",
  "reqwest-middleware",

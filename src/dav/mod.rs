@@ -1,3 +1,4 @@
+//! The WebDAV component of `dandidav`
 mod html;
 mod path;
 mod types;
@@ -25,21 +26,48 @@ use futures_util::TryStreamExt;
 use std::convert::Infallible;
 use thiserror::Error;
 
+/// HTTP headers to include in all responses for WebDAV resources
 const WEBDAV_RESPONSE_HEADERS: [(&str, &str); 2] = [
     ("Allow", "GET, HEAD, OPTIONS, PROPFIND"),
     // <http://www.webdav.org/specs/rfc4918.html#HEADER_DAV>
     ("DAV", "1, 3"),
 ];
 
+/// Manager for handling WebDAV requests
 pub(crate) struct DandiDav {
+    /// A client for fetching data from the Dandi Archive
     pub(crate) dandi: DandiClient,
+
+    /// A client for fetching data from
+    /// <https://github.com/dandi/zarr-manifests>
     pub(crate) zarrman: ZarrManClient,
+
+    /// Manager for templating of HTML responses
     pub(crate) templater: Templater,
+
+    /// Site title to display in HTML responses
     pub(crate) title: String,
+
+    /// Whether `GET` requests for blob assets should be responded to with
+    /// redirects to S3 (`true`) or to Archive download URLs that then redirect
+    /// to S3 (`false`).  The latter setting results in the final response
+    /// having a `Content-Disposition` header, so that the blob is downloaded
+    /// to the same filename as the asset, rather than to a file named after
+    /// the blob ID.  On the other hand, certain WebDAV clients (i.e., davfs2)
+    /// do not support multi-step redirects, so setting this to `true` is
+    /// necessary to allow such clients to download from `dandidav`.
     pub(crate) prefer_s3_redirects: bool,
 }
 
 impl DandiDav {
+    /// Handle an incoming HTTP request and return a response.  This method
+    /// must return `Result<T, Infallible>` for compatibility with `axum`.
+    ///
+    /// This method delegates almost all work to
+    /// [`DandiDav::inner_handle_request()`], after which it handles any
+    /// errors returned by logging them and converting them to 404 or 500
+    /// responses, as appropriate.  The final response also has
+    /// [`WEBDAV_RESPONSE_HEADERS`] added.
     pub(crate) async fn handle_request(
         &self,
         req: Request<Body>,
@@ -60,14 +88,20 @@ impl DandiDav {
         Ok((WEBDAV_RESPONSE_HEADERS, resp).into_response())
     }
 
+    /// Extract & parse request parameters from the URL path and (for
+    /// `PROPFIND`) "Depth" header and request body.  The parsed parameters are
+    /// then passed to the appropriate method for the request's verb for
+    /// dedicated handling.
     async fn inner_handle_request(&self, req: Request<Body>) -> Result<Response<Body>, DavError> {
         let uri_path = req.uri().path();
         match req.method() {
             &Method::GET => {
                 let Some(parts) = split_uri_path(uri_path) else {
+                    // TODO: Log something
                     return Ok(not_found());
                 };
                 let Some(path) = DavPath::from_components(parts.clone()) else {
+                    // TODO: Log something
                     return Ok(not_found());
                 };
                 self.get(&path, parts).await
@@ -75,6 +109,7 @@ impl DandiDav {
             &Method::OPTIONS => Ok(StatusCode::NO_CONTENT.into_response()),
             m if m.as_str().eq_ignore_ascii_case("PROPFIND") => {
                 let Some(path) = split_uri_path(uri_path).and_then(DavPath::from_components) else {
+                    // TODO: Log something
                     return Ok(not_found());
                 };
                 match req.extract::<(FiniteDepth, PropFind), _>().await {
@@ -86,15 +121,21 @@ impl DandiDav {
         }
     }
 
+    /// Handle a `GET` request for the given `path`.
+    ///
+    /// `pathparts` contains the individual components of the request URL path
+    /// prior to parsing into `path`.  It is needed for things like breadcrumbs
+    /// in HTML views of collection resources.
     async fn get(
         &self,
         path: &DavPath,
         pathparts: Vec<Component>,
     ) -> Result<Response<Body>, DavError> {
-        match self.resolve_with_children(path).await? {
+        match self.get_resource_with_children(path).await? {
             DavResourceWithChildren::Collection { children, .. } => {
-                let context = CollectionContext::new(children, &self.title, pathparts);
-                let html = self.templater.render_collection(context)?;
+                let html = self
+                    .templater
+                    .render_collection(children, &self.title, pathparts)?;
                 Ok(([(CONTENT_TYPE, HTML_CONTENT_TYPE)], html).into_response())
             }
             DavResourceWithChildren::Item(DavItem {
@@ -112,10 +153,16 @@ impl DandiDav {
             DavResourceWithChildren::Item(DavItem {
                 content: DavContent::Missing,
                 ..
-            }) => Ok(not_found()),
+            }) => {
+                // TODO: Log something
+                Ok(not_found())
+            }
         }
     }
 
+    /// Handle a `PROPFIND` request for the given `path`.  `depth` is the value
+    /// of the `Depth` header, and `query` is the parsed request body (with an
+    /// empty body already defaulted to "allprop" as per the RFC).
     async fn propfind(
         &self,
         path: &DavPath,
@@ -123,16 +170,8 @@ impl DandiDav {
         query: PropFind,
     ) -> Result<Response<Body>, DavError> {
         let resources = match depth {
-            FiniteDepth::Zero => vec![self.resolve(path).await?],
-            FiniteDepth::One => match self.resolve_with_children(path).await? {
-                DavResourceWithChildren::Collection { col, children } => {
-                    let mut reses = Vec::with_capacity(children.len().saturating_add(1));
-                    reses.push(DavResource::from(col));
-                    reses.extend(children);
-                    reses
-                }
-                DavResourceWithChildren::Item(item) => vec![DavResource::Item(item)],
-            },
+            FiniteDepth::Zero => vec![self.get_resource(path).await?],
+            FiniteDepth::One => self.get_resource_with_children(path).await?.into_vec(),
         };
         let response = resources
             .into_iter()
@@ -146,6 +185,9 @@ impl DandiDav {
             .into_response())
     }
 
+    /// Obtain a handler for fetching resources for the given version of the
+    /// given Dandiset.  If `version` is `VersionSpec::Latest`, the most recent
+    /// published version of the Dandiset is used.
     async fn get_version_handler<'a>(
         &'a self,
         dandiset_id: &'a DandisetId,
@@ -171,7 +213,8 @@ impl DandiDav {
         })
     }
 
-    async fn resolve(&self, path: &DavPath) -> Result<DavResource, DavError> {
+    /// Get details on the resource at the given `path`
+    async fn get_resource(&self, path: &DavPath) -> Result<DavResource, DavError> {
         match path {
             DavPath::Root => Ok(DavResource::root()),
             DavPath::DandisetIndex => Ok(DavResource::Collection(DavCollection::dandiset_index())),
@@ -222,7 +265,12 @@ impl DandiDav {
         }
     }
 
-    async fn resolve_with_children(
+    /// Get details on the resource at the given `path` along with its
+    /// immediate child resources (if any).
+    ///
+    /// If `path` points to a Dandiset version, the child resources will
+    /// include `dandiset.yaml` as a virtual asset.
+    async fn get_resource_with_children(
         &self,
         path: &DavPath,
     ) -> Result<DavResourceWithChildren, DavError> {
@@ -325,6 +373,10 @@ impl DandiDav {
     }
 }
 
+/// A handler for fetching resources belonging to a certain Dandiset & version.
+///
+/// Resources returned by this type's methods all have their paths prefixed
+/// with the path to the Dandiset & version.
 #[derive(Clone, Debug)]
 struct VersionHandler<'a> {
     dandiset_id: &'a DandisetId,
@@ -333,12 +385,15 @@ struct VersionHandler<'a> {
 }
 
 impl VersionHandler<'_> {
+    /// Get details on the version itself as a collection sans children
     async fn get(&self) -> Result<DavCollection, DavError> {
         let v = self.endpoint.get().await?;
         let path = version_path(self.dandiset_id, self.version_spec);
         Ok(DavCollection::dandiset_version(v, path))
     }
 
+    /// Get details on all resources at the root of the version's file tree
+    /// (not including the `dandiset.yaml` file)
     async fn get_root_children(&self) -> Result<Vec<DavResource>, DandiError> {
         self.endpoint
             .get_root_children()
@@ -349,16 +404,20 @@ impl VersionHandler<'_> {
             .await
     }
 
+    /// Get the version's `dandiset.yaml` file
     async fn get_dandiset_yaml(&self) -> Result<DavItem, DavError> {
         let md = self.endpoint.get_metadata().await?;
         Ok(DavItem::from(md).under_version_path(self.dandiset_id, self.version_spec))
     }
 
+    /// Get details on the resource at the given `path`
     async fn get_resource(&self, path: &PurePath) -> Result<DavResource, DavError> {
         let res = self.endpoint.get_resource(path).await?;
         Ok(DavResource::from(res).under_version_path(self.dandiset_id, self.version_spec))
     }
 
+    /// Get details on the resource at the given `path` along with its
+    /// immediate child resources (if any)
     async fn get_resource_with_children(
         &self,
         path: &PurePath,
@@ -386,6 +445,7 @@ pub(crate) enum DavError {
 }
 
 impl DavError {
+    /// Was the error ultimately caused by something not being found?
     pub(crate) fn is_404(&self) -> bool {
         match self {
             DavError::Dandi(e) => e.is_404(),
@@ -396,6 +456,7 @@ impl DavError {
     }
 }
 
+/// Generate a 404 response
 fn not_found() -> Response<Body> {
     (StatusCode::NOT_FOUND, "404\n").into_response()
 }

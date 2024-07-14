@@ -1,3 +1,4 @@
+//! HTTP utilities
 use crate::consts::USER_AGENT;
 use reqwest::{Method, Request, Response, StatusCode};
 use reqwest_middleware::{Middleware, Next};
@@ -8,10 +9,16 @@ use thiserror::Error;
 use tracing::Instrument;
 use url::Url;
 
+/// An HTTP client that logs all requests and retries failed requests
 #[derive(Debug, Clone)]
 pub(crate) struct Client(reqwest_middleware::ClientWithMiddleware);
 
 impl Client {
+    /// Construct a new client
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if construction of the inner `reqwest::Client` fails
     pub(crate) fn new() -> Result<Client, BuildClientError> {
         let retry_policy = ExponentialBackoff::builder()
             .base(2)
@@ -29,6 +36,12 @@ impl Client {
         Ok(Client(client))
     }
 
+    /// Perform an HTTP request with the given method to the given URL
+    ///
+    /// # Errors
+    ///
+    /// If sending the request fails or the response has a 4xx or 5xx status,
+    /// an error is returned.
     pub(crate) async fn request(&self, method: Method, url: Url) -> Result<Response, HttpError> {
         let r = self
             .0
@@ -46,14 +59,33 @@ impl Client {
             .map_err(|source| HttpError::Status { url, source })
     }
 
+    /// Perform a `HEAD` request to the given URL
+    ///
+    /// # Errors
+    ///
+    /// If sending the request fails or the response has a 4xx or 5xx status,
+    /// an error is returned.
     pub(crate) async fn head(&self, url: Url) -> Result<Response, HttpError> {
         self.request(Method::HEAD, url).await
     }
 
+    /// Perform a `GET` request to the given URL
+    ///
+    /// # Errors
+    ///
+    /// If sending the request fails or the response has a 4xx or 5xx status,
+    /// an error is returned.
     pub(crate) async fn get(&self, url: Url) -> Result<Response, HttpError> {
         self.request(Method::GET, url).await
     }
 
+    /// Perform a `GET` request to the given URL and deserialize the response
+    /// body as JSON into `T`
+    ///
+    /// # Errors
+    ///
+    /// If sending the request fails, the response has a 4xx or 5xx status, or
+    /// deserialization of the response body fails, an error is returned.
     pub(crate) fn get_json<T: DeserializeOwned>(
         &self,
         url: Url,
@@ -61,7 +93,7 @@ impl Client {
         // Clone the client and move it into an async block (as opposed to just
         // writing a "normal" async function) so that the resulting Future will
         // be 'static rather than retaining a reference to &self, thereby
-        // facilitating the Future's use by the Paginate stream.
+        // simplifying the Future's use by the Paginate stream.
         let client = self.clone();
         async move {
             client
@@ -74,6 +106,8 @@ impl Client {
     }
 }
 
+/// Middleware for a `reqwest::Client` that adds logging of HTTP requests and
+/// their responses
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 struct SimpleReqwestLogger;
 
@@ -101,25 +135,45 @@ impl Middleware for SimpleReqwestLogger {
     }
 }
 
+/// Error returned if initializing an HTTP client fails
 #[derive(Debug, Error)]
 #[error("failed to initialize HTTP client")]
 pub(crate) struct BuildClientError(#[from] reqwest::Error);
 
+/// Error returned if an outgoing HTTP request fails
 #[derive(Debug, Error)]
 pub(crate) enum HttpError {
+    /// Sending the request failed
     #[error("failed to make request to {url}")]
     Send {
         url: Url,
         source: reqwest_middleware::Error,
     },
+
+    /// The server returned a 404 response
     #[error("no such resource: {url}")]
     NotFound { url: Url },
+
+    /// The server returned a 4xx or 5xx response other than 404
     #[error("request to {url} returned error")]
     Status { url: Url, source: reqwest::Error },
+
+    /// Deserializing the response body as JSON failed
     #[error("failed to deserialize response body from {url}")]
     Deserialize { url: Url, source: reqwest::Error },
 }
 
+/// Create a URL by extending `url`'s path with the path segments `segments`.
+/// The resulting URL will not end with a slash (but see
+/// [`urljoin_slashed()`]).
+///
+/// If `url` does not end with a forward slash, one will be appended, and then
+/// the segments will be added after that.
+///
+/// # Panics
+///
+/// Panics if `url` cannot be a base URL.  (Note that HTTP(S) URLs can be base
+/// URLs.)
 pub(crate) fn urljoin<I>(url: &Url, segments: I) -> Url
 where
     I: IntoIterator,
@@ -133,6 +187,16 @@ where
     url
 }
 
+/// Create a URL by extending `url`'s path with the path segments `segments`
+/// and then terminating the result with a forward slash.
+///
+/// If `url` does not end with a forward slash, one will be appended, and then
+/// the segments will be added after that.
+///
+/// # Panics
+///
+/// Panics if `url` cannot be a base URL.  (Note that HTTP(S) URLs can be base
+/// URLs.)
 pub(crate) fn urljoin_slashed<I>(url: &Url, segments: I) -> Url
 where
     I: IntoIterator,

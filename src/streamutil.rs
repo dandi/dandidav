@@ -1,9 +1,15 @@
+//! Extensions for stream types
 use futures_util::{Stream, TryStream};
-use pin_project_lite::pin_project;
+use pin_project::pin_project;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 
+/// Extension methods for [`futures_util::TryStream`]
 pub(crate) trait TryStreamUtil: TryStream {
+    /// Wraps the current stream in a new stream that maps the success values
+    /// through `f` to produce an iterator; the success values of the new
+    /// stream will then be the elements of the concatenation of those
+    /// iterators.
     fn try_flat_iter_map<I, F>(self, f: F) -> TryFlatIterMap<Self, I, F>
     where
         F: FnMut(Self::Ok) -> I,
@@ -16,18 +22,27 @@ pub(crate) trait TryStreamUtil: TryStream {
 
 impl<S: TryStream> TryStreamUtil for S {}
 
-pin_project! {
-    #[derive(Clone, Debug)]
-    #[must_use = "streams do nothing unless polled"]
-    pub(crate) struct TryFlatIterMap<S, I: IntoIterator, F> {
-        #[pin]
-        inner: S,
-        f: F,
-        iter: Option<I::IntoIter>,
-    }
+/// Return type of [`TryStreamUtil::try_flat_iter_map()`]
+#[derive(Clone, Debug)]
+// We need to use pin_project instead of pin_project_lite because the latter
+// doesn't seem to support comments on fields.
+#[pin_project]
+#[must_use = "streams do nothing unless polled"]
+pub(crate) struct TryFlatIterMap<S, I: IntoIterator, F> {
+    /// The stream that `try_flat_iter_map()` was called on
+    #[pin]
+    inner: S,
+
+    /// The function passed to `try_flat_iter_map()`
+    f: F,
+
+    /// The iterator produced by the current success element of `inner`, if any
+    /// and if not yet exhausted
+    iter: Option<I::IntoIter>,
 }
 
 impl<S, I: IntoIterator, F> TryFlatIterMap<S, I, F> {
+    /// Construct a `TryFlatIterMap` for a call to `inner.try_flat_iter_map(f)`
     fn new(inner: S, f: F) -> Self {
         TryFlatIterMap {
             inner,
@@ -61,5 +76,29 @@ where
                 None => return None.into(),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures_util::TryStreamExt;
+
+    #[tokio::test]
+    async fn test_try_flat_iter_map() {
+        let mut stream = futures_util::stream::iter(vec![Ok(5), Ok(2), Err(42), Ok(3)])
+            .try_flat_iter_map(|x| 0..x);
+        assert_eq!(stream.try_next().await, Ok(Some(0)));
+        assert_eq!(stream.try_next().await, Ok(Some(1)));
+        assert_eq!(stream.try_next().await, Ok(Some(2)));
+        assert_eq!(stream.try_next().await, Ok(Some(3)));
+        assert_eq!(stream.try_next().await, Ok(Some(4)));
+        assert_eq!(stream.try_next().await, Ok(Some(0)));
+        assert_eq!(stream.try_next().await, Ok(Some(1)));
+        assert_eq!(stream.try_next().await, Err(42));
+        assert_eq!(stream.try_next().await, Ok(Some(0)));
+        assert_eq!(stream.try_next().await, Ok(Some(1)));
+        assert_eq!(stream.try_next().await, Ok(Some(2)));
+        assert_eq!(stream.try_next().await, Ok(None));
     }
 }

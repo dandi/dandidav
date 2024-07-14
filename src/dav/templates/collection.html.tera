@@ -7,7 +7,7 @@
 <body>
     <div class="breadcrumbs">
         {%- for bc in breadcrumbs %}
-        <a href="{{bc.href}}">{{bc.name}}</a>{% if not loop.last %} /{% endif %}
+        <a href="{{bc.href}}">{{bc.text}}</a>{% if not loop.last %} /{% endif %}
         {%- endfor %}
     </div>
     <table class="collection">

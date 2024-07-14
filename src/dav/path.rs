@@ -1,37 +1,72 @@
+//! Parsing request paths
 use crate::consts::FAST_NOT_EXIST;
 use crate::dandi::{DandisetId, PublishedVersionId};
 use crate::paths::{Component, ParseComponentError, PurePath};
 
+/// A parsed request path
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DavPath {
+    /// The root of the hierarchy served by `dandidav`
     Root,
+
+    /// The list of Dandisets at `/dandisets/`
     DandisetIndex,
-    Dandiset {
-        dandiset_id: DandisetId,
-    },
-    DandisetReleases {
-        dandiset_id: DandisetId,
-    },
+
+    /// A listing for a Dandiset at `/dandiset/{dandiset_id}/`
+    Dandiset { dandiset_id: DandisetId },
+
+    /// A listing for a Dandiset's published versions at
+    /// `/dandiset/{dandiset_id}/releases/`
+    DandisetReleases { dandiset_id: DandisetId },
+
+    /// A listing of the top level of a Dandiset version's file hierarchy
+    ///
+    /// This corresponds to the following request paths:
+    ///
+    /// - `/dandiset/{dandiset_id}/draft/`
+    /// - `/dandiset/{dandiset_id}/latest/`
+    /// - `/dandiset/{dandiset_id}/releases/{version_id}/`
     Version {
+        /// The Dandiset ID
         dandiset_id: DandisetId,
+
+        /// The version specifier
         version: VersionSpec,
     },
+
+    /// The `dandiset.yaml` file for a given Dandiset version, served at the
+    /// path `dandiset.yaml` immediately beneath each version path
     DandisetYaml {
+        /// The Dandiset ID
         dandiset_id: DandisetId,
+
+        /// The version specifier
         version: VersionSpec,
     },
+
+    /// Any other path beneath a Dandiset version path
     DandiResource {
+        /// The Dandiset ID
         dandiset_id: DandisetId,
+
+        /// The version specifier
         version: VersionSpec,
+
+        /// The portion of the path after the version specifier
         path: PurePath,
     },
+
+    /// The top of the Zarr manifest tree at `/zarrs/`
     ZarrIndex,
-    ZarrPath {
-        path: PurePath,
-    },
+
+    /// A path beneath `/zarrs/`
+    ZarrPath { path: PurePath },
 }
 
 impl DavPath {
+    /// Parse a sequence of request path components into a `DavPath`.
+    ///
+    /// Returns `None` if the request path is invalid/does not exist.
     pub(super) fn from_components(parts: Vec<Component>) -> Option<DavPath> {
         let mut iter = parts.into_iter();
         let Some(p1) = iter.next() else {
@@ -88,13 +123,29 @@ impl DavPath {
     }
 }
 
+/// A Dandiset version as specified in a request path
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum VersionSpec {
+    /// Draft version
     Draft,
+
+    /// Published version
     Published(PublishedVersionId),
+
+    /// Most recent published version
     Latest,
 }
 
+/// Given a request path `path`, percent-decode it as UTF-8 and split it into
+/// its path components/path segments.
+///
+/// Splitting is performed on runs of forward slashes after stripping leading &
+/// trailing slashes.  Single-dot components are ignored.  Double-dot
+/// components are discarded along with the immediately preceding components.
+///
+/// Returns `None` if the path is invalid (i.e., cannot be percent-decoded or
+/// contains a NUL character) or if any component is accepted by
+/// [`is_fast_not_exist()`].
 pub(super) fn split_uri_path(s: &str) -> Option<Vec<Component>> {
     // TODO: Convert decoding-failures into DavError:
     let path = percent_encoding::percent_decode_str(s).decode_utf8().ok()?;
@@ -120,10 +171,13 @@ pub(super) fn split_uri_path(s: &str) -> Option<Vec<Component>> {
     Some(parts)
 }
 
+/// An iterator over the substrings of a given string, separated by runs of
+/// forward slashes after stripping leading & trailing slashes
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct SplitComponents<'a>(&'a str);
 
 impl<'a> SplitComponents<'a> {
+    /// Construct an iterator over the components of `s`
     fn new(s: &'a str) -> Self {
         SplitComponents(s.trim_start_matches('/'))
     }
@@ -148,6 +202,8 @@ impl<'a> Iterator for SplitComponents<'a> {
 
 impl std::iter::FusedIterator for SplitComponents<'_> {}
 
+/// Returns `true` if the request path component `s` should be treated as
+/// nonexistent without having to make any requests to outside services
 fn is_fast_not_exist(s: &str) -> bool {
     let s = s.to_ascii_lowercase();
     FAST_NOT_EXIST.binary_search(&&*s).is_ok()

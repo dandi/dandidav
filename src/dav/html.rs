@@ -51,7 +51,7 @@ impl Templater {
         pathparts: Vec<Component>,
     ) -> Result<String, TemplateError> {
         let template_name = "collection.html";
-        let colctx = CollectionContext::new(entries, &self.title, pathparts);
+        let colctx = self.collection_context(entries, pathparts);
         let context =
             Context::from_serialize(colctx).map_err(|source| TemplateError::MakeContext {
                 template_name,
@@ -63,6 +63,52 @@ impl Templater {
                 template_name,
                 source,
             })
+    }
+
+    /// Construct the context for displaying the given `entries`.  `pathparts`
+    /// contains the individual components of the request URL path.
+    fn collection_context(
+        &self,
+        entries: Vec<DavResource>,
+        pathparts: Vec<Component>,
+    ) -> CollectionContext {
+        let mut rows = entries.into_iter().map(ColRow::from).collect::<Vec<_>>();
+        rows.sort_unstable();
+        if let Some((_, pp)) = pathparts.split_last() {
+            rows.insert(
+                0,
+                ColRow::parentdir(Href::from_path(&abs_dir_from_components(pp))),
+            );
+        }
+        let title_path = abs_dir_from_components(&pathparts);
+        let title = format!("{} \u{2014} {}", self.title, title_path);
+        CollectionContext {
+            title,
+            breadcrumbs: self.make_breadcrumbs(pathparts),
+            rows,
+            package_url: env!("CARGO_PKG_REPOSITORY"),
+            package_version: env!("CARGO_PKG_VERSION"),
+            package_commit: option_env!("GIT_COMMIT"),
+        }
+    }
+
+    /// Create breadcrumbs for the given request URL path components
+    fn make_breadcrumbs(&self, pathparts: Vec<Component>) -> Vec<Link> {
+        let mut links = Vec::with_capacity(pathparts.len().saturating_add(1));
+        let mut cumpath = String::from("/");
+        links.push(Link {
+            text: self.title.clone(),
+            href: Href::from_path(&cumpath),
+        });
+        for p in pathparts {
+            cumpath.push_str(&p);
+            cumpath.push('/');
+            links.push(Link {
+                text: p.into(),
+                href: Href::from_path(&cumpath),
+            });
+        }
+        links
     }
 }
 
@@ -87,32 +133,6 @@ struct CollectionContext {
     /// Current `dandidav` commit hash (if known)
     #[serde(skip_serializing_if = "Option::is_none")]
     package_commit: Option<&'static str>,
-}
-
-impl CollectionContext {
-    /// Construct the context for displaying the given `entries` using the site
-    /// title `title`.  `pathparts` contains the individual components of the
-    /// request URL path.
-    fn new(entries: Vec<DavResource>, title: &str, pathparts: Vec<Component>) -> CollectionContext {
-        let mut rows = entries.into_iter().map(ColRow::from).collect::<Vec<_>>();
-        rows.sort_unstable();
-        if let Some((_, pp)) = pathparts.split_last() {
-            rows.insert(
-                0,
-                ColRow::parentdir(Href::from_path(&abs_dir_from_components(pp))),
-            );
-        }
-        let title_path = abs_dir_from_components(&pathparts);
-        let full_title = format!("{title} \u{2014} {title_path}");
-        CollectionContext {
-            title: full_title,
-            breadcrumbs: make_breadcrumbs(title, pathparts),
-            rows,
-            package_url: env!("CARGO_PKG_REPOSITORY"),
-            package_version: env!("CARGO_PKG_VERSION"),
-            package_commit: option_env!("GIT_COMMIT"),
-        }
-    }
 }
 
 /// A hyperlink to display in an HTML document
@@ -166,7 +186,7 @@ struct ColRow {
 
 impl ColRow {
     /// Construct a `ColRow` representing the parent of the current collection,
-    /// served at `href`
+    /// with the parent being served at `href`
     fn parentdir(href: Href) -> ColRow {
         ColRow {
             name: "..".to_owned(),
@@ -260,27 +280,6 @@ fn maybe_timestamp<S: Serializer>(
         }
         None => serializer.serialize_none(),
     }
-}
-
-/// Create breadcrumbs for the given request URL path components.
-///
-/// `title` is the site title, for use as the text of the first breadcrumb.
-fn make_breadcrumbs(title: &str, pathparts: Vec<Component>) -> Vec<Link> {
-    let mut links = Vec::with_capacity(pathparts.len().saturating_add(1));
-    let mut cumpath = String::from("/");
-    links.push(Link {
-        text: title.to_owned(),
-        href: Href::from_path(&cumpath),
-    });
-    for p in pathparts {
-        cumpath.push_str(&p);
-        cumpath.push('/');
-        links.push(Link {
-            text: p.into(),
-            href: Href::from_path(&cumpath),
-        });
-    }
-    links
 }
 
 /// Given an iterator of `&Component` values, join them together with forward

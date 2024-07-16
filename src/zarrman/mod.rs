@@ -287,7 +287,7 @@ impl ZarrManClient {
                     tracing::debug!(
                         event = "manifest_cache_miss_pre",
                         manifest = %path,
-                        cache_len = self.manifests.entry_count(),
+                        approx_cache_len = self.manifests.entry_count(),
                         "Cache miss for Zarr manifest; about to fetch from repository",
                     );
                     self.inner
@@ -306,7 +306,7 @@ impl ZarrManClient {
                 tracing::debug!(
                     event = "manifest_cache_miss_post",
                     manifest = %path,
-                    cache_len = self.manifests.entry_count(),
+                    approx_cache_len = self.manifests.entry_count(),
                     "Fetched Zarr manifest from repository",
                 );
                 entry
@@ -315,7 +315,7 @@ impl ZarrManClient {
                 tracing::debug!(
                     event = "manifest_cache_hit",
                     manifest = %path,
-                    cache_len = self.manifests.entry_count(),
+                    approx_cache_len = self.manifests.entry_count(),
                     "Fetched Zarr manifest from cache",
                 );
                 entry

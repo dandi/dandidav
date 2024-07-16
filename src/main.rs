@@ -29,7 +29,7 @@ use axum::{
 };
 use clap::Parser;
 use std::fmt;
-use std::io::{stderr, IsTerminal};
+use std::io::stderr;
 use std::net::IpAddr;
 use std::sync::Arc;
 use tower::service_fn;
@@ -77,8 +77,8 @@ fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::fmt::layer()
+                .json()
                 .with_timer(timer)
-                .with_ansi(stderr().is_terminal())
                 .with_writer(stderr),
         )
         .with(

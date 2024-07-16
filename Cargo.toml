@@ -48,7 +48,7 @@ tokio = { version = "1.39.3", features = ["macros", "net", "rt-multi-thread"] }
 tower = { version = "0.5.0", features = ["util"] }
 tower-http = { version = "0.5.2", features = ["set-header", "trace"] }
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["local-time", "time"] }
+tracing-subscriber = { version = "0.3.18", features = ["json", "local-time", "time"] }
 url = { version = "2.5.2", features = ["serde"] }
 xml-rs = "0.8.21"
 

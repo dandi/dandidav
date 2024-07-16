@@ -20,9 +20,13 @@ pub(crate) use self::resources::*;
 use crate::dav::ErrorClass;
 use crate::httputil::{BuildClientError, Client, HttpError, HttpUrl};
 use crate::paths::{Component, PureDirPath, PurePath};
-use moka::future::{Cache, CacheBuilder};
+use moka::{
+    future::{Cache, CacheBuilder},
+    ops::compute::{CompResult, Op},
+};
 use serde::Deserialize;
 use std::sync::Arc;
+use std::time::Duration;
 use thiserror::Error;
 
 /// The manifest root URL.
@@ -77,6 +81,15 @@ impl ZarrManClient {
         let inner = Client::new()?;
         let manifests = CacheBuilder::new(MANIFEST_CACHE_SIZE)
             .name("zarr-manifests")
+            .time_to_idle(Duration::from_secs(300))
+            .eviction_listener(|path, _, cause| {
+                tracing::debug!(
+                    event = "manifest_cache_evict",
+                    manifest = ?path,
+                    ?cause,
+                    "Zarr manifest evicted from cache",
+                );
+            })
             .build();
         let manifest_root_url = MANIFEST_ROOT_URL
             .parse::<HttpUrl>()
@@ -266,17 +279,52 @@ impl ZarrManClient {
         &self,
         path: &ManifestPath,
     ) -> Result<Arc<manifest::Manifest>, ZarrManError> {
-        self.manifests
-            .try_get_with_by_ref(path, async move {
-                self.inner
-                    .get_json::<manifest::Manifest>(
-                        path.under_manifest_root(&self.manifest_root_url),
-                    )
-                    .await
-                    .map(Arc::new)
+        let result = self
+            .manifests
+            .entry_by_ref(path)
+            .and_try_compute_with(|entry| async move {
+                if entry.is_none() {
+                    tracing::debug!(
+                        event = "manifest_cache_miss_pre",
+                        manifest = ?path,
+                        cache_len = self.manifests.entry_count(),
+                        "Cache miss for Zarr manifest; about to fetch from repository",
+                    );
+                    self.inner
+                        .get_json::<manifest::Manifest>(
+                            path.under_manifest_root(&self.manifest_root_url),
+                        )
+                        .await
+                        .map(|zman| Op::Put(Arc::new(zman)))
+                } else {
+                    Ok(Op::Nop)
+                }
             })
-            .await
-            .map_err(Into::into)
+            .await?;
+        let entry = match result {
+            CompResult::Inserted(entry) => {
+                tracing::debug!(
+                    event = "manifest_cache_miss_post",
+                    manifest = ?path,
+                    cache_len = self.manifests.entry_count(),
+                    "Fetched Zarr manifest from repository",
+                );
+                entry
+            }
+            CompResult::Unchanged(entry) => {
+                tracing::debug!(
+                    event = "manifest_cache_hit",
+                    manifest = ?path,
+                    cache_len = self.manifests.entry_count(),
+                    "Fetched Zarr manifest from cache",
+                );
+                entry
+            }
+            _ => unreachable!(
+                "Call to and_try_compute_with() should only ever return Inserted or Unchanged"
+            ),
+        };
+        Ok(entry.into_value())
     }
 
     /// Convert the [`manifest::ManifestEntry`] `entry` with path `entry_path`
@@ -345,7 +393,7 @@ impl ZarrManClient {
 pub(crate) enum ZarrManError {
     /// An HTTP error occurred while interacting with the manifest tree
     #[error(transparent)]
-    Http(#[from] Arc<HttpError>),
+    Http(#[from] HttpError),
 
     /// The request path was invalid for the `/zarrs/` hierarchy
     #[error("invalid path requested: {path:?}")]
@@ -368,12 +416,6 @@ impl ZarrManError {
                 ErrorClass::NotFound
             }
         }
-    }
-}
-
-impl From<HttpError> for ZarrManError {
-    fn from(e: HttpError) -> ZarrManError {
-        Arc::new(e).into()
     }
 }
 

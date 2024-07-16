@@ -73,15 +73,15 @@ impl ManifestPath {
     }
 }
 
+impl fmt::Display for ManifestPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}/{}.json", self.prefix, self.zarr_id, self.checksum)
+    }
+}
+
 impl fmt::Debug for ManifestPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            r#""{}{}/{}/""#,
-            self.prefix.escape_debug(),
-            self.zarr_id.escape_debug(),
-            self.checksum.escape_debug()
-        )
+        write!(f, "{:?}", self.to_string())
     }
 }
 

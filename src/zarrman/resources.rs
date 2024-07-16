@@ -77,7 +77,7 @@ impl fmt::Debug for ManifestPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            r#""{}/{}/{}/""#,
+            r#""{}{}/{}/""#,
             self.prefix.escape_debug(),
             self.zarr_id.escape_debug(),
             self.checksum.escape_debug()

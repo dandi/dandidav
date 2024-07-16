@@ -85,7 +85,7 @@ impl ZarrManClient {
             .eviction_listener(|path, _, cause| {
                 tracing::debug!(
                     event = "manifest_cache_evict",
-                    manifest = ?path,
+                    manifest = %path,
                     ?cause,
                     "Zarr manifest evicted from cache",
                 );
@@ -286,7 +286,7 @@ impl ZarrManClient {
                 if entry.is_none() {
                     tracing::debug!(
                         event = "manifest_cache_miss_pre",
-                        manifest = ?path,
+                        manifest = %path,
                         cache_len = self.manifests.entry_count(),
                         "Cache miss for Zarr manifest; about to fetch from repository",
                     );
@@ -305,7 +305,7 @@ impl ZarrManClient {
             CompResult::Inserted(entry) => {
                 tracing::debug!(
                     event = "manifest_cache_miss_post",
-                    manifest = ?path,
+                    manifest = %path,
                     cache_len = self.manifests.entry_count(),
                     "Fetched Zarr manifest from repository",
                 );
@@ -314,7 +314,7 @@ impl ZarrManClient {
             CompResult::Unchanged(entry) => {
                 tracing::debug!(
                     event = "manifest_cache_hit",
-                    manifest = ?path,
+                    manifest = %path,
                     cache_len = self.manifests.entry_count(),
                     "Fetched Zarr manifest from cache",
                 );

@@ -50,6 +50,7 @@ tower-http = { version = "0.5.2", features = ["set-header", "trace"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["json", "local-time", "time"] }
 url = { version = "2.5.2", features = ["serde"] }
+uuid = { version = "1.10.0", features = ["fast-rng", "v4"] }
 xml-rs = "0.8.21"
 
 [dev-dependencies]

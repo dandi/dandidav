@@ -29,7 +29,6 @@ use axum::{
 };
 use clap::Parser;
 use std::fmt;
-use std::io::stderr;
 use std::net::IpAddr;
 use std::sync::Arc;
 use tower::service_fn;
@@ -79,7 +78,7 @@ fn main() -> anyhow::Result<()> {
             tracing_subscriber::fmt::layer()
                 .json()
                 .with_timer(timer)
-                .with_writer(stderr),
+                .with_writer(std::io::stderr),
         )
         .with(
             Targets::new()

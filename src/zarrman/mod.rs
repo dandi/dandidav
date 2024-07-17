@@ -276,6 +276,7 @@ impl ZarrManClient {
 
     /// Retrieve the Zarr manifest at the given [`ManifestPath`] in the
     /// manifest tree, either via an HTTP request or from a cache
+    #[tracing::instrument(skip_all, fields(id = %uuid::Uuid::new_v4(), manifest = %path))]
     async fn get_zarr_manifest(
         &self,
         path: &ManifestPath,

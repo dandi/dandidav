@@ -42,9 +42,9 @@ serde_json = { version = "1.0.120", features = ["preserve_order"] }
 serde_yaml = "0.9.34"
 smartstring = "1.0.1"
 tera = { version = "1.20.0", default-features = false }
-thiserror = "1.0.62"
+thiserror = "1.0.63"
 time = { version = "0.3.36", features = ["formatting", "macros", "parsing", "serde"] }
-tokio = { version = "1.38.0", features = ["macros", "net", "rt-multi-thread"] }
+tokio = { version = "1.38.1", features = ["macros", "net", "rt-multi-thread"] }
 tower = "0.4.13"
 tower-http = { version = "0.5.2", features = ["set-header", "trace"] }
 tracing = "0.1.40"

@@ -76,7 +76,7 @@ impl PurePath {
     }
 
     pub(crate) fn components(&self) -> impl Iterator<Item = Component> + '_ {
-        self.0.split('/').map(|c| Component(c.to_owned()))
+        self.0.split('/').map(|c| Component(c.into()))
     }
 
     pub(crate) fn push(&mut self, c: &Component) {
@@ -96,7 +96,7 @@ impl PurePath {
 
 impl From<Component> for PurePath {
     fn from(value: Component) -> PurePath {
-        PurePath(value.0)
+        PurePath(value.into())
     }
 }
 

@@ -1,9 +1,10 @@
+use smartstring::alias::CompactString;
 use thiserror::Error;
 
 /// A nonempty path component that does not contain a forward slash or NUL nor
 /// equals `.` or `..`
 #[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct Component(pub(super) String);
+pub(crate) struct Component(pub(super) CompactString);
 
 fn validate(s: &str) -> Result<(), ParseComponentError> {
     if s.is_empty() {

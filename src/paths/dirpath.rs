@@ -46,7 +46,7 @@ impl PureDirPath {
     }
 
     pub(crate) fn name(&self) -> Component {
-        Component(self.name_str().to_owned())
+        Component(self.name_str().into())
     }
 
     pub(crate) fn parent(&self) -> Option<PureDirPath> {
@@ -83,7 +83,7 @@ impl PureDirPath {
 
 impl From<Component> for PureDirPath {
     fn from(value: Component) -> PureDirPath {
-        let mut s = value.0;
+        let mut s = String::from(value);
         s.push('/');
         PureDirPath(s)
     }

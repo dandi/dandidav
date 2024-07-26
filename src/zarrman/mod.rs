@@ -50,6 +50,9 @@ static ENTRY_DOWNLOAD_PREFIX: &str = "https://dandiarchive.s3.amazonaws.com/zarr
 /// The maximum number of manifests cached at once
 const MANIFEST_CACHE_SIZE: u64 = 16;
 
+/// Expire any manifest cache entries that haven't been accessed for this long
+const MANIFEST_CACHE_IDLE_EXPIRY: Duration = Duration::from_secs(300);
+
 /// A client for fetching data about Zarrs via Zarr manifest files
 #[derive(Clone, Debug)]
 pub(crate) struct ZarrManClient {
@@ -81,7 +84,7 @@ impl ZarrManClient {
         let inner = Client::new()?;
         let manifests = CacheBuilder::new(MANIFEST_CACHE_SIZE)
             .name("zarr-manifests")
-            .time_to_idle(Duration::from_secs(300))
+            .time_to_idle(MANIFEST_CACHE_IDLE_EXPIRY)
             .eviction_listener(|path, _, cause| {
                 tracing::debug!(
                     cache_event = "evict",

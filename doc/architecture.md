@@ -32,8 +32,9 @@ General
       present in all other responses.
 
 - If any error occurs during the processing of a request, it will almost always
-  "bubble up" to `DandiDav::handle_request()`, which will log the error and
-  convert it into either a 404 response or a 500 response, as appropriate.
+  "bubble up" to [`DandiDav::handle_request()`][handle-request], which will log
+  the error and convert it into either a 404 response or a 500 response, as
+  appropriate.
 
     - Panics (which are handled by `axum`) should only ever occur if there is
       an actual bug in the code.
@@ -47,6 +48,10 @@ General
   suffix `_with_children()`/`WithChildren` for fetching or representing a
   resource and its children, and one variant without the suffix for fetching or
   representing just the resource itself.
+
+    - Requests with a `Depth` header of `infinity` (including missing `Depth`
+      headers) are replied to immediately with a 403 response; this is handled
+      by [the extraction of the `Depth` header value][extract-depth].
 
 - File sizes are represented as `i64` instead of `u64` for compatibility with
   the official Rust AWS S3 SDK.
@@ -108,8 +113,9 @@ General
       redirect to the Archive API download URL.  Unfortunately, certain WebDAV
       clients (i.e., [davfs2](https://savannah.nongnu.org/bugs/?65376)) do not
       support WebDAV servers that return redirects to other redirects, so the
-      `--prefer-s3-redirects` CLI option was added to `dandidav` to instead
-      make these `GET` requests redirect directly to the unsigned S3 URLs.
+      `--prefer-s3-redirects` CLI option was added to `dandidav` (and is
+      currently used by the webdav.dandiarchive.org deployment) to instead make
+      these `GET` requests redirect directly to the unsigned S3 URLs.
 
         - Note that HTML listings of a collection's children will always link
           blob assets to their Archive API download URLs, regardless of
@@ -188,6 +194,7 @@ See the documentation for the `dandidav::zarrman` module for more information.
 
 
 [service-fn]: https://github.com/dandi/dandidav/blob/00d0714a88c28737f2d648a5dd57d37568ac0f0a/src/main.rs#L116-L122
+[extract-depth]: https://github.com/dandi/dandidav/blob/9b9b04872065b8132657b878bad324b2dff68a97/src/dav/util.rs#L99-L111
 
 [`DandiDav`]: https://github.com/dandi/dandidav/blob/8d058fe0e561e56ecd3d4c5cd49ca9403b0d196a/src/dav/mod.rs#L37
 [handle-request]: https://github.com/dandi/dandidav/blob/8d058fe0e561e56ecd3d4c5cd49ca9403b0d196a/src/dav/mod.rs#L71

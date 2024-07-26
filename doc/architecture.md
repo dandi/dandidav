@@ -1,7 +1,7 @@
 Overview of `dandidav` Architecture
 ===================================
 
-*This document is up-to-date as of 2024 July 14.*
+*This document is up-to-date as of 2024 July 26.*
 
 > [!NOTE]
 > A new architecture is currently being planned for the code.  See [issue
@@ -33,8 +33,7 @@ General
 
 - If any error occurs during the processing of a request, it will almost always
   "bubble up" to [`DandiDav::handle_request()`][handle-request], which will log
-  the error and convert it into either a 404 response or a 500 response, as
-  appropriate.
+  the error and convert it into a 404, 500, or 502 response, as appropriate.
 
     - Panics (which are handled by `axum`) should only ever occur if there is
       an actual bug in the code.
@@ -168,7 +167,7 @@ General
   same names & directory structure as the actual Zarr.
 
     - If a given Zarr asset lacks an S3 `contentUrl`, any requests to a path
-      under that Zarr will result in a 500 response.
+      under that Zarr will result in a 502 response.
 
     - If an S3 URL does not specify the bucket region, it is determined via a
       `HEAD` request to the domain.  The S3 client caching (see below) means

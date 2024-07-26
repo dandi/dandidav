@@ -8,6 +8,7 @@ use self::streams::Paginate;
 pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
 use crate::consts::S3CLIENT_CACHE_SIZE;
+use crate::dav::ErrorClass;
 use crate::httputil::{urljoin_slashed, BuildClientError, Client, HttpError};
 use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
 use crate::s3::{
@@ -108,7 +109,7 @@ impl DandiClient {
         else {
             return Err(DandiError::ZarrToS3Error {
                 asset_id: zarr.asset_id.clone(),
-                source: ZarrToS3Error::ZarrLacksS3Url,
+                source: ZarrToS3Error::NoS3Url,
             });
         };
         if !key.ends_with('/') {
@@ -521,22 +522,25 @@ pub(crate) enum DandiError {
 }
 
 impl DandiError {
-    /// Was the error ultimately caused by something not being found?
-    pub(crate) fn is_404(&self) -> bool {
-        matches!(
-            self,
-            DandiError::Http(HttpError::NotFound { .. })
-                | DandiError::PathNotFound { .. }
-                | DandiError::PathUnderBlob { .. }
-                | DandiError::ZarrEntryNotFound { .. }
-        )
+    /// Classify the general type of error
+    pub(crate) fn class(&self) -> ErrorClass {
+        match self {
+            DandiError::Http(source) => source.class(),
+            DandiError::PathNotFound { .. }
+            | DandiError::PathUnderBlob { .. }
+            | DandiError::ZarrEntryNotFound { .. } => ErrorClass::NotFound,
+            DandiError::DisappearingAsset { .. } => ErrorClass::BadGateway,
+            DandiError::ZarrToS3Error { source, .. } => source.class(),
+            DandiError::AssetType(_) => ErrorClass::BadGateway,
+            DandiError::S3(source) => source.class(),
+        }
     }
 }
 
 #[derive(Debug, Error)]
 pub(crate) enum ZarrToS3Error {
     #[error("Zarr does not have an S3 download URL")]
-    ZarrLacksS3Url,
+    NoS3Url,
     #[error("key in S3 URL is not a well-formed path")]
     BadS3Key(#[source] crate::validstr::TryFromStringError<ParsePureDirPathError>),
     #[error("failed to determine region for S3 bucket {bucket:?}")]
@@ -544,6 +548,28 @@ pub(crate) enum ZarrToS3Error {
         bucket: CompactString,
         source: Arc<GetBucketRegionError>,
     },
+}
+
+impl ZarrToS3Error {
+    /// Classify the general type of error
+    pub(crate) fn class(&self) -> ErrorClass {
+        match self {
+            ZarrToS3Error::NoS3Url => ErrorClass::BadGateway,
+            ZarrToS3Error::BadS3Key(_) => ErrorClass::BadGateway,
+            ZarrToS3Error::LocateBucket { source, .. } => {
+                let class = source.class();
+                if class == ErrorClass::NotFound {
+                    // This only happens if the bucket does not exist, in which
+                    // case the Archive lied to us about the Zarr's contentUrl,
+                    // which is a problem with the Archive response and thus a
+                    // Bad Gateway error.
+                    ErrorClass::BadGateway
+                } else {
+                    class
+                }
+            }
+        }
+    }
 }
 
 /// Serialize the given deserialized JSON value as YAML

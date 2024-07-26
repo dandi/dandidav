@@ -1,5 +1,6 @@
 //! HTTP utilities
 use crate::consts::USER_AGENT;
+use crate::dav::ErrorClass;
 use reqwest::{Method, Request, Response, StatusCode};
 use reqwest_middleware::{Middleware, Next};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
@@ -161,6 +162,16 @@ pub(crate) enum HttpError {
     /// Deserializing the response body as JSON failed
     #[error("failed to deserialize response body from {url}")]
     Deserialize { url: Url, source: reqwest::Error },
+}
+
+impl HttpError {
+    /// Classify the general type of error
+    pub(crate) fn class(&self) -> ErrorClass {
+        match self {
+            HttpError::NotFound { .. } => ErrorClass::NotFound,
+            _ => ErrorClass::BadGateway,
+        }
+    }
 }
 
 /// Create a URL by extending `url`'s path with the path segments `segments`.

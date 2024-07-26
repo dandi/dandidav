@@ -17,6 +17,7 @@ mod path;
 mod resources;
 use self::path::ReqPath;
 pub(crate) use self::resources::*;
+use crate::dav::ErrorClass;
 use crate::httputil::{urljoin, urljoin_slashed, BuildClientError, Client, HttpError};
 use crate::paths::{Component, PureDirPath, PurePath};
 use moka::future::{Cache, CacheBuilder};
@@ -360,15 +361,14 @@ pub(crate) enum ZarrManError {
 }
 
 impl ZarrManError {
-    /// Was the error ultimately caused by something not being found?
-    pub(crate) fn is_404(&self) -> bool {
-        matches!(
-            self,
-            ZarrManError::Http(e) if matches!(**e, HttpError::NotFound {..})
-        ) || matches!(
-            self,
-            ZarrManError::InvalidPath { .. } | ZarrManError::ManifestPathNotFound { .. }
-        )
+    /// Classify the general type of error
+    pub(crate) fn class(&self) -> ErrorClass {
+        match self {
+            ZarrManError::Http(source) => source.class(),
+            ZarrManError::InvalidPath { .. } | ZarrManError::ManifestPathNotFound { .. } => {
+                ErrorClass::NotFound
+            }
+        }
     }
 }
 

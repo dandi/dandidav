@@ -1,6 +1,7 @@
 //! Facilities for retrieving information from an S3 bucket
 mod streams;
 use self::streams::ListEntryPages;
+use crate::dav::ErrorClass;
 use crate::httputil::{self, BuildClientError, HttpError};
 use crate::paths::{ParsePureDirPathError, ParsePurePathError, PureDirPath, PurePath};
 use crate::streamutil::TryStreamUtil;
@@ -400,6 +401,13 @@ pub(crate) enum S3Error {
     },
 }
 
+impl S3Error {
+    /// Classify the general type of error
+    pub(crate) fn class(&self) -> ErrorClass {
+        ErrorClass::BadGateway
+    }
+}
+
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub(crate) enum TryFromCommonPrefixError {
     #[error(r#"CommonPrefix lacks "prefix" field"#)]
@@ -464,6 +472,19 @@ pub(crate) enum GetBucketRegionError {
     NoHeader,
     #[error("S3 response had undecodable x-amz-bucket-region header")]
     BadHeader(#[source] reqwest::header::ToStrError),
+}
+
+impl GetBucketRegionError {
+    /// Classify the general type of error
+    pub(crate) fn class(&self) -> ErrorClass {
+        match self {
+            GetBucketRegionError::BuildClient(_) => ErrorClass::Internal,
+            GetBucketRegionError::Http(source) => source.class(),
+            GetBucketRegionError::BadUrl { .. } => ErrorClass::Internal,
+            GetBucketRegionError::NoHeader => ErrorClass::BadGateway,
+            GetBucketRegionError::BadHeader(_) => ErrorClass::BadGateway,
+        }
+    }
 }
 
 #[cfg(test)]

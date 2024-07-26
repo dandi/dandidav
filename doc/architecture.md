@@ -185,11 +185,31 @@ General
 ---------------
 
 The [`ZarrManClient`][] type is used to retrieve information about Zarr entries
-by fetching Zarr manifests from <https://github.com/dandi/zarr-manifests> via
-the mirror at <https://datasets.datalad.org/dandi/zarr-manifests/>.  It is the
-data source for the `/zarrs/` hierarchy served by `dandidav`.
+by fetching *Zarr manifests* from <https://github.com/dandi/zarr-manifests> via
+a mirror at <https://datasets.datalad.org/dandi/zarr-manifests/> (the *manifest
+tree*); see [`doc/zarrman.md`](zarrman.md) for information on the Zarr manifest
+format and server API.  The client is the data source for the `/zarrs/`
+hierarchy served by `dandidav`.
 
-See the documentation for the `dandidav::zarrman` module for more information.
+`ZarrManClient` has three public methods exposed for use by `DandiDav`:
+
+- [`get_top_level_dirs()`][zm-top-level] — for listing the folders at the top
+  of the `/zarrs/` hierarchy
+- [`get_resource()`][zm-res] — for obtaining details on a resource at a given
+  path underneath `/zarrs/`
+- [`get_resource_with_children()`][zm-res-with-child] — for obtaining details
+  on a resource and its children at a path underneath `/zarrs/`
+
+When listing the contents of a directory resource that directly corresponds to
+a directory in the manifest tree (i.e., a directory directly or indirectly
+containing Zarrs/Zarr manifests), an HTTP request is made to the manifest tree
+server to obtain the listing.
+
+When listing the contents of a Zarr (either the top level or a descendant
+subdirectory), the Zarr's manifest is consulted to discover the resources at
+the given location to return.  Zarr manifests are initially obtained via an
+HTTP request to the manifest tree server and are afterwards cached until
+implementation-defined expiry criteria are met.
 
 
 [service-fn]: https://github.com/dandi/dandidav/blob/00d0714a88c28737f2d648a5dd57d37568ac0f0a/src/main.rs#L116-L122
@@ -210,3 +230,6 @@ See the documentation for the `dandidav::zarrman` module for more information.
 [`S3CLIENT_CACHE_SIZE`]: https://github.com/dandi/dandidav/blob/8d058fe0e561e56ecd3d4c5cd49ca9403b0d196a/src/consts.rs#L24-L25
 
 [`ZarrManClient`]: https://github.com/dandi/dandidav/blob/e9be2dd15ba95d760912344cd09c2a1a08da89b2/src/zarrman/mod.rs#L51
+[zm-res]: https://github.com/dandi/dandidav/blob/28d4b5b8a6ad3adca4ae8771480143ac9bcb7c89/src/zarrman/mod.rs#L109
+[zm-res-with-child]: https://github.com/dandi/dandidav/blob/28d4b5b8a6ad3adca4ae8771480143ac9bcb7c89/src/zarrman/mod.rs#L159
+[zm-top-level]: https://github.com/dandi/dandidav/blob/28d4b5b8a6ad3adca4ae8771480143ac9bcb7c89/src/zarrman/mod.rs#L100

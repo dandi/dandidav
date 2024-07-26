@@ -62,26 +62,23 @@ impl DandiDav {
     ///
     /// This method delegates almost all work to
     /// [`DandiDav::inner_handle_request()`], after which it handles any
-    /// errors returned by logging them and converting them to 404 or 500
+    /// errors returned by logging them and converting them to 4xx or 5xx
     /// responses, as appropriate.  The final response also has
     /// [`WEBDAV_RESPONSE_HEADERS`] added.
     pub(crate) async fn handle_request(
         &self,
         req: Request<Body>,
     ) -> Result<Response<Body>, Infallible> {
-        let resp = match self.inner_handle_request(req).await {
-            Ok(r) => r,
-            Err(e) if e.is_404() => {
+        let resp = self.inner_handle_request(req).await.unwrap_or_else(|e| {
+                let class = e.class();
                 let e = anyhow::Error::from(e);
-                tracing::info!(error = ?e, "Resource not found");
-                not_found()
-            }
-            Err(e) => {
-                let e = anyhow::Error::from(e);
-                tracing::error!(error = ?e, "Internal server error");
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("{e:?}")).into_response()
-            }
-        };
+                tracing::info!(error = ?e, status = class.to_status().as_u16(), "Error processing request");
+                if class == ErrorClass::NotFound {
+                    not_found()
+                } else {
+                    (class.to_status(), format!("{e:?}")).into_response()
+                }
+            });
         Ok((WEBDAV_RESPONSE_HEADERS, resp).into_response())
     }
 
@@ -440,13 +437,39 @@ pub(crate) enum DavError {
 }
 
 impl DavError {
-    /// Was the error ultimately caused by something not being found?
-    pub(crate) fn is_404(&self) -> bool {
+    /// Classify the general type of error
+    pub(crate) fn class(&self) -> ErrorClass {
         match self {
-            DavError::Dandi(e) => e.is_404(),
-            DavError::ZarrMan(e) => e.is_404(),
-            DavError::NoLatestVersion { .. } => true,
-            _ => false,
+            DavError::Dandi(e) => e.class(),
+            DavError::ZarrMan(e) => e.class(),
+            DavError::NoLatestVersion { .. } => ErrorClass::NotFound,
+            DavError::Template(_) | DavError::Xml(_) => ErrorClass::Internal,
+        }
+    }
+}
+
+/// A classification of a `DavError` for use in determining the HTTP status
+/// code to reply with
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ErrorClass {
+    /// The error was ultimately caused by something not being found
+    NotFound,
+
+    /// The error was ultimately caused by an upstream server returning an
+    /// error or invalid response
+    BadGateway,
+
+    /// The error was ultimately caused by something going wrong in `dandidav`
+    Internal,
+}
+
+impl ErrorClass {
+    /// Return the HTTP status code matching this error class
+    fn to_status(self) -> StatusCode {
+        match self {
+            ErrorClass::NotFound => StatusCode::NOT_FOUND,
+            ErrorClass::BadGateway => StatusCode::BAD_GATEWAY,
+            ErrorClass::Internal => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

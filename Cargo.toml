@@ -18,13 +18,13 @@ publish = false
 anyhow = "1.0.86"
 async-trait = "0.1.81"
 aws-config = { version = "1.5.3", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.41.0"
+aws-sdk-s3 = "1.42.0"
 aws-smithy-async = "1.2.1"
 aws-smithy-runtime-api = "1.7.1"
 aws-smithy-types-convert = { version = "0.60.8", features = ["convert-time"] }
 axum = { version = "0.7.5", default-features = false, features = ["http1", "tokio", "tower-log"] }
 bytes = "1.6.1"
-clap = { version = "4.5.8", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
+clap = { version = "4.5.11", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
 enum_dispatch = "0.3.13"
 futures-util = "0.3.30"
 humansize = "2.1.3"
@@ -38,13 +38,13 @@ reqwest = { version = "0.12.5", default-features = false, features = ["json", "r
 reqwest-middleware = "0.3.2"
 reqwest-retry = "0.6.0"
 serde = { version = "1.0.204", features = ["derive"] }
-serde_json = { version = "1.0.120", features = ["preserve_order"] }
+serde_json = { version = "1.0.121", features = ["preserve_order"] }
 serde_yaml = "0.9.34"
 smartstring = "1.0.1"
 tera = { version = "1.20.0", default-features = false }
 thiserror = "1.0.63"
 time = { version = "0.3.36", features = ["formatting", "macros", "parsing", "serde"] }
-tokio = { version = "1.38.1", features = ["macros", "net", "rt-multi-thread"] }
+tokio = { version = "1.39.2", features = ["macros", "net", "rt-multi-thread"] }
 tower = "0.4.13"
 tower-http = { version = "0.5.2", features = ["set-header", "trace"] }
 tracing = "0.1.40"

@@ -20,6 +20,7 @@ pub(crate) use self::resources::*;
 use crate::dav::ErrorClass;
 use crate::httputil::{BuildClientError, Client, HttpError, HttpUrl};
 use crate::paths::{Component, PureDirPath, PurePath};
+use get_size::GetSize;
 use moka::{
     future::{Cache, CacheBuilder},
     ops::compute::{CompResult, Op},
@@ -85,11 +86,12 @@ impl ZarrManClient {
         let manifests = CacheBuilder::new(MANIFEST_CACHE_SIZE)
             .name("zarr-manifests")
             .time_to_idle(MANIFEST_CACHE_IDLE_EXPIRY)
-            .eviction_listener(|path, _, cause| {
+            .eviction_listener(|path, manifest: Arc<manifest::Manifest>, cause| {
                 tracing::debug!(
                     cache_event = "evict",
                     cache = "zarr-manifests",
                     manifest = %path,
+                    manifest_size = manifest.get_size(),
                     ?cause,
                     "Zarr manifest evicted from cache",
                 );
@@ -313,6 +315,7 @@ impl ZarrManClient {
                     cache_event = "miss_post",
                     cache = "zarr-manifests",
                     manifest = %path,
+                    manifest_size = entry.value().get_size(),
                     approx_cache_len = self.manifests.entry_count(),
                     "Fetched Zarr manifest from repository",
                 );
@@ -323,6 +326,7 @@ impl ZarrManClient {
                     cache_event = "hit",
                     cache = "zarr-manifests",
                     manifest = %path,
+                    manifest_size = entry.value().get_size(),
                     approx_cache_len = self.manifests.entry_count(),
                     "Fetched Zarr manifest from cache",
                 );

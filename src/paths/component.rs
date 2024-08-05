@@ -1,3 +1,4 @@
+use get_size::GetSize;
 use smartstring::alias::CompactString;
 use thiserror::Error;
 
@@ -33,6 +34,16 @@ impl Component {
     pub(crate) fn strip_suffix(&self, suffix: &str) -> Option<Component> {
         let s = self.0.strip_suffix(suffix)?;
         (!s.is_empty()).then(|| Component(s.into()))
+    }
+}
+
+impl GetSize for Component {
+    fn get_heap_size(&self) -> usize {
+        if self.0.is_inline() {
+            0
+        } else {
+            self.0.capacity()
+        }
     }
 }
 

@@ -12,61 +12,25 @@
 //! `.json` extension changed to `.zarr`) containing the respective Zarrs'
 //! entry hierarchies.
 
+mod consts;
+mod fetcher;
 mod manifest;
 mod path;
 mod resources;
+mod util;
+use self::consts::ENTRY_DOWNLOAD_PREFIX;
+pub(crate) use self::fetcher::ManifestFetcher;
 use self::path::ReqPath;
 pub(crate) use self::resources::*;
-use crate::dav::ErrorClass;
-use crate::httputil::{BuildClientError, Client, HttpError, HttpUrl};
-use crate::paths::{Component, PureDirPath, PurePath};
-use get_size::GetSize;
-use moka::{
-    future::{Cache, CacheBuilder},
-    ops::compute::{CompResult, Op},
-};
-use serde::Deserialize;
-use std::sync::Arc;
-use std::time::Duration;
-use thiserror::Error;
-
-/// The manifest root URL.
-///
-/// This is the base URL of the manifest tree (a URL hierarchy containing Zarr
-/// manifests).
-///
-/// The current value is a subdirectory of a mirror of
-/// <https://github.com/dandi/zarr-manifests>.
-static MANIFEST_ROOT_URL: &str =
-    "https://datasets.datalad.org/dandi/zarr-manifests/zarr-manifests-v2-sorted/";
-
-/// The URL beneath which Zarr entries listed in the Zarr manifests should be
-/// available for download.
-///
-/// Given a Zarr with Zarr ID `zarr_id` and an entry therein at path
-/// `entry_path`, the download URL for the entry is expected to be
-/// `{ENTRY_DOWNLOAD_PREFIX}/{zarr_id}/{entry_path}`.
-static ENTRY_DOWNLOAD_PREFIX: &str = "https://dandiarchive.s3.amazonaws.com/zarr/";
-
-/// Limit the manifest cache to storing no more than this many bytes of parsed
-/// manifests at once
-const MANIFEST_CACHE_TOTAL_BYTES: u64 = 100 * 1024 * 1024; // 100 MiB
-
-/// Expire any manifest cache entries that haven't been accessed for this long
-const MANIFEST_CACHE_IDLE_EXPIRY: Duration = Duration::from_secs(300);
+pub(crate) use self::util::ZarrManError;
+use crate::httputil::HttpUrl;
+use crate::paths::{PureDirPath, PurePath};
 
 /// A client for fetching data about Zarrs via Zarr manifest files
 #[derive(Clone, Debug)]
 pub(crate) struct ZarrManClient {
-    /// The HTTP client used for making requests to the manifest tree
-    inner: Client,
-
-    /// A cache of parsed manifest files, keyed by their path under
-    /// `MANIFEST_ROOT_URL`
-    manifests: Cache<ManifestPath, Arc<manifest::Manifest>>,
-
-    /// [`MANIFEST_ROOT_URL`], parsed into an [`HttpUrl`]
-    manifest_root_url: HttpUrl,
+    /// The actual client for fetching & caching Zarr manifests
+    fetcher: ManifestFetcher,
 
     /// [`ENTRY_DOWNLOAD_PREFIX`], parsed into an [`HttpUrl`]
     entry_download_prefix: HttpUrl,
@@ -78,46 +42,18 @@ pub(crate) struct ZarrManClient {
 
 impl ZarrManClient {
     /// Construct a new client instance
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if construction of the inner `reqwest::Client` fails
-    pub(crate) fn new() -> Result<Self, BuildClientError> {
-        let inner = Client::new()?;
-        let manifests: Cache<ManifestPath, Arc<manifest::Manifest>> =
-            CacheBuilder::new(MANIFEST_CACHE_TOTAL_BYTES)
-                .name("zarr-manifests")
-                .weigher(|_, manifest: &Arc<manifest::Manifest>| {
-                    u32::try_from(manifest.get_size()).unwrap_or(u32::MAX)
-                })
-                .time_to_idle(MANIFEST_CACHE_IDLE_EXPIRY)
-                .eviction_listener(|path, manifest, cause| {
-                    tracing::debug!(
-                        cache_event = "evict",
-                        cache = "zarr-manifests",
-                        manifest = %path,
-                        manifest_size = manifest.get_size(),
-                        ?cause,
-                        "Zarr manifest evicted from cache",
-                    );
-                })
-                .build();
-        let manifest_root_url = MANIFEST_ROOT_URL
-            .parse::<HttpUrl>()
-            .expect("MANIFEST_ROOT_URL should be a valid HTTP URL");
+    pub(crate) fn new(fetcher: ManifestFetcher) -> Self {
         let entry_download_prefix = ENTRY_DOWNLOAD_PREFIX
             .parse::<HttpUrl>()
             .expect("ENTRY_DOWNLOAD_PREFIX should be a valid HTTP URL");
         let web_path_prefix = "zarrs/"
             .parse::<PureDirPath>()
             .expect(r#""zarrs/" should be a valid directory path"#);
-        Ok(ZarrManClient {
-            inner,
-            manifests,
-            manifest_root_url,
+        ZarrManClient {
+            fetcher,
             entry_download_prefix,
             web_path_prefix,
-        })
+        }
     }
 
     /// Retrieve the resources at the top level of `/zarrs/`, i.e., those
@@ -148,14 +84,14 @@ impl ZarrManClient {
             }
             ReqPath::Manifest(path) => {
                 // Make a request to confirm that manifest exists
-                let _ = self.get_zarr_manifest(&path).await?;
+                let _ = self.fetcher.fetch_manifest(&path).await?;
                 Ok(ZarrManResource::Manifest(Manifest { path }))
             }
             ReqPath::InManifest {
                 manifest_path,
                 entry_path,
             } => {
-                let man = self.get_zarr_manifest(&manifest_path).await?;
+                let man = self.fetcher.fetch_manifest(&manifest_path).await?;
                 match man.get(&entry_path) {
                     Some(manifest::EntryRef::Folder(_)) => {
                         let web_path = manifest_path
@@ -197,7 +133,7 @@ impl ZarrManClient {
                 Ok(ZarrManResourceWithChildren::WebFolder { folder, children })
             }
             ReqPath::Manifest(path) => {
-                let man = self.get_zarr_manifest(&path).await?;
+                let man = self.fetcher.fetch_manifest(&path).await?;
                 let children = self.convert_manifest_folder_children(&path, None, &man.entries);
                 let folder = Manifest { path };
                 Ok(ZarrManResourceWithChildren::Manifest { folder, children })
@@ -206,7 +142,7 @@ impl ZarrManClient {
                 manifest_path,
                 entry_path,
             } => {
-                let man = self.get_zarr_manifest(&manifest_path).await?;
+                let man = self.fetcher.fetch_manifest(&manifest_path).await?;
                 match man.get(&entry_path) {
                     Some(manifest::EntryRef::Folder(folref)) => {
                         let web_path = manifest_path
@@ -236,18 +172,14 @@ impl ZarrManClient {
 
     /// Retrieve the resources in the given directory of the manifest tree.
     ///
-    /// `path` must be relative to the manifest root.  Unlike the
-    /// `get_resource*()` methods, Zarr manifests are not transparently
-    /// converted to collections.
+    /// `path` must be relative to the manifest root.  A `path` of `None`
+    /// denotes the manifest root itself.  Unlike the `get_resource*()`
+    /// methods, Zarr manifests are not transparently converted to collections.
     async fn get_index_entries(
         &self,
         path: Option<&PureDirPath>,
     ) -> Result<Vec<ZarrManResource>, ZarrManError> {
-        let mut url = self.manifest_root_url.clone();
-        if let Some(p) = path {
-            url.extend(p.component_strs()).ensure_dirpath();
-        }
-        let index = self.inner.get_json::<Index>(url).await?;
+        let index = self.fetcher.fetch_index(path).await?;
         let mut entries =
             Vec::with_capacity(index.files.len().saturating_add(index.directories.len()));
         if let Some(path) = path {
@@ -282,69 +214,6 @@ impl ZarrManClient {
             entries.push(ZarrManResource::WebFolder(WebFolder { web_path }));
         }
         Ok(entries)
-    }
-
-    /// Retrieve the Zarr manifest at the given [`ManifestPath`] in the
-    /// manifest tree, either via an HTTP request or from a cache
-    #[tracing::instrument(skip_all, fields(id = %uuid::Uuid::new_v4(), manifest = %path))]
-    async fn get_zarr_manifest(
-        &self,
-        path: &ManifestPath,
-    ) -> Result<Arc<manifest::Manifest>, ZarrManError> {
-        let result = self
-            .manifests
-            .entry_by_ref(path)
-            .and_try_compute_with(|entry| async move {
-                if entry.is_none() {
-                    tracing::debug!(
-                        cache_event = "miss_pre",
-                        cache = "zarr-manifests",
-                        manifest = %path,
-                        approx_cache_len = self.manifests.entry_count(),
-                        approx_cache_size = self.manifests.weighted_size(),
-                        "Cache miss for Zarr manifest; about to fetch from repository",
-                    );
-                    self.inner
-                        .get_json::<manifest::Manifest>(
-                            path.under_manifest_root(&self.manifest_root_url),
-                        )
-                        .await
-                        .map(|zman| Op::Put(Arc::new(zman)))
-                } else {
-                    Ok(Op::Nop)
-                }
-            })
-            .await?;
-        let entry = match result {
-            CompResult::Inserted(entry) => {
-                tracing::debug!(
-                    cache_event = "miss_post",
-                    cache = "zarr-manifests",
-                    manifest = %path,
-                    manifest_size = entry.value().get_size(),
-                    approx_cache_len = self.manifests.entry_count(),
-                    approx_cache_size = self.manifests.weighted_size(),
-                    "Fetched Zarr manifest from repository",
-                );
-                entry
-            }
-            CompResult::Unchanged(entry) => {
-                tracing::debug!(
-                    cache_event = "hit",
-                    cache = "zarr-manifests",
-                    manifest = %path,
-                    manifest_size = entry.value().get_size(),
-                    approx_cache_len = self.manifests.entry_count(),
-                    approx_cache_size = self.manifests.weighted_size(),
-                    "Fetched Zarr manifest from cache",
-                );
-                entry
-            }
-            _ => unreachable!(
-                "Call to and_try_compute_with() should only ever return Inserted or Unchanged"
-            ),
-        };
-        Ok(entry.into_value())
     }
 
     /// Convert the [`manifest::ManifestEntry`] `entry` with path `entry_path`
@@ -407,46 +276,4 @@ impl ZarrManClient {
         }
         children
     }
-}
-
-#[derive(Debug, Error)]
-pub(crate) enum ZarrManError {
-    /// An HTTP error occurred while interacting with the manifest tree
-    #[error(transparent)]
-    Http(#[from] HttpError),
-
-    /// The request path was invalid for the `/zarrs/` hierarchy
-    #[error("invalid path requested: {path:?}")]
-    InvalidPath { path: PurePath },
-
-    /// An request was made for a nonexistent path inside an extant Zarr
-    #[error("path {entry_path:?} inside manifest at {manifest_path:?} does not exist")]
-    ManifestPathNotFound {
-        manifest_path: ManifestPath,
-        entry_path: PurePath,
-    },
-}
-
-impl ZarrManError {
-    /// Classify the general type of error
-    pub(crate) fn class(&self) -> ErrorClass {
-        match self {
-            ZarrManError::Http(source) => source.class(),
-            ZarrManError::InvalidPath { .. } | ZarrManError::ManifestPathNotFound { .. } => {
-                ErrorClass::NotFound
-            }
-        }
-    }
-}
-
-/// A directory listing parsed from the response to a `GET` request to a
-/// directory in the manifest tree
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-struct Index {
-    // Returned by the manifest tree API but not used by dandidav:
-    //path: String,
-    /// The names of the files in the directory
-    files: Vec<Component>,
-    /// The names of the subdirectories of the directory
-    directories: Vec<Component>,
 }

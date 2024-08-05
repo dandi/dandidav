@@ -9,7 +9,9 @@ mod paths;
 mod s3;
 mod streamutil;
 mod zarrman;
-use crate::consts::{CSS_CONTENT_TYPE, DEFAULT_API_URL, SERVER_VALUE};
+use crate::consts::{
+    CSS_CONTENT_TYPE, DEFAULT_API_URL, SERVER_VALUE, ZARR_MANIFEST_CACHE_DUMP_PERIOD,
+};
 use crate::dandi::DandiClient;
 use crate::dav::{DandiDav, Templater};
 use crate::httputil::HttpUrl;
@@ -98,6 +100,7 @@ async fn run() -> anyhow::Result<()> {
     let args = Arguments::parse();
     let dandi = DandiClient::new(args.api_url)?;
     let zarrfetcher = ManifestFetcher::new()?;
+    zarrfetcher.install_periodic_dump(ZARR_MANIFEST_CACHE_DUMP_PERIOD);
     let zarrman = ZarrManClient::new(zarrfetcher);
     let templater = Templater::new(args.title)?;
     let dav = Arc::new(DandiDav {

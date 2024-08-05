@@ -1,4 +1,5 @@
 //! Constants and program-wide compile-time configuration
+use std::time::Duration;
 use time::{format_description::FormatItem, macros::format_description};
 
 /// The "User-Agent" value sent in outgoing HTTP requests
@@ -56,6 +57,9 @@ pub(crate) static HTML_TIMESTAMP_FORMAT: &[FormatItem<'_>] =
 ///
 /// This list must be kept in sorted order; this is enforced by a test below.
 pub(crate) static FAST_NOT_EXIST: &[&str] = &[".bzr", ".git", ".nols", ".svn"];
+
+/// Interval between periodic logging of the Zarr manifest cache's contents
+pub(crate) const ZARR_MANIFEST_CACHE_DUMP_PERIOD: Duration = Duration::from_secs(3600);
 
 #[cfg(test)]
 mod tests {

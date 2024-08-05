@@ -48,8 +48,9 @@ static MANIFEST_ROOT_URL: &str =
 /// `{ENTRY_DOWNLOAD_PREFIX}/{zarr_id}/{entry_path}`.
 static ENTRY_DOWNLOAD_PREFIX: &str = "https://dandiarchive.s3.amazonaws.com/zarr/";
 
-/// The maximum number of manifests cached at once
-const MANIFEST_CACHE_SIZE: u64 = 16;
+/// Limit the manifest cache to storing no more than this many bytes of parsed
+/// manifests at once
+const MANIFEST_CACHE_TOTAL_BYTES: u64 = 100 * 1024 * 1024; // 100 MiB
 
 /// Expire any manifest cache entries that haven't been accessed for this long
 const MANIFEST_CACHE_IDLE_EXPIRY: Duration = Duration::from_secs(300);
@@ -83,20 +84,24 @@ impl ZarrManClient {
     /// Returns an error if construction of the inner `reqwest::Client` fails
     pub(crate) fn new() -> Result<Self, BuildClientError> {
         let inner = Client::new()?;
-        let manifests = CacheBuilder::new(MANIFEST_CACHE_SIZE)
-            .name("zarr-manifests")
-            .time_to_idle(MANIFEST_CACHE_IDLE_EXPIRY)
-            .eviction_listener(|path, manifest: Arc<manifest::Manifest>, cause| {
-                tracing::debug!(
-                    cache_event = "evict",
-                    cache = "zarr-manifests",
-                    manifest = %path,
-                    manifest_size = manifest.get_size(),
-                    ?cause,
-                    "Zarr manifest evicted from cache",
-                );
-            })
-            .build();
+        let manifests: Cache<ManifestPath, Arc<manifest::Manifest>> =
+            CacheBuilder::new(MANIFEST_CACHE_TOTAL_BYTES)
+                .name("zarr-manifests")
+                .weigher(|_, manifest: &Arc<manifest::Manifest>| {
+                    u32::try_from(manifest.get_size()).unwrap_or(u32::MAX)
+                })
+                .time_to_idle(MANIFEST_CACHE_IDLE_EXPIRY)
+                .eviction_listener(|path, manifest, cause| {
+                    tracing::debug!(
+                        cache_event = "evict",
+                        cache = "zarr-manifests",
+                        manifest = %path,
+                        manifest_size = manifest.get_size(),
+                        ?cause,
+                        "Zarr manifest evicted from cache",
+                    );
+                })
+                .build();
         let manifest_root_url = MANIFEST_ROOT_URL
             .parse::<HttpUrl>()
             .expect("MANIFEST_ROOT_URL should be a valid HTTP URL");
@@ -296,6 +301,7 @@ impl ZarrManClient {
                         cache = "zarr-manifests",
                         manifest = %path,
                         approx_cache_len = self.manifests.entry_count(),
+                        approx_cache_size = self.manifests.weighted_size(),
                         "Cache miss for Zarr manifest; about to fetch from repository",
                     );
                     self.inner
@@ -317,6 +323,7 @@ impl ZarrManClient {
                     manifest = %path,
                     manifest_size = entry.value().get_size(),
                     approx_cache_len = self.manifests.entry_count(),
+                    approx_cache_size = self.manifests.weighted_size(),
                     "Fetched Zarr manifest from repository",
                 );
                 entry
@@ -328,6 +335,7 @@ impl ZarrManClient {
                     manifest = %path,
                     manifest_size = entry.value().get_size(),
                     approx_cache_len = self.manifests.entry_count(),
+                    approx_cache_size = self.manifests.weighted_size(),
                     "Fetched Zarr manifest from cache",
                 );
                 entry

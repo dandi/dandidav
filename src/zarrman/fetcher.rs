@@ -9,7 +9,9 @@ use moka::{
     future::{Cache, CacheBuilder},
     ops::compute::{CompResult, Op},
 };
+use serde::Serialize;
 use std::sync::Arc;
+use std::time::Duration;
 
 /// A client for fetching & caching data from the manifest tree
 #[derive(Clone, Debug)]
@@ -134,4 +136,54 @@ impl ManifestFetcher {
         };
         Ok(entry.into_value())
     }
+
+    pub(crate) fn install_periodic_dump(&self, period: Duration) {
+        let this = self.clone();
+        let mut schedule = tokio::time::interval(period);
+        schedule.reset(); // Don't tick immediately
+        schedule.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        tokio::spawn({
+            async move {
+                loop {
+                    schedule.tick().await;
+                    this.log_cache();
+                }
+            }
+        });
+    }
+
+    pub(crate) fn log_cache(&self) {
+        let entries = self
+            .cache
+            .iter()
+            .map(|(path, manifest)| EntryStat {
+                manifest_path: path.to_string(),
+                size: manifest.get_size(),
+            })
+            .collect::<Vec<_>>();
+        match serde_json::to_string(&entries) {
+            Ok(entries_json) => {
+                tracing::debug!(
+                    cache_event = "dump",
+                    cache = "zarr-manifests",
+                    %entries_json,
+                    "Dumping cached manifests and their sizes",
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    cache_event = "dump-error",
+                    cache = "zarr-manifests",
+                    error = %e,
+                    "Failed to serialize cache contents as JSON",
+                );
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+struct EntryStat {
+    manifest_path: String,
+    size: usize,
 }

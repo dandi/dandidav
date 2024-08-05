@@ -248,6 +248,8 @@ def process_logs(logfiles: Iterable[Path]) -> Events:
                             )
                         )
                         last_accesses.pop(manifest_path, None)
+                    case "dump" | "dump-error":
+                        pass
                     case other:
                         log.warning(
                             "Invalid 'cache_event' field value %r: %s", other, lg.line

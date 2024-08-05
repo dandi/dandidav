@@ -13,7 +13,7 @@ use crate::consts::{CSS_CONTENT_TYPE, DEFAULT_API_URL, SERVER_VALUE};
 use crate::dandi::DandiClient;
 use crate::dav::{DandiDav, Templater};
 use crate::httputil::HttpUrl;
-use crate::zarrman::ZarrManClient;
+use crate::zarrman::{ManifestFetcher, ZarrManClient};
 use anyhow::Context;
 use axum::{
     body::Body,
@@ -97,7 +97,8 @@ fn main() -> anyhow::Result<()> {
 async fn run() -> anyhow::Result<()> {
     let args = Arguments::parse();
     let dandi = DandiClient::new(args.api_url)?;
-    let zarrman = ZarrManClient::new()?;
+    let zarrfetcher = ManifestFetcher::new()?;
+    let zarrman = ZarrManClient::new(zarrfetcher);
     let templater = Templater::new(args.title)?;
     let dav = Arc::new(DandiDav {
         dandi,

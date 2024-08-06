@@ -19,9 +19,5 @@ pub(super) static MANIFEST_ROOT_URL: &str =
 /// `{ENTRY_DOWNLOAD_PREFIX}/{zarr_id}/{entry_path}`.
 pub(super) static ENTRY_DOWNLOAD_PREFIX: &str = "https://dandiarchive.s3.amazonaws.com/zarr/";
 
-/// Limit the manifest cache to storing no more than this many bytes of parsed
-/// manifests at once
-pub(super) const MANIFEST_CACHE_TOTAL_BYTES: u64 = 100 * 1024 * 1024; // 100 MiB
-
 /// Expire any manifest cache entries that haven't been accessed for this long
 pub(super) const MANIFEST_CACHE_IDLE_EXPIRY: Duration = Duration::from_secs(300);

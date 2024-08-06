@@ -1,4 +1,4 @@
-use super::consts::{MANIFEST_CACHE_IDLE_EXPIRY, MANIFEST_CACHE_TOTAL_BYTES, MANIFEST_ROOT_URL};
+use super::consts::{MANIFEST_CACHE_IDLE_EXPIRY, MANIFEST_ROOT_URL};
 use super::manifest::Manifest;
 use super::resources::ManifestPath;
 use super::util::{Index, ZarrManError};
@@ -33,26 +33,25 @@ impl ManifestFetcher {
     /// # Errors
     ///
     /// Returns an error if construction of the inner `reqwest::Client` fails
-    pub(crate) fn new() -> Result<Self, BuildClientError> {
+    pub(crate) fn new(cache_size: u64) -> Result<Self, BuildClientError> {
         let inner = Client::new()?;
-        let cache: Cache<ManifestPath, Arc<Manifest>> =
-            CacheBuilder::new(MANIFEST_CACHE_TOTAL_BYTES)
-                .name("zarr-manifests")
-                .weigher(|_, manifest: &Arc<Manifest>| {
-                    u32::try_from(manifest.get_size()).unwrap_or(u32::MAX)
-                })
-                .time_to_idle(MANIFEST_CACHE_IDLE_EXPIRY)
-                .eviction_listener(|path, manifest, cause| {
-                    tracing::debug!(
-                        cache_event = "evict",
-                        cache = "zarr-manifests",
-                        manifest = %path,
-                        manifest_size = manifest.get_size(),
-                        ?cause,
-                        "Zarr manifest evicted from cache",
-                    );
-                })
-                .build();
+        let cache: Cache<ManifestPath, Arc<Manifest>> = CacheBuilder::new(cache_size)
+            .name("zarr-manifests")
+            .weigher(|_, manifest: &Arc<Manifest>| {
+                u32::try_from(manifest.get_size()).unwrap_or(u32::MAX)
+            })
+            .time_to_idle(MANIFEST_CACHE_IDLE_EXPIRY)
+            .eviction_listener(|path, manifest, cause| {
+                tracing::debug!(
+                    cache_event = "evict",
+                    cache = "zarr-manifests",
+                    manifest = %path,
+                    manifest_size = manifest.get_size(),
+                    ?cause,
+                    "Zarr manifest evicted from cache",
+                );
+            })
+            .build();
         let manifest_root_url = MANIFEST_ROOT_URL
             .parse::<HttpUrl>()
             .expect("MANIFEST_ROOT_URL should be a valid HTTP URL");

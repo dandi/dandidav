@@ -9,9 +9,7 @@ mod paths;
 mod s3;
 mod streamutil;
 mod zarrman;
-use crate::consts::{
-    CSS_CONTENT_TYPE, DEFAULT_API_URL, SERVER_VALUE, ZARR_MANIFEST_CACHE_DUMP_PERIOD,
-};
+use crate::consts::*;
 use crate::dandi::DandiClient;
 use crate::dav::{DandiDav, Templater};
 use crate::httputil::HttpUrl;
@@ -67,6 +65,11 @@ struct Arguments {
     /// Site name to use in HTML collection pages
     #[arg(short = 'T', long, default_value = env!("CARGO_PKG_NAME"))]
     title: String,
+
+    /// Limit the Zarr manifest cache to storing no more than this many bytes
+    /// of parsed manifests at once
+    #[arg(short = 'Z', long, default_value_t = ZARR_MANIFEST_CACHE_TOTAL_BYTES, value_name = "INT")]
+    zarrman_cache_bytes: u64,
 }
 
 // See
@@ -99,7 +102,7 @@ fn main() -> anyhow::Result<()> {
 async fn run() -> anyhow::Result<()> {
     let args = Arguments::parse();
     let dandi = DandiClient::new(args.api_url)?;
-    let zarrfetcher = ManifestFetcher::new()?;
+    let zarrfetcher = ManifestFetcher::new(args.zarrman_cache_bytes)?;
     zarrfetcher.install_periodic_dump(ZARR_MANIFEST_CACHE_DUMP_PERIOD);
     let zarrman = ZarrManClient::new(zarrfetcher);
     let templater = Templater::new(args.title)?;

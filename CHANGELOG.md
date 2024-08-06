@@ -5,6 +5,12 @@ In Development
 - Return 502 status when a backend returns an invalid response
 - Require `--api-url` (and other URLs retrieved from APIs) to be HTTP(S)
 - Added various developer-facing documents to the repository
+- Format all log lines as JSON
+- Add logging of Zarr manifest cache events
+- Limit Zarr manifest cache by total size of entries
+    - Add a `-Z`/`--zarrman-cache-bytes` option for setting the cache size
+- Expire idle Zarr manifest cache entries
+- Log Zarr manifest cache entries every hour
 
 v0.4.0 (2024-07-09)
 -------------------

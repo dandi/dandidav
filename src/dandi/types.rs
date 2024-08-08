@@ -1,16 +1,10 @@
 use super::{DandisetId, VersionId};
+use crate::httputil::HttpUrl;
 use crate::paths::{PureDirPath, PurePath};
 use crate::s3::{PrefixedS3Client, S3Entry, S3Folder, S3Location, S3Object};
 use serde::Deserialize;
 use thiserror::Error;
 use time::OffsetDateTime;
-use url::Url;
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-pub(super) struct Page<T> {
-    pub(super) next: Option<Url>,
-    pub(super) results: Vec<T>,
-}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub(super) struct RawDandiset {
@@ -67,7 +61,7 @@ pub(super) struct RawDandisetVersion {
 }
 
 impl RawDandisetVersion {
-    pub(super) fn with_metadata_url(self, metadata_url: Url) -> DandisetVersion {
+    pub(super) fn with_metadata_url(self, metadata_url: HttpUrl) -> DandisetVersion {
         DandisetVersion {
             version: self.version,
             size: self.size,
@@ -84,7 +78,7 @@ pub(crate) struct DandisetVersion {
     pub(crate) size: i64,
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
-    pub(crate) metadata_url: Url,
+    pub(crate) metadata_url: HttpUrl,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -166,7 +160,7 @@ pub(crate) struct BlobAsset {
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
     pub(crate) metadata: AssetMetadata,
-    pub(crate) metadata_url: Url,
+    pub(crate) metadata_url: HttpUrl,
 }
 
 impl BlobAsset {
@@ -178,18 +172,18 @@ impl BlobAsset {
         self.metadata.digest.dandi_etag.as_deref()
     }
 
-    pub(crate) fn archive_url(&self) -> Option<&Url> {
+    pub(crate) fn archive_url(&self) -> Option<&HttpUrl> {
         self.metadata
             .content_url
             .iter()
-            .find(|url| S3Location::parse_url(url).is_err())
+            .find(|url| S3Location::parse_url(url.as_url()).is_err())
     }
 
-    pub(crate) fn s3_url(&self) -> Option<&Url> {
+    pub(crate) fn s3_url(&self) -> Option<&HttpUrl> {
         self.metadata
             .content_url
             .iter()
-            .find(|url| S3Location::parse_url(url).is_ok())
+            .find(|url| S3Location::parse_url(url.as_url()).is_ok())
     }
 }
 
@@ -202,7 +196,7 @@ pub(crate) struct ZarrAsset {
     pub(crate) created: OffsetDateTime,
     pub(crate) modified: OffsetDateTime,
     pub(crate) metadata: AssetMetadata,
-    pub(crate) metadata_url: Url,
+    pub(crate) metadata_url: HttpUrl,
 }
 
 impl ZarrAsset {
@@ -210,7 +204,7 @@ impl ZarrAsset {
         self.metadata
             .content_url
             .iter()
-            .find_map(|url| S3Location::parse_url(url).ok())
+            .find_map(|url| S3Location::parse_url(url.as_url()).ok())
     }
 
     pub(crate) fn make_resource(&self, value: S3Entry) -> DandiResource {
@@ -246,7 +240,7 @@ impl ZarrAsset {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AssetMetadata {
     encoding_format: Option<String>,
-    content_url: Vec<Url>,
+    content_url: Vec<HttpUrl>,
     digest: AssetDigests,
 }
 
@@ -374,7 +368,7 @@ pub(crate) struct ZarrEntry {
     pub(crate) size: i64,
     pub(crate) modified: OffsetDateTime,
     pub(crate) etag: String,
-    pub(crate) url: Url,
+    pub(crate) url: HttpUrl,
 }
 
 #[derive(Clone, Debug)]

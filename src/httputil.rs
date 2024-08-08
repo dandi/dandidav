@@ -4,8 +4,13 @@ use crate::dav::ErrorClass;
 use reqwest::{Method, Request, Response, StatusCode};
 use reqwest_middleware::{Middleware, Next};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
-use serde::de::DeserializeOwned;
+use serde::{
+    de::{DeserializeOwned, Deserializer, Error as _},
+    Deserialize,
+};
+use std::fmt;
 use std::future::Future;
+use std::str::FromStr;
 use thiserror::Error;
 use tracing::Instrument;
 use url::Url;
@@ -43,10 +48,14 @@ impl Client {
     ///
     /// If sending the request fails or the response has a 4xx or 5xx status,
     /// an error is returned.
-    pub(crate) async fn request(&self, method: Method, url: Url) -> Result<Response, HttpError> {
+    pub(crate) async fn request(
+        &self,
+        method: Method,
+        url: HttpUrl,
+    ) -> Result<Response, HttpError> {
         let r = self
             .0
-            .request(method, url.clone())
+            .request(method, Url::from(url.clone()))
             .send()
             .await
             .map_err(|source| HttpError::Send {
@@ -66,7 +75,7 @@ impl Client {
     ///
     /// If sending the request fails or the response has a 4xx or 5xx status,
     /// an error is returned.
-    pub(crate) async fn head(&self, url: Url) -> Result<Response, HttpError> {
+    pub(crate) async fn head(&self, url: HttpUrl) -> Result<Response, HttpError> {
         self.request(Method::HEAD, url).await
     }
 
@@ -76,7 +85,7 @@ impl Client {
     ///
     /// If sending the request fails or the response has a 4xx or 5xx status,
     /// an error is returned.
-    pub(crate) async fn get(&self, url: Url) -> Result<Response, HttpError> {
+    pub(crate) async fn get(&self, url: HttpUrl) -> Result<Response, HttpError> {
         self.request(Method::GET, url).await
     }
 
@@ -89,7 +98,7 @@ impl Client {
     /// deserialization of the response body fails, an error is returned.
     pub(crate) fn get_json<T: DeserializeOwned>(
         &self,
-        url: Url,
+        url: HttpUrl,
     ) -> impl Future<Output = Result<T, HttpError>> {
         // Clone the client and move it into an async block (as opposed to just
         // writing a "normal" async function) so that the resulting Future will
@@ -147,21 +156,27 @@ pub(crate) enum HttpError {
     /// Sending the request failed
     #[error("failed to make request to {url}")]
     Send {
-        url: Url,
+        url: HttpUrl,
         source: reqwest_middleware::Error,
     },
 
     /// The server returned a 404 response
     #[error("no such resource: {url}")]
-    NotFound { url: Url },
+    NotFound { url: HttpUrl },
 
     /// The server returned a 4xx or 5xx response other than 404
     #[error("request to {url} returned error")]
-    Status { url: Url, source: reqwest::Error },
+    Status {
+        url: HttpUrl,
+        source: reqwest::Error,
+    },
 
     /// Deserializing the response body as JSON failed
     #[error("failed to deserialize response body from {url}")]
-    Deserialize { url: Url, source: reqwest::Error },
+    Deserialize {
+        url: HttpUrl,
+        source: reqwest::Error,
+    },
 }
 
 impl HttpError {
@@ -174,128 +189,187 @@ impl HttpError {
     }
 }
 
-/// Create a URL by extending `url`'s path with the path segments `segments`.
-/// The resulting URL will not end with a slash (but see
-/// [`urljoin_slashed()`]).
-///
-/// If `url` does not end with a forward slash, one will be appended, and then
-/// the segments will be added after that.
-///
-/// # Panics
-///
-/// Panics if `url` cannot be a base URL.  (Note that HTTP(S) URLs can be base
-/// URLs.)
-pub(crate) fn urljoin<I>(url: &Url, segments: I) -> Url
-where
-    I: IntoIterator,
-    I::Item: AsRef<str>,
-{
-    let mut url = url.clone();
-    url.path_segments_mut()
-        .expect("URL should be able to be a base")
-        .pop_if_empty()
-        .extend(segments);
-    url
+/// A wrapper around [`url::Url`] that enforces a scheme of "http" or "https"
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct HttpUrl(Url);
+
+impl HttpUrl {
+    /// Return the URL as a string
+    pub(crate) fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// Return a reference to the underlying [`url::Url`]
+    pub(crate) fn as_url(&self) -> &Url {
+        &self.0
+    }
+
+    /// Append the given path segment to this URL's path component.
+    ///
+    /// If the URL does not end with a forward slash, one will be appended, and
+    /// then the segment will be added after that.
+    pub(crate) fn push<S: AsRef<str>>(&mut self, segment: S) -> &mut Self {
+        {
+            let Ok(mut ps) = self.0.path_segments_mut() else {
+                unreachable!("HTTP(S) URLs should always be able to be a base");
+            };
+            ps.pop_if_empty().push(segment.as_ref());
+        }
+        self
+    }
+
+    /// Append the given path segments to this URL's path component.
+    ///
+    /// If the URL does not end with a forward slash, one will be appended, and
+    /// then the segments will be added after that.
+    pub(crate) fn extend<I>(&mut self, segments: I) -> &mut Self
+    where
+        I: IntoIterator,
+        I::Item: AsRef<str>,
+    {
+        {
+            let Ok(mut ps) = self.0.path_segments_mut() else {
+                unreachable!("HTTP(S) URLs should always be able to be a base");
+            };
+            ps.pop_if_empty().extend(segments);
+        }
+        self
+    }
+
+    /// Append a trailing forward slash to the URL if it does not already end
+    /// with one
+    pub(crate) fn ensure_dirpath(&mut self) -> &mut Self {
+        {
+            let Ok(mut ps) = self.0.path_segments_mut() else {
+                unreachable!("HTTP(S) URLs should always be able to be a base");
+            };
+            ps.pop_if_empty().push("");
+        }
+        self
+    }
+
+    /// Append `"{key}={value}"` (after percent-encoding) to the URL's query
+    /// parameters
+    pub(crate) fn append_query_param(&mut self, key: &str, value: &str) -> &mut Self {
+        self.0.query_pairs_mut().append_pair(key, value);
+        self
+    }
 }
 
-/// Create a URL by extending `url`'s path with the path segments `segments`
-/// and then terminating the result with a forward slash.
-///
-/// If `url` does not end with a forward slash, one will be appended, and then
-/// the segments will be added after that.
-///
-/// # Panics
-///
-/// Panics if `url` cannot be a base URL.  (Note that HTTP(S) URLs can be base
-/// URLs.)
-pub(crate) fn urljoin_slashed<I>(url: &Url, segments: I) -> Url
-where
-    I: IntoIterator,
-    I::Item: AsRef<str>,
-{
-    let mut url = url.clone();
-    url.path_segments_mut()
-        .expect("URL should be able to be a base")
-        .pop_if_empty()
-        .extend(segments)
-        // Add an empty segment so that the final URL will end with a slash:
-        .push("");
-    url
+impl From<HttpUrl> for Url {
+    fn from(value: HttpUrl) -> Url {
+        value.0
+    }
+}
+
+impl fmt::Display for HttpUrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for HttpUrl {
+    type Err = ParseHttpUrlError;
+
+    fn from_str(s: &str) -> Result<HttpUrl, ParseHttpUrlError> {
+        let url = s.parse::<Url>()?;
+        if matches!(url.scheme(), "http" | "https") {
+            Ok(HttpUrl(url))
+        } else {
+            Err(ParseHttpUrlError::BadScheme)
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for HttpUrl {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let url = Url::deserialize(deserializer)?;
+        if matches!(url.scheme(), "http" | "https") {
+            Ok(HttpUrl(url))
+        } else {
+            Err(D::Error::custom("expected URL with HTTP(S) scheme"))
+        }
+    }
+}
+
+/// Error returned by [`HttpUrl`]'s `FromStr` implementation
+#[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
+pub(crate) enum ParseHttpUrlError {
+    /// The string was a valid URL, but the scheme was neither HTTP nor HTTPS
+    #[error(r#"URL scheme must be "http" or "https""#)]
+    BadScheme,
+
+    /// The string was not a valid URL
+    #[error(transparent)]
+    Url(#[from] url::ParseError),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
-    mod urljoin {
-        use super::*;
-        use rstest::rstest;
-
-        #[rstest]
-        #[case("https://api.github.com")]
-        #[case("https://api.github.com/")]
-        fn nopath(#[case] base: Url) {
-            let u = urljoin(&base, ["foo"]);
-            assert_eq!(u.as_str(), "https://api.github.com/foo");
-            let u = urljoin(&base, ["foo", "bar"]);
-            assert_eq!(u.as_str(), "https://api.github.com/foo/bar");
-        }
-
-        #[rstest]
-        #[case("https://api.github.com/foo/bar")]
-        #[case("https://api.github.com/foo/bar/")]
-        fn path(#[case] base: Url) {
-            let u = urljoin(&base, ["gnusto"]);
-            assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto");
-            let u = urljoin(&base, ["gnusto", "cleesh"]);
-            assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/cleesh");
-        }
-
-        #[rstest]
-        #[case("foo#bar", "https://api.github.com/base/foo%23bar")]
-        #[case("foo%bar", "https://api.github.com/base/foo%25bar")]
-        #[case("foo/bar", "https://api.github.com/base/foo%2Fbar")]
-        #[case("foo?bar", "https://api.github.com/base/foo%3Fbar")]
-        fn special_chars(#[case] path: &str, #[case] expected: &str) {
-            let base = Url::parse("https://api.github.com/base").unwrap();
-            let u = urljoin(&base, [path]);
-            assert_eq!(u.as_str(), expected);
-        }
+    #[rstest]
+    #[case("foo#bar", "https://api.github.com/base/foo%23bar")]
+    #[case("foo%bar", "https://api.github.com/base/foo%25bar")]
+    #[case("foo/bar", "https://api.github.com/base/foo%2Fbar")]
+    #[case("foo?bar", "https://api.github.com/base/foo%3Fbar")]
+    fn push_special_chars(#[case] path: &str, #[case] expected: &str) {
+        let mut base = "https://api.github.com/base".parse::<HttpUrl>().unwrap();
+        base.push(path);
+        assert_eq!(base.as_str(), expected);
     }
 
-    mod urljoin_slashed {
-        use super::*;
-        use rstest::rstest;
+    #[rstest]
+    #[case(&["foo"], "https://api.github.com/foo")]
+    #[case(&["foo", "bar"], "https://api.github.com/foo/bar")]
+    fn extend_nopath(
+        #[values("https://api.github.com", "https://api.github.com/")] mut base: HttpUrl,
+        #[case] segments: &[&str],
+        #[case] expected: &str,
+    ) {
+        base.extend(segments);
+        assert_eq!(base.as_str(), expected);
+    }
 
-        #[rstest]
-        #[case("https://api.github.com")]
-        #[case("https://api.github.com/")]
-        fn nopath(#[case] base: Url) {
-            let u = urljoin_slashed(&base, ["foo"]);
-            assert_eq!(u.as_str(), "https://api.github.com/foo/");
-            let u = urljoin_slashed(&base, ["foo", "bar"]);
-            assert_eq!(u.as_str(), "https://api.github.com/foo/bar/");
-        }
+    #[rstest]
+    #[case(&["gnusto"], "https://api.github.com/foo/bar/gnusto")]
+    #[case(&["gnusto", "cleesh"], "https://api.github.com/foo/bar/gnusto/cleesh")]
+    fn extend_path(
+        #[values("https://api.github.com/foo/bar", "https://api.github.com/foo/bar/")]
+        mut base: HttpUrl,
+        #[case] segments: &[&str],
+        #[case] expected: &str,
+    ) {
+        base.extend(segments);
+        assert_eq!(base.as_str(), expected);
+    }
 
-        #[rstest]
-        #[case("https://api.github.com/foo/bar")]
-        #[case("https://api.github.com/foo/bar/")]
-        fn path(#[case] base: Url) {
-            let u = urljoin_slashed(&base, ["gnusto"]);
-            assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/");
-            let u = urljoin_slashed(&base, ["gnusto", "cleesh"]);
-            assert_eq!(u.as_str(), "https://api.github.com/foo/bar/gnusto/cleesh/");
-        }
+    #[rstest]
+    #[case("https://api.github.com", "https://api.github.com/")]
+    #[case("https://api.github.com/", "https://api.github.com/")]
+    #[case("https://api.github.com/foo", "https://api.github.com/foo/")]
+    #[case("https://api.github.com/foo/", "https://api.github.com/foo/")]
+    fn ensure_dirpath(#[case] mut before: HttpUrl, #[case] after: &str) {
+        before.ensure_dirpath();
+        assert_eq!(before.as_str(), after);
+    }
 
-        #[rstest]
-        #[case("foo#bar", "https://api.github.com/base/foo%23bar/")]
-        #[case("foo%bar", "https://api.github.com/base/foo%25bar/")]
-        #[case("foo/bar", "https://api.github.com/base/foo%2Fbar/")]
-        #[case("foo?bar", "https://api.github.com/base/foo%3Fbar/")]
-        fn special_chars(#[case] path: &str, #[case] expected: &str) {
-            let base = Url::parse("https://api.github.com/base").unwrap();
-            let u = urljoin_slashed(&base, [path]);
-            assert_eq!(u.as_str(), expected);
-        }
+    #[test]
+    fn append_query_param() {
+        let mut url = "https://api.github.com/foo".parse::<HttpUrl>().unwrap();
+        assert_eq!(url.as_str(), "https://api.github.com/foo");
+        url.append_query_param("bar", "baz");
+        assert_eq!(url.as_str(), "https://api.github.com/foo?bar=baz");
+        url.append_query_param("quux", "with space");
+        assert_eq!(
+            url.as_str(),
+            "https://api.github.com/foo?bar=baz&quux=with+space"
+        );
+        url.append_query_param("bar", "rod");
+        assert_eq!(
+            url.as_str(),
+            "https://api.github.com/foo?bar=baz&quux=with+space&bar=rod"
+        );
     }
 }

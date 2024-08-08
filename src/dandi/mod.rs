@@ -9,7 +9,7 @@ pub(crate) use self::types::*;
 pub(crate) use self::version_id::*;
 use crate::consts::S3CLIENT_CACHE_SIZE;
 use crate::dav::ErrorClass;
-use crate::httputil::{urljoin_slashed, BuildClientError, Client, HttpError};
+use crate::httputil::{BuildClientError, Client, HttpError, HttpUrl};
 use crate::paths::{ParsePureDirPathError, PureDirPath, PurePath};
 use crate::s3::{
     BucketSpec, GetBucketRegionError, PrefixedS3Client, S3Client, S3Error, S3Location,
@@ -20,7 +20,6 @@ use serde::de::DeserializeOwned;
 use smartstring::alias::CompactString;
 use std::sync::Arc;
 use thiserror::Error;
-use url::Url;
 
 /// A client for fetching data about Dandisets, their versions, and their
 /// assets from a DANDI Archive instance
@@ -30,7 +29,7 @@ pub(crate) struct DandiClient {
     inner: Client,
 
     /// The base API URL of the Archive instance
-    api_url: Url,
+    api_url: HttpUrl,
 
     /// A cache of [`S3Client`] instances that are used for listing Zarr
     /// entries on the Archive's S3 bucket.
@@ -51,7 +50,7 @@ impl DandiClient {
     /// # Errors
     ///
     /// Returns an error if construction of the inner `reqwest::Client` fails
-    pub(crate) fn new(api_url: Url) -> Result<Self, BuildClientError> {
+    pub(crate) fn new(api_url: HttpUrl) -> Result<Self, BuildClientError> {
         let inner = Client::new()?;
         let s3clients = CacheBuilder::new(S3CLIENT_CACHE_SIZE)
             .name("s3clients")
@@ -65,24 +64,26 @@ impl DandiClient {
 
     /// Return the URL formed by appending the given path segments and a
     /// trailing slash to the path of the API base URL
-    fn get_url<I>(&self, segments: I) -> Url
+    fn get_url<I>(&self, segments: I) -> HttpUrl
     where
         I: IntoIterator,
         I::Item: AsRef<str>,
     {
-        urljoin_slashed(&self.api_url, segments)
+        let mut url = self.api_url.clone();
+        url.extend(segments).ensure_dirpath();
+        url
     }
 
     /// Perform a `GET` request to the given URL and return the deserialized
     /// JSON response body
-    async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, DandiError> {
+    async fn get<T: DeserializeOwned>(&self, url: HttpUrl) -> Result<T, DandiError> {
         self.inner.get_json(url).await.map_err(Into::into)
     }
 
     /// Return a [`futures_util::Stream`] that makes paginated `GET` requests
     /// to the given URL and its subsequent pages and yields a `Result<T,
     /// DandiError>` value for each item deserialized from the responses
-    fn paginate<T: DeserializeOwned + 'static>(&self, url: Url) -> Paginate<T> {
+    fn paginate<T: DeserializeOwned + 'static>(&self, url: HttpUrl) -> Paginate<T> {
         Paginate::new(self, url)
     }
 
@@ -158,7 +159,7 @@ impl DandiClient {
 
     /// Return the URL for the metadata for the given version of the given
     /// Dandiset
-    fn version_metadata_url(&self, dandiset_id: &DandisetId, version_id: &VersionId) -> Url {
+    fn version_metadata_url(&self, dandiset_id: &DandisetId, version_id: &VersionId) -> HttpUrl {
         self.get_url([
             "dandisets",
             dandiset_id.as_ref(),
@@ -396,7 +397,7 @@ impl<'a> VersionEndpoint<'a> {
     }
 
     /// Return the URL for the version's metadata
-    fn metadata_url(&self) -> Url {
+    fn metadata_url(&self) -> HttpUrl {
         self.client
             .version_metadata_url(&self.dandiset_id, &self.version_id)
     }
@@ -421,7 +422,7 @@ impl<'a> VersionEndpoint<'a> {
 
     /// Return the URL for the metadata of the asset in this version with the
     /// given asset ID
-    fn asset_metadata_url(&self, asset_id: &str) -> Url {
+    fn asset_metadata_url(&self, asset_id: &str) -> HttpUrl {
         self.client.get_url([
             "dandisets",
             self.dandiset_id.as_ref(),
@@ -447,10 +448,9 @@ impl<'a> VersionEndpoint<'a> {
             self.version_id.as_ref(),
             "assets",
         ]);
-        url.query_pairs_mut()
-            .append_pair("path", path.as_ref())
-            .append_pair("metadata", "1")
-            .append_pair("order", "path");
+        url.append_query_param("path", path.as_ref());
+        url.append_query_param("metadata", "1");
+        url.append_query_param("order", "path");
         let dirpath = path.to_dir_path();
         let mut stream = self.client.paginate::<RawAsset>(url.clone());
         while let Some(asset) = stream.try_next().await? {
@@ -480,8 +480,7 @@ impl<'a> VersionEndpoint<'a> {
             "paths",
         ]);
         if let Some(path) = path {
-            url.query_pairs_mut()
-                .append_pair("path_prefix", path.as_ref());
+            url.append_query_param("path_prefix", path.as_ref());
         }
         self.client.paginate(url)
     }

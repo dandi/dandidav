@@ -1,12 +1,10 @@
-use super::types::Page;
 use super::{DandiClient, DandiError};
-use crate::httputil::{Client, HttpError};
+use crate::httputil::{Client, HttpError, HttpUrl};
 use futures_util::{future::BoxFuture, FutureExt, Stream};
 use pin_project::pin_project;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Deserialize};
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
-use url::Url;
 
 // Implementing paginate() as a manually-implemented Stream instead of via
 // async_stream lets us save about 4700 bytes on dandidav's top-level Futures.
@@ -21,13 +19,13 @@ enum PaginateState<T> {
     Requesting(BoxFuture<'static, Result<Page<T>, HttpError>>),
     Yielding {
         results: std::vec::IntoIter<T>,
-        next: Option<Url>,
+        next: Option<HttpUrl>,
     },
     Done,
 }
 
 impl<T> Paginate<T> {
-    pub(super) fn new(client: &DandiClient, url: Url) -> Self {
+    pub(super) fn new(client: &DandiClient, url: HttpUrl) -> Self {
         Paginate {
             client: client.inner.clone(),
             state: PaginateState::Yielding {
@@ -77,4 +75,10 @@ where
             }
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+struct Page<T> {
+    next: Option<HttpUrl>,
+    results: Vec<T>,
 }

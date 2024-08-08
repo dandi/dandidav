@@ -18,13 +18,12 @@ mod resources;
 use self::path::ReqPath;
 pub(crate) use self::resources::*;
 use crate::dav::ErrorClass;
-use crate::httputil::{urljoin, urljoin_slashed, BuildClientError, Client, HttpError};
+use crate::httputil::{BuildClientError, Client, HttpError, HttpUrl};
 use crate::paths::{Component, PureDirPath, PurePath};
 use moka::future::{Cache, CacheBuilder};
 use serde::Deserialize;
 use std::sync::Arc;
 use thiserror::Error;
-use url::Url;
 
 /// The manifest root URL.
 ///
@@ -57,11 +56,11 @@ pub(crate) struct ZarrManClient {
     /// `MANIFEST_ROOT_URL`
     manifests: Cache<ManifestPath, Arc<manifest::Manifest>>,
 
-    /// [`MANIFEST_ROOT_URL`], parsed into a [`url::Url`]
-    manifest_root_url: Url,
+    /// [`MANIFEST_ROOT_URL`], parsed into an [`HttpUrl`]
+    manifest_root_url: HttpUrl,
 
-    /// [`ENTRY_DOWNLOAD_PREFIX`], parsed into a [`url::Url`]
-    entry_download_prefix: Url,
+    /// [`ENTRY_DOWNLOAD_PREFIX`], parsed into an [`HttpUrl`]
+    entry_download_prefix: HttpUrl,
 
     /// The directory path `"zarrs/"`, used at various points in the code,
     /// pre-parsed for convenience
@@ -79,13 +78,15 @@ impl ZarrManClient {
         let manifests = CacheBuilder::new(MANIFEST_CACHE_SIZE)
             .name("zarr-manifests")
             .build();
-        let manifest_root_url =
-            Url::parse(MANIFEST_ROOT_URL).expect("MANIFEST_ROOT_URL should be a valid URL");
-        let entry_download_prefix =
-            Url::parse(ENTRY_DOWNLOAD_PREFIX).expect("ENTRY_DOWNLOAD_PREFIX should be a valid URL");
+        let manifest_root_url = MANIFEST_ROOT_URL
+            .parse::<HttpUrl>()
+            .expect("MANIFEST_ROOT_URL should be a valid HTTP URL");
+        let entry_download_prefix = ENTRY_DOWNLOAD_PREFIX
+            .parse::<HttpUrl>()
+            .expect("ENTRY_DOWNLOAD_PREFIX should be a valid HTTP URL");
         let web_path_prefix = "zarrs/"
             .parse::<PureDirPath>()
-            .expect(r#""zarrs/" should be a valid URL"#);
+            .expect(r#""zarrs/" should be a valid directory path"#);
         Ok(ZarrManClient {
             inner,
             manifests,
@@ -218,10 +219,10 @@ impl ZarrManClient {
         &self,
         path: Option<&PureDirPath>,
     ) -> Result<Vec<ZarrManResource>, ZarrManError> {
-        let url = match path {
-            Some(p) => urljoin_slashed(&self.manifest_root_url, p.component_strs()),
-            None => self.manifest_root_url.clone(),
-        };
+        let mut url = self.manifest_root_url.clone();
+        if let Some(p) = path {
+            url.extend(p.component_strs()).ensure_dirpath();
+        }
         let index = self.inner.get_json::<Index>(url).await?;
         let mut entries =
             Vec::with_capacity(index.files.len().saturating_add(index.directories.len()));
@@ -290,12 +291,10 @@ impl ZarrManClient {
         entry: &manifest::ManifestEntry,
     ) -> ManifestEntry {
         let web_path = manifest_path.to_web_path().join(entry_path);
-        let mut url = urljoin(
-            &self.entry_download_prefix,
-            std::iter::once(manifest_path.zarr_id()).chain(entry_path.component_strs()),
-        );
-        url.query_pairs_mut()
-            .append_pair("versionId", &entry.version_id);
+        let mut url = self.entry_download_prefix.clone();
+        url.push(manifest_path.zarr_id());
+        url.extend(entry_path.component_strs());
+        url.append_query_param("versionId", &entry.version_id);
         ManifestEntry {
             web_path,
             size: entry.size,

@@ -1,6 +1,7 @@
 use super::VersionSpec;
 use crate::consts::DAV_XML_CONTENT_TYPE;
 use crate::dandi::DandisetId;
+use crate::httputil::HttpUrl;
 use crate::paths::PureDirPath;
 use axum::{
     async_trait,
@@ -129,14 +130,14 @@ impl AsRef<str> for Href {
     }
 }
 
-impl From<url::Url> for Href {
-    fn from(value: url::Url) -> Href {
-        Href(value.into())
+impl From<HttpUrl> for Href {
+    fn from(value: HttpUrl) -> Href {
+        Href(value.to_string())
     }
 }
 
-impl From<&url::Url> for Href {
-    fn from(value: &url::Url) -> Href {
+impl From<&HttpUrl> for Href {
+    fn from(value: &HttpUrl) -> Href {
         Href(value.to_string())
     }
 }

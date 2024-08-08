@@ -1,11 +1,12 @@
 use crate::paths::{Component, PurePath};
+use get_size::GetSize;
 use itertools::{Itertools, Position};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use time::OffsetDateTime;
 
 /// A parsed Zarr manifest
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, GetSize, PartialEq)]
 pub(super) struct Manifest {
     /// A tree of the Zarr's entries
     pub(super) entries: ManifestFolder,
@@ -39,7 +40,7 @@ pub(super) enum EntryRef<'a> {
 /// subdirectory names to the entries & subdirectories
 pub(super) type ManifestFolder = BTreeMap<Component, FolderEntry>;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, GetSize, PartialEq)]
 #[serde(untagged)]
 pub(super) enum FolderEntry {
     Folder(ManifestFolder),
@@ -48,7 +49,7 @@ pub(super) enum FolderEntry {
 
 /// Information on a Zarr entry in a manifest as of the point in time
 /// represented by the manifest
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, GetSize, PartialEq)]
 pub(super) struct ManifestEntry {
     // IMPORTANT: Keep these fields in this order so that deserialization will
     // work properly!
@@ -56,6 +57,7 @@ pub(super) struct ManifestEntry {
     pub(super) version_id: String,
 
     /// The entry's S3 object's modification time
+    #[get_size(size = 0)] // Nothing on the heap
     #[serde(with = "time::serde::rfc3339")]
     pub(super) modified: OffsetDateTime,
 

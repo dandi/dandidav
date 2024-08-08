@@ -4,6 +4,7 @@ In Development
 - Added doc comments to much of the code
 - Return 502 status when a backend returns an invalid response
 - Require `--api-url` (and other URLs retrieved from APIs) to be HTTP(S)
+- Added various developer-facing documents to the repository
 
 v0.4.0 (2024-07-09)
 -------------------

@@ -153,6 +153,7 @@ pub(crate) enum ToXmlError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::httputil::HttpUrl;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
 
@@ -222,7 +223,8 @@ mod tests {
                         status: "HTTP/1.1 307 TEMPORARY REDIRECT".into(),
                     }],
                     location: Some(
-                        url::Url::parse("https://www.example.com/data/quux.dat")
+                        "https://www.example.com/data/quux.dat"
+                            .parse::<HttpUrl>()
                             .unwrap()
                             .into(),
                     ),

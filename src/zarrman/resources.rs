@@ -1,9 +1,7 @@
-use crate::httputil::urljoin;
+use crate::httputil::HttpUrl;
 use crate::paths::{Component, PureDirPath, PurePath};
-use std::borrow::Cow;
 use std::fmt;
 use time::OffsetDateTime;
-use url::Url;
 
 /// A resource served under `dandidav`'s `/zarrs/` hierarchy, not including
 /// information on child resources
@@ -66,18 +64,12 @@ impl ManifestPath {
     }
 
     /// Returns the URL of the Zarr manifest underneath the given manifest root
-    pub(crate) fn under_manifest_root(&self, manifest_root_url: &Url) -> Url {
-        urljoin(
-            manifest_root_url,
-            self.prefix
-                .component_strs()
-                .map(Cow::from)
-                .chain(std::iter::once(Cow::from(&*self.zarr_id)))
-                .chain(std::iter::once(Cow::from(format!(
-                    "{}.json",
-                    self.checksum
-                )))),
-        )
+    pub(crate) fn under_manifest_root(&self, manifest_root_url: &HttpUrl) -> HttpUrl {
+        let mut url = manifest_root_url.clone();
+        url.extend(self.prefix.component_strs());
+        url.push(&self.zarr_id);
+        url.push(format!("{}.json", self.checksum));
+        url
     }
 }
 
@@ -135,7 +127,7 @@ pub(crate) struct ManifestEntry {
     pub(crate) etag: String,
 
     /// The download URL for the entry
-    pub(crate) url: Url,
+    pub(crate) url: HttpUrl,
 }
 
 #[cfg(test)]

@@ -12,6 +12,7 @@ mod zarrman;
 use crate::consts::{CSS_CONTENT_TYPE, DEFAULT_API_URL, SERVER_VALUE};
 use crate::dandi::DandiClient;
 use crate::dav::{DandiDav, Templater};
+use crate::httputil::HttpUrl;
 use crate::zarrman::ZarrManClient;
 use anyhow::Context;
 use axum::{
@@ -47,7 +48,7 @@ static STYLESHEET: &str = include_str!("dav/static/styles.css");
 struct Arguments {
     /// API URL of the DANDI Archive instance to serve
     #[arg(long, default_value = DEFAULT_API_URL, value_name = "URL")]
-    api_url: url::Url,
+    api_url: HttpUrl,
 
     /// IP address to listen on
     #[arg(long, default_value = "127.0.0.1")]

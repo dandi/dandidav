@@ -3,12 +3,12 @@ use super::xml::{PropValue, Property};
 use super::VersionSpec;
 use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
 use crate::dandi::*;
+use crate::httputil::HttpUrl;
 use crate::paths::{PureDirPath, PurePath};
 use crate::zarrman::*;
 use enum_dispatch::enum_dispatch;
 use serde::{ser::Serializer, Serialize};
 use time::OffsetDateTime;
-use url::Url;
 
 /// Trait for querying the values of WebDAV properties from WebDAV resources
 ///
@@ -282,7 +282,7 @@ pub(super) struct DavCollection {
 
     /// A URL for retrieving the resource's associated metadata (if any) from
     /// the Archive instance
-    pub(super) metadata_url: Option<Url>,
+    pub(super) metadata_url: Option<HttpUrl>,
 }
 
 impl DavCollection {
@@ -552,7 +552,7 @@ pub(super) struct DavItem {
 
     /// A URL for retrieving the resource's associated metadata (if any) from
     /// the Archive instance
-    pub(super) metadata_url: Option<Url>,
+    pub(super) metadata_url: Option<HttpUrl>,
 }
 
 impl DavItem {
@@ -727,11 +727,11 @@ pub(super) enum DavContent {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum Redirect {
     /// A single URL to always redirect to
-    Direct(Url),
+    Direct(HttpUrl),
 
     /// An S3 URL and an Archive instance URL, to be selected between based on
     /// whether `--prefer-s3-redirects` was supplied at program invocation
-    Alt { s3: Url, archive: Url },
+    Alt { s3: HttpUrl, archive: HttpUrl },
 }
 
 impl Redirect {
@@ -739,7 +739,7 @@ impl Redirect {
     ///
     /// If `prefer_s3` is `true`, `Alt` variants resolve to their `s3` field;
     /// otherwise, they resolve to their `archive` field.
-    pub(super) fn get_url(&self, prefer_s3: bool) -> &Url {
+    pub(super) fn get_url(&self, prefer_s3: bool) -> &HttpUrl {
         match self {
             Redirect::Direct(u) => u,
             Redirect::Alt { s3, archive } => {

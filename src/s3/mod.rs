@@ -2,7 +2,7 @@
 mod streams;
 use self::streams::ListEntryPages;
 use crate::dav::ErrorClass;
-use crate::httputil::{self, BuildClientError, HttpError};
+use crate::httputil::{self, BuildClientError, HttpError, HttpUrl, ParseHttpUrlError};
 use crate::paths::{ParsePureDirPathError, ParsePurePathError, PureDirPath, PurePath};
 use crate::streamutil::TryStreamUtil;
 use crate::validstr::TryFromStringError;
@@ -320,7 +320,7 @@ pub(crate) struct S3Object {
     pub(crate) modified: OffsetDateTime,
     pub(crate) size: i64,
     pub(crate) etag: String,
-    pub(crate) download_url: Url,
+    pub(crate) download_url: HttpUrl,
 }
 
 impl S3Object {
@@ -341,14 +341,12 @@ impl S3Object {
             return Err(TryFromAwsObjectError::NoSize { key });
         };
         let keypath = PurePath::try_from(key.clone()).map_err(TryFromAwsObjectError::BadKey)?;
-        let mut download_url = Url::parse(&format!("https://{bucket}.s3.amazonaws.com"))
+        let mut download_url = format!("https://{bucket}.s3.amazonaws.com")
+            .parse::<HttpUrl>()
             .expect("bucket should be a valid hostname component");
         // Adding the key this way is necessary in order for URL-unsafe
         // characters to be percent-encoded:
-        download_url
-            .path_segments_mut()
-            .expect("HTTPS URL should be able to be a base")
-            .extend(key.split('/'));
+        download_url.extend(key.split('/'));
         let modified = modified
             .to_time()
             .map_err(|source| TryFromAwsObjectError::BadModified {
@@ -443,7 +441,7 @@ pub(crate) enum TryFromAwsObjectError {
 pub(crate) async fn get_bucket_region(bucket: &str) -> Result<String, GetBucketRegionError> {
     let url_str = format!("https://{bucket}.s3.amazonaws.com");
     let url = url_str
-        .parse::<Url>()
+        .parse::<HttpUrl>()
         .map_err(|source| GetBucketRegionError::BadUrl {
             url: url_str,
             source,
@@ -466,7 +464,7 @@ pub(crate) enum GetBucketRegionError {
     #[error("URL constructed for bucket is invalid: {url:?}")]
     BadUrl {
         url: String,
-        source: url::ParseError,
+        source: ParseHttpUrlError,
     },
     #[error("S3 response lacked x-amz-bucket-region header")]
     NoHeader,

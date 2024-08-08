@@ -16,9 +16,9 @@ use crate::zarrman::ZarrManClient;
 use anyhow::Context;
 use axum::{
     body::Body,
-    extract::Request,
+    extract::{Host, OriginalUri, Request},
     http::{
-        header::{HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE, SERVER},
+        header::{HeaderMap, HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE, SERVER},
         response::Response,
         Method,
     },
@@ -28,6 +28,7 @@ use axum::{
 };
 use clap::Parser;
 use std::fmt;
+use std::fmt::Write;
 use std::io::{stderr, IsTerminal};
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -112,6 +113,22 @@ async fn run() -> anyhow::Result<()> {
                 // Note: This response should not have WebDAV headers (DAV, Allow)
                 ([(CONTENT_TYPE, CSS_CONTENT_TYPE)], STYLESHEET)
             }),
+        )
+        .route(
+            "/.test",
+            get(
+                |host: Host, orig: OriginalUri, headers: HeaderMap, req: Request| async move {
+                    let mut s = String::new();
+                    writeln!(&mut s, "Host: {}", host.0).unwrap();
+                    writeln!(&mut s, "Original URI: {}", orig.0).unwrap();
+                    writeln!(&mut s, "Request URI: {}", req.uri()).unwrap();
+                    writeln!(&mut s, "Headers:").unwrap();
+                    for (name, value) in &headers {
+                        writeln!(&mut s, "  {name}: {value:?}").unwrap();
+                    }
+                    s
+                },
+            ),
         )
         .nest_service(
             "/",

@@ -119,3 +119,7 @@ Options
 - `-T <TITLE>`, `--title <TITLE>` — Specify the site name to use in HTML/web
   views of collections (used inside `<title>`'s and as the root breadcrumb
   text) [default: dandidav]
+
+- `-Z <INT>`, `--zarrman-cache-bytes <INT>` — Specify the maximum number of
+  bytes of parsed Zarr manifest files to store in the Zarr manifest cache at
+  once [default: 100 MiB]

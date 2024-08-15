@@ -66,10 +66,10 @@ struct Arguments {
     #[arg(short = 'T', long, default_value = env!("CARGO_PKG_NAME"))]
     title: String,
 
-    /// Limit the Zarr manifest cache to storing no more than this many bytes
-    /// of parsed manifests at once
-    #[arg(short = 'Z', long, default_value_t = ZARR_MANIFEST_CACHE_TOTAL_BYTES, value_name = "INT")]
-    zarrman_cache_bytes: u64,
+    /// Limit the Zarr manifest cache to storing no more than this many
+    /// megabytes of parsed manifests at once
+    #[arg(short = 'Z', long, default_value_t = 100, value_name = "INT")]
+    zarrman_cache_mb: u64,
 }
 
 // See
@@ -102,7 +102,7 @@ fn main() -> anyhow::Result<()> {
 async fn run() -> anyhow::Result<()> {
     let args = Arguments::parse();
     let dandi = DandiClient::new(args.api_url)?;
-    let zarrfetcher = ManifestFetcher::new(args.zarrman_cache_bytes)?;
+    let zarrfetcher = ManifestFetcher::new(args.zarrman_cache_mb * 1_000_000)?;
     zarrfetcher.install_periodic_dump(ZARR_MANIFEST_CACHE_DUMP_PERIOD);
     let zarrman = ZarrManClient::new(zarrfetcher);
     let templater = Templater::new(args.title)?;

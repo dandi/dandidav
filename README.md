@@ -120,6 +120,6 @@ Options
   views of collections (used inside `<title>`'s and as the root breadcrumb
   text) [default: dandidav]
 
-- `-Z <INT>`, `--zarrman-cache-bytes <INT>` — Specify the maximum number of
-  bytes of parsed Zarr manifest files to store in the Zarr manifest cache at
-  once [default: 100 MiB]
+- `-Z <INT>`, `--zarrman-cache-mb <INT>` — Specify the maximum number of
+  megabytes (1,000,000 bytes) of parsed Zarr manifest files to store in the
+  Zarr manifest cache at once [default: 100]

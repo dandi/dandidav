@@ -61,10 +61,6 @@ pub(crate) static FAST_NOT_EXIST: &[&str] = &[".bzr", ".git", ".nols", ".svn"];
 /// Interval between periodic logging of the Zarr manifest cache's contents
 pub(crate) const ZARR_MANIFEST_CACHE_DUMP_PERIOD: Duration = Duration::from_secs(3600);
 
-/// Default size of the Zarr manifest cache; the cache is limited to storing no
-/// more than this many bytes of parsed manifests at once
-pub(crate) const ZARR_MANIFEST_CACHE_TOTAL_BYTES: u64 = 100 * 1024 * 1024; // 100 MiB
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -9,11 +9,11 @@ mod paths;
 mod s3;
 mod streamutil;
 mod zarrman;
-use crate::consts::{CSS_CONTENT_TYPE, DEFAULT_API_URL, SERVER_VALUE};
+use crate::consts::*;
 use crate::dandi::DandiClient;
 use crate::dav::{DandiDav, Templater};
 use crate::httputil::HttpUrl;
-use crate::zarrman::ZarrManClient;
+use crate::zarrman::{ManifestFetcher, ZarrManClient};
 use anyhow::Context;
 use axum::{
     body::Body,
@@ -29,7 +29,6 @@ use axum::{
 };
 use clap::Parser;
 use std::fmt;
-use std::io::{stderr, IsTerminal};
 use std::net::IpAddr;
 use std::sync::Arc;
 use tower::service_fn;
@@ -66,6 +65,11 @@ struct Arguments {
     /// Site name to use in HTML collection pages
     #[arg(short = 'T', long, default_value = env!("CARGO_PKG_NAME"))]
     title: String,
+
+    /// Limit the Zarr manifest cache to storing no more than this many
+    /// megabytes of parsed manifests at once
+    #[arg(short = 'Z', long, default_value_t = 100, value_name = "INT")]
+    zarrman_cache_mb: u64,
 }
 
 // See
@@ -77,9 +81,9 @@ fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::fmt::layer()
+                .json()
                 .with_timer(timer)
-                .with_ansi(stderr().is_terminal())
-                .with_writer(stderr),
+                .with_writer(std::io::stderr),
         )
         .with(
             Targets::new()
@@ -98,7 +102,9 @@ fn main() -> anyhow::Result<()> {
 async fn run() -> anyhow::Result<()> {
     let args = Arguments::parse();
     let dandi = DandiClient::new(args.api_url)?;
-    let zarrman = ZarrManClient::new()?;
+    let zarrfetcher = ManifestFetcher::new(args.zarrman_cache_mb * 1_000_000)?;
+    zarrfetcher.install_periodic_dump(ZARR_MANIFEST_CACHE_DUMP_PERIOD);
+    let zarrman = ZarrManClient::new(zarrfetcher);
     let templater = Templater::new(args.title)?;
     let dav = Arc::new(DandiDav {
         dandi,

@@ -27,6 +27,7 @@ bytes = "1.7.1"
 clap = { version = "4.5.16", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
 enum_dispatch = "0.3.13"
 futures-util = "0.3.30"
+get-size = { version = "0.1.4", features = ["derive"] }
 humansize = "2.1.3"
 indoc = "2.0.5"
 itertools = "0.13.0"
@@ -44,12 +45,13 @@ smartstring = "1.0.1"
 tera = { version = "1.20.0", default-features = false }
 thiserror = "1.0.63"
 time = { version = "0.3.36", features = ["formatting", "macros", "parsing", "serde"] }
-tokio = { version = "1.39.3", features = ["macros", "net", "rt-multi-thread"] }
+tokio = { version = "1.39.3", features = ["macros", "net", "rt-multi-thread", "time"] }
 tower = { version = "0.5.0", features = ["util"] }
 tower-http = { version = "0.5.2", features = ["set-header", "trace"] }
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["local-time", "time"] }
+tracing-subscriber = { version = "0.3.18", features = ["json", "local-time", "time"] }
 url = { version = "2.5.2", features = ["serde"] }
+uuid = { version = "1.10.0", features = ["fast-rng", "v4"] }
 xml-rs = "0.8.21"
 
 [dev-dependencies]
@@ -197,7 +199,7 @@ ignored_unit_patterns = "deny"
 impl_trait_in_params = "deny"
 implicit_clone = "deny"
 imprecise_flops = "deny"
-infinite_loop = "deny"
+#infinite_loop = "deny"
 index_refutable_slice = "deny"
 invalid_upcast_comparisons = "deny"
 items_after_statements = "deny"

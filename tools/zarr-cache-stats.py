@@ -192,7 +192,11 @@ def process_logs(logfiles: Iterable[Path]) -> Events:
             entry = json.loads(lg.message)
             timestamp = datetime.fromisoformat(entry["timestamp"])
             fields = entry.get("fields", {})
-            if "cache_event" in fields and fields.get("cache") == "zarr-manifests":
+            if (
+                "cache_event" in fields
+                and fields["cache_event"] not in ("dump", "dump-error")
+                and fields.get("cache") == "zarr-manifests"
+            ):
                 span_id: str | None = entry.get("span", {}).get("id")
                 manifest_path: str = fields["manifest"]
                 match fields["cache_event"]:
@@ -248,8 +252,6 @@ def process_logs(logfiles: Iterable[Path]) -> Events:
                             )
                         )
                         last_accesses.pop(manifest_path, None)
-                    case "dump" | "dump-error":
-                        pass
                     case other:
                         log.warning(
                             "Invalid 'cache_event' field value %r: %s", other, lg.line
@@ -291,7 +293,7 @@ def summarize(events: Events) -> None:
 
     evict_stats = Counter(ev.cause for ev in events.evictions)
     print("Eviction causes:")
-    for cause, qty in sorted(evict_stats.items()):
+    for cause, qty in sorted(evict_stats.items(), key=lambda p: p[0].name):
         print(f"    {cause}: {qty}")
 
 

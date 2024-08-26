@@ -18,7 +18,7 @@ publish = false
 anyhow = "1.0.86"
 async-trait = "0.1.81"
 aws-config = { version = "1.5.5", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.43.0"
+aws-sdk-s3 = "1.46.0"
 aws-smithy-async = "1.2.1"
 aws-smithy-runtime-api = "1.7.1"
 aws-smithy-types-convert = { version = "0.60.8", features = ["convert-time"] }
@@ -35,11 +35,11 @@ memory-stats = "1.2.0"
 moka = { version = "0.12.8", features = ["future"] }
 percent-encoding = "2.3.1"
 pin-project = "1.1.5"
-reqwest = { version = "0.12.5", default-features = false, features = ["json", "rustls-tls-native-roots"] }
+reqwest = { version = "0.12.7", default-features = false, features = ["json", "rustls-tls-native-roots"] }
 reqwest-middleware = "0.3.3"
 reqwest-retry = "0.6.1"
-serde = { version = "1.0.208", features = ["derive"] }
-serde_json = { version = "1.0.125", features = ["preserve_order"] }
+serde = { version = "1.0.209", features = ["derive"] }
+serde_json = { version = "1.0.127", features = ["preserve_order"] }
 serde_yaml = "0.9.34"
 smartstring = "1.0.1"
 tera = { version = "1.20.0", default-features = false }

@@ -15,16 +15,16 @@ exclude = ["/.*"]
 publish = false
 
 [dependencies]
-anyhow = "1.0.86"
-async-trait = "0.1.81"
-aws-config = { version = "1.5.5", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.46.0"
+anyhow = "1.0.89"
+async-trait = "0.1.82"
+aws-config = { version = "1.5.6", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.51.0"
 aws-smithy-async = "1.2.1"
 aws-smithy-runtime-api = "1.7.1"
 aws-smithy-types-convert = { version = "0.60.8", features = ["convert-time"] }
 axum = { version = "0.7.5", default-features = false, features = ["http1", "tokio", "tower-log"] }
-bytes = "1.7.1"
-clap = { version = "4.5.16", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
+bytes = "1.7.2"
+clap = { version = "4.5.18", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
 enum_dispatch = "0.3.13"
 futures-util = "0.3.30"
 get-size = { version = "0.1.4", features = ["derive"] }
@@ -38,29 +38,29 @@ pin-project = "1.1.5"
 reqwest = { version = "0.12.7", default-features = false, features = ["json", "rustls-tls-native-roots"] }
 reqwest-middleware = "0.3.3"
 reqwest-retry = "0.6.1"
-serde = { version = "1.0.209", features = ["derive"] }
-serde_json = { version = "1.0.127", features = ["preserve_order"] }
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = { version = "1.0.128", features = ["preserve_order"] }
 serde_yaml = "0.9.34"
 smartstring = "1.0.1"
 tera = { version = "1.20.0", default-features = false }
-thiserror = "1.0.63"
+thiserror = "1.0.64"
 time = { version = "0.3.36", features = ["formatting", "macros", "parsing", "serde"] }
-tokio = { version = "1.39.3", features = ["macros", "net", "rt-multi-thread", "time"] }
-tower = { version = "0.5.0", features = ["util"] }
-tower-http = { version = "0.5.2", features = ["set-header", "trace"] }
+tokio = { version = "1.40.0", features = ["macros", "net", "rt-multi-thread", "time"] }
+tower = { version = "0.5.1", features = ["util"] }
+tower-http = { version = "0.6.0", features = ["set-header", "trace"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["json", "local-time", "time"] }
 url = { version = "2.5.2", features = ["serde"] }
 uuid = { version = "1.10.0", features = ["fast-rng", "v4"] }
-xml-rs = "0.8.21"
+xml-rs = "0.8.22"
 
 [dev-dependencies]
 assert_matches = "1.5.0"
-pretty_assertions = "1.4.0"
+pretty_assertions = "1.4.1"
 rstest = { version = "0.22.0", default-features = false }
 
 [build-dependencies]
-anyhow = "1.0.86"
+anyhow = "1.0.89"
 
 [lints.rust]
 # Lint groups:

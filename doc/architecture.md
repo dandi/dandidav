@@ -1,7 +1,7 @@
 Overview of `dandidav` Architecture
 ===================================
 
-*This document is up-to-date as of 2024 July 26.*
+*This document is up-to-date as of 2024 November 12.*
 
 > [!NOTE]
 > A new architecture is currently being planned for the code.  See [issue
@@ -75,13 +75,10 @@ General
       resource and request method
 
 - The entry point to `DandiDav`'s functionality is its
-  [`handle_request()`][handle-request] method, which calls
-  `DandiDav::inner_handle_request()` and then performs error handling and
-  setting of universal response headers on the result.
-
-- [`DandiDav::inner_handle_request()`][] parses the request and passes the
-  results to either `DandiDav::get()` or `DandiDav::propfind()`, depending on
-  the request verb.
+  [`handle_request()`][handle-request] method, which parses the request, passes
+  the results to either `DandiDav::get()` or `DandiDav::propfind()` depending
+  on the request verb, and then performs error handling and setting of
+  universal response headers on the result.
 
 - [`DandiDav::get()`][] and [`DandiDav::propfind()`][] both call
   `DandiDav::get_resource_with_children()` to fetch information about the
@@ -214,10 +211,9 @@ implementation-defined expiry criteria are met.
 [extract-depth]: https://github.com/dandi/dandidav/blob/9b9b04872065b8132657b878bad324b2dff68a97/src/dav/util.rs#L99-L111
 
 [`DandiDav`]: https://github.com/dandi/dandidav/blob/8d058fe0e561e56ecd3d4c5cd49ca9403b0d196a/src/dav/mod.rs#L37
-[handle-request]: https://github.com/dandi/dandidav/blob/8d058fe0e561e56ecd3d4c5cd49ca9403b0d196a/src/dav/mod.rs#L71
+[handle-request]: https://github.com/dandi/dandidav/blob/d0401d96a45bd381b86bdf2e31d6d80898ccf737/src/dav/mod.rs#L70
 [`DandiDav::get()`]: https://github.com/dandi/dandidav/blob/8d058fe0e561e56ecd3d4c5cd49ca9403b0d196a/src/dav/mod.rs#L129
 [`DandiDav::propfind()`]: https://github.com/dandi/dandidav/blob/8d058fe0e561e56ecd3d4c5cd49ca9403b0d196a/src/dav/mod.rs#L165
-[`DandiDav::inner_handle_request()`]: https://github.com/dandi/dandidav/blob/8d058fe0e561e56ecd3d4c5cd49ca9403b0d196a/src/dav/mod.rs#L95
 [`DandiDav::get_resource()`]: https://github.com/dandi/dandidav/blob/8d058fe0e561e56ecd3d4c5cd49ca9403b0d196a/src/dav/mod.rs#L216
 [`DandiDav::get_resource_with_children()`]: https://github.com/dandi/dandidav/blob/8d058fe0e561e56ecd3d4c5cd49ca9403b0d196a/src/dav/mod.rs#L272
 

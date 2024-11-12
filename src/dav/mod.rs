@@ -18,7 +18,7 @@ use crate::zarrman::*;
 use axum::{
     body::Body,
     extract::Request,
-    http::{header::CONTENT_TYPE, response::Response, Method, StatusCode},
+    http::{header::CONTENT_TYPE, response::Response, StatusCode},
     response::{IntoResponse, Redirect},
     RequestExt,
 };
@@ -87,31 +87,13 @@ impl DandiDav {
     /// then passed to the appropriate method for the request's verb for
     /// dedicated handling.
     async fn inner_handle_request(&self, req: Request<Body>) -> Result<Response<Body>, DavError> {
-        let uri_path = req.uri().path();
-        match req.method() {
-            &Method::GET => {
-                let Some(parts) = split_uri_path(uri_path) else {
-                    // TODO: Log something
-                    return Ok(not_found());
-                };
-                let Some(path) = DavPath::from_components(parts.clone()) else {
-                    // TODO: Log something
-                    return Ok(not_found());
-                };
-                self.get(&path, parts).await
+        match req.extract::<DavRequest, _>().await {
+            Ok(DavRequest::Get { path, pathparts }) => self.get(&path, pathparts).await,
+            Ok(DavRequest::Propfind { path, depth, query }) => {
+                self.propfind(&path, depth, query).await
             }
-            &Method::OPTIONS => Ok(StatusCode::NO_CONTENT.into_response()),
-            m if m.as_str().eq_ignore_ascii_case("PROPFIND") => {
-                let Some(path) = split_uri_path(uri_path).and_then(DavPath::from_components) else {
-                    // TODO: Log something
-                    return Ok(not_found());
-                };
-                match req.extract::<(FiniteDepth, PropFind), _>().await {
-                    Ok((depth, pf)) => self.propfind(&path, depth, pf).await,
-                    Err(r) => Ok(r),
-                }
-            }
-            _ => Ok(StatusCode::METHOD_NOT_ALLOWED.into_response()),
+            Ok(DavRequest::Options) => Ok(StatusCode::NO_CONTENT.into_response()),
+            Err(r) => Ok(r),
         }
     }
 
@@ -472,9 +454,4 @@ impl ErrorClass {
             ErrorClass::Internal => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
-}
-
-/// Generate a 404 response
-fn not_found() -> Response<Body> {
-    (StatusCode::NOT_FOUND, "404\n").into_response()
 }

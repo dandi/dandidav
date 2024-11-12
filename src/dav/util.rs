@@ -1,14 +1,17 @@
+use super::path::{split_uri_path, DavPath};
+use super::xml::PropFind;
 use super::VersionSpec;
 use crate::consts::DAV_XML_CONTENT_TYPE;
 use crate::dandi::DandisetId;
 use crate::httputil::HttpUrl;
-use crate::paths::PureDirPath;
+use crate::paths::{Component, PureDirPath};
 use axum::{
     async_trait,
     body::Body,
-    extract::FromRequestParts,
-    http::{header::CONTENT_TYPE, request::Parts, response::Response, StatusCode},
+    extract::{FromRequest, FromRequestParts, Request},
+    http::{header::CONTENT_TYPE, request::Parts, response::Response, Method, StatusCode},
     response::IntoResponse,
+    RequestExt,
 };
 use indoc::indoc;
 use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
@@ -86,6 +89,71 @@ pub(super) fn format_modifieddate(dt: OffsetDateTime) -> String {
         .expect("formatting an OffsetDateTime in RFC 1123 format should not fail")
 }
 
+/// A request to the WebDAV server, parsed into its constituent parts
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum DavRequest {
+    /// A `GET` request
+    Get {
+        /// The request path
+        path: DavPath,
+
+        /// The individual components of the request path prior to parsing into
+        /// `path`.  This is needed for things like breadcrumbs in HTML views
+        /// of collection resources.
+        pathparts: Vec<Component>,
+    },
+
+    /// A `PROPFIND` request
+    Propfind {
+        /// The request path
+        path: DavPath,
+
+        /// The value of the `Depth` header
+        depth: FiniteDepth,
+
+        /// The parsed request body.  (Empty bodies are defaulted to "allprop"
+        /// during parsing as per the RFC.)
+        query: PropFind,
+    },
+
+    /// An `OPTIONS` request
+    Options,
+}
+
+#[async_trait]
+impl<S: Send + Sync> FromRequest<S> for DavRequest {
+    type Rejection = Response<Body>;
+
+    async fn from_request(req: Request<Body>, state: &S) -> Result<Self, Self::Rejection> {
+        let uri_path = req.uri().path();
+        match req.method() {
+            &Method::GET => {
+                let Some(pathparts) = split_uri_path(uri_path) else {
+                    // TODO: Log something
+                    return Err(not_found());
+                };
+                let Some(path) = DavPath::from_components(pathparts.clone()) else {
+                    // TODO: Log something
+                    return Err(not_found());
+                };
+                Ok(DavRequest::Get { path, pathparts })
+            }
+            &Method::OPTIONS => Ok(DavRequest::Options),
+            m if m.as_str().eq_ignore_ascii_case("PROPFIND") => {
+                let Some(path) = split_uri_path(uri_path).and_then(DavPath::from_components) else {
+                    // TODO: Log something
+                    return Err(not_found());
+                };
+                let (depth, query) = req
+                    .extract_with_state::<(FiniteDepth, PropFind), _, _>(state)
+                    .await?;
+                Ok(DavRequest::Propfind { path, depth, query })
+            }
+            _ => Err(StatusCode::METHOD_NOT_ALLOWED.into_response()),
+        }
+    }
+}
+
 /// A non-infinite `Depth` WebDAV header value
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(super) enum FiniteDepth {
@@ -149,6 +217,11 @@ impl Serialize for Href {
     {
         serializer.serialize_str(self.as_ref())
     }
+}
+
+/// Generate a 404 response
+pub(super) fn not_found() -> Response<Body> {
+    (StatusCode::NOT_FOUND, "404\n").into_response()
 }
 
 #[cfg(test)]

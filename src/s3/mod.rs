@@ -11,7 +11,6 @@ use aws_smithy_runtime_api::client::{orchestrator::HttpResponse, result::SdkErro
 use aws_smithy_types_convert::date_time::DateTimeExt;
 use futures_util::{Stream, TryStreamExt};
 use smartstring::alias::CompactString;
-use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::sync::Arc;
 use thiserror::Error;
@@ -53,11 +52,11 @@ impl S3Client {
         ListEntryPages::new(self, key_prefix)
     }
 
-    fn get_folder_entries<P: Borrow<PureDirPath>>(
+    fn get_folder_entries(
         &self,
-        key_prefix: P,
+        key_prefix: &PureDirPath,
     ) -> impl Stream<Item = Result<S3Entry, S3Error>> {
-        self.list_entry_pages(key_prefix.borrow())
+        self.list_entry_pages(key_prefix)
             .try_flat_iter_map(|page| page)
     }
 
@@ -122,7 +121,7 @@ impl PrefixedS3Client {
     ) -> impl Stream<Item = Result<S3Entry, S3Error>> + '_ {
         let key_prefix = self.prefix.join_dir(dirpath);
         self.inner
-            .get_folder_entries(key_prefix)
+            .get_folder_entries(&key_prefix)
             .try_flat_iter_map(|entry| entry.relative_to(&self.prefix))
         // TODO: Do something when relative_to() fails (Error? Warn?)
     }

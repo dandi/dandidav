@@ -235,7 +235,7 @@ mod tests {
         assert_eq!(
             value.to_xml().unwrap(),
             indoc! {r#"
-            <?xml version="1.0" encoding="utf-8"?>
+            <?xml version="1.0" encoding="UTF-8"?>
             <multistatus xmlns="DAV:">
                 <response>
                     <href>/foo/</href>

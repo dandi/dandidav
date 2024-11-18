@@ -11,6 +11,7 @@ In Development
     - Add a `-Z`/`--zarrman-cache-mb` option for setting the cache size
 - Expire idle Zarr manifest cache entries
 - Log Zarr manifest cache entries every hour
+- Increased MSRV to 1.78
 
 v0.4.0 (2024-07-09)
 -------------------

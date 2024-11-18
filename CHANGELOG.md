@@ -1,5 +1,5 @@
-In Development
---------------
+v0.5.0 (2024-11-18)
+-------------------
 - Reduced the sizes of a number of streams & futures
 - Added doc comments to much of the code
 - Return 502 status when a backend returns an invalid response

@@ -18,7 +18,7 @@ publish = false
 anyhow = "1.0.94"
 async-trait = "0.1.83"
 aws-config = { version = "1.5.10", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.64.0"
+aws-sdk-s3 = "1.65.0"
 aws-smithy-async = "1.2.1"
 aws-smithy-runtime-api = "1.7.3"
 aws-smithy-types-convert = { version = "0.60.8", features = ["convert-time"] }
@@ -38,15 +38,15 @@ pin-project = "1.1.7"
 reqwest = { version = "0.12.9", default-features = false, features = ["json", "rustls-tls-native-roots"] }
 reqwest-middleware = "0.4.0"
 reqwest-retry = "0.7.0"
-serde = { version = "1.0.215", features = ["derive"] }
+serde = { version = "1.0.216", features = ["derive"] }
 serde_json = { version = "1.0.133", features = ["preserve_order"] }
 serde_yaml = "0.9.34"
 smartstring = "1.0.1"
 tera = { version = "1.20.0", default-features = false }
-thiserror = "2.0.6"
+thiserror = "2.0.7"
 time = { version = "0.3.37", features = ["formatting", "macros", "parsing", "serde"] }
 tokio = { version = "1.42.0", features = ["macros", "net", "rt-multi-thread", "time"] }
-tower = { version = "0.5.1", features = ["util"] }
+tower = { version = "0.5.2", features = ["util"] }
 tower-http = { version = "0.6.2", features = ["set-header", "trace"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["json", "local-time", "time"] }

@@ -6,7 +6,6 @@ use crate::dandi::DandisetId;
 use crate::httputil::HttpUrl;
 use crate::paths::{Component, PureDirPath};
 use axum::{
-    async_trait,
     body::Body,
     extract::{FromRequest, FromRequestParts, Request},
     http::{header::CONTENT_TYPE, request::Parts, response::Response, Method, StatusCode},
@@ -120,7 +119,6 @@ pub(super) enum DavRequest {
     Options,
 }
 
-#[async_trait]
 impl<S: Send + Sync> FromRequest<S> for DavRequest {
     type Rejection = Response<Body>;
 
@@ -161,7 +159,6 @@ pub(super) enum FiniteDepth {
     One,
 }
 
-#[async_trait]
 impl<S: Send + Sync> FromRequestParts<S> for FiniteDepth {
     type Rejection = Response<Body>;
 

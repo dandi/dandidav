@@ -19,7 +19,7 @@ use axum::{
     body::Body,
     extract::Request,
     http::{
-        header::{HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE, SERVER},
+        header::{HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_LENGTH, CONTENT_TYPE, SERVER},
         response::Response,
         Method,
     },
@@ -28,6 +28,7 @@ use axum::{
     Router,
 };
 use clap::Parser;
+use http_body::Body as _;
 use std::fmt;
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -120,13 +121,10 @@ async fn run() -> anyhow::Result<()> {
                 ([(CONTENT_TYPE, CSS_CONTENT_TYPE)], STYLESHEET)
             }),
         )
-        .nest_service(
-            "/",
-            service_fn(move |req: Request| {
-                let dav = Arc::clone(&dav);
-                async move { dav.handle_request(req).await }
-            }),
-        )
+        .fallback_service(service_fn(move |req: Request| {
+            let dav = Arc::clone(&dav);
+            async move { dav.handle_request(req).await }
+        }))
         .layer(middleware::from_fn(handle_head))
         .layer(middleware::from_fn(log_memory))
         .layer(SetResponseHeaderLayer::if_not_present(
@@ -153,6 +151,9 @@ async fn handle_head(method: Method, mut request: Request<Body>, next: Next) -> 
     if method == Method::HEAD {
         *request.method_mut() = Method::GET;
         let mut resp = next.run(request).await;
+        if let Some(sz) = resp.body().size_hint().exact() {
+            resp.headers_mut().insert(CONTENT_LENGTH, sz.into());
+        }
         *resp.body_mut() = Body::empty();
         resp
     } else {

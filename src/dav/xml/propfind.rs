@@ -2,7 +2,6 @@ use super::multistatus::{DavResponse, PropStat};
 use super::{PropValue, Property, Tag};
 use crate::dav::types::HasProperties;
 use axum::{
-    async_trait,
     body::Body,
     extract::{FromRequest, Request},
     http::{response::Response, StatusCode},
@@ -102,7 +101,6 @@ impl PropFind {
     }
 }
 
-#[async_trait]
 impl<S: Send + Sync> FromRequest<S> for PropFind
 where
     Bytes: FromRequest<S>,

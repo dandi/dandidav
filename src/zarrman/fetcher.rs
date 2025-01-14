@@ -136,6 +136,8 @@ impl ManifestFetcher {
         Ok(entry.into_value())
     }
 
+    // <https://github.com/rust-lang/rust-clippy/issues/14000>
+    #[allow(clippy::infinite_loop)]
     pub(crate) fn install_periodic_dump(&self, period: Duration) {
         let this = self.clone();
         let mut schedule = tokio::time::interval(period);

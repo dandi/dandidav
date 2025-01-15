@@ -1,3 +1,7 @@
+In Devlopment
+-------------
+- Serve a `/robots.txt` file denying all robots
+
 v0.5.0 (2024-11-18)
 -------------------
 - Reduced the sizes of a number of streams & futures

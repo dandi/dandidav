@@ -1,7 +1,7 @@
 Overview of `dandidav` Architecture
 ===================================
 
-*This document is up-to-date as of 2024 November 12.*
+*This document is up-to-date as of 2025 January 15.*
 
 > [!NOTE]
 > A new architecture is currently being planned for the code.  See [issue
@@ -25,9 +25,9 @@ General
   actual handling.
 
     - The only requests not handled by the service are those for the CSS
-      stylesheet at `/.static/styles.css`, which is not WebDAV-enabled and thus
-      should not support `PROPFIND` or return the WebDAV-specific headers
-      present in all other responses.
+      stylesheet at `/.static/styles.css` and the `robots.txt` file, which are
+      not WebDAV-enabled and thus should not support `PROPFIND` or return the
+      WebDAV-specific headers present in all other responses.
 
 - If any error occurs during the processing of a request, it will almost always
   "bubble up" to [`DandiDav::handle_request()`][handle-request], which will log

@@ -40,6 +40,9 @@ use tracing_subscriber::{filter::Targets, fmt::time::OffsetTime, prelude::*};
 /// The content of the CSS stylesheet to serve at `/.static/styles.css`
 static STYLESHEET: &str = include_str!("dav/static/styles.css");
 
+/// The content of the `robots.txt` file to serve at `/robots.txt`
+static ROBOTS_TXT: &str = "User-agent: *\nDisallow: /\n";
+
 /// WebDAV view to DANDI Archive
 ///
 /// See <https://github.com/dandi/dandidav> for more information.
@@ -119,6 +122,13 @@ async fn run() -> anyhow::Result<()> {
             get(|| async {
                 // Note: This response should not have WebDAV headers (DAV, Allow)
                 ([(CONTENT_TYPE, CSS_CONTENT_TYPE)], STYLESHEET)
+            }),
+        )
+        .route(
+            "/robots.txt",
+            get(|| async {
+                // Note: This response should not have WebDAV headers (DAV, Allow)
+                ([(CONTENT_TYPE, CSS_CONTENT_TYPE)], ROBOTS_TXT)
             }),
         )
         .fallback_service(service_fn(move |req: Request| {

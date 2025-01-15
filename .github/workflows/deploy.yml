@@ -16,7 +16,9 @@ env:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # As of 2025-01-15, we need to build on Ubuntu 22.04 instead of 24.04
+    # because the glibc version on the latter is too new for Heroku.
+    runs-on: ubuntu-22.04
     if: "github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'skip deployment')"
     steps:
       - name: Check out repository

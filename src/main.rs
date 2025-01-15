@@ -19,7 +19,10 @@ use axum::{
     body::Body,
     extract::Request,
     http::{
-        header::{HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_LENGTH, CONTENT_TYPE, SERVER},
+        header::{
+            HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_LENGTH, CONTENT_TYPE, SERVER,
+            USER_AGENT,
+        },
         response::Response,
         Method,
     },
@@ -145,7 +148,23 @@ async fn run() -> anyhow::Result<()> {
             ACCESS_CONTROL_ALLOW_ORIGIN,
             HeaderValue::from_static("*"),
         ))
-        .layer(TraceLayer::new_for_http());
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &Request<_>| {
+                    tracing::debug_span!(
+                        "request",
+                        method = %request.method(),
+                        uri = %request.uri(),
+                        request_id = request.headers().get("X-Request-ID").and_then(|v| v.to_str().ok()),
+                    )
+                })
+                .on_request(|request: &Request<_>, _span: &tracing::span::Span| {
+                    tracing::debug!(
+                        user_agent = request.headers().get(USER_AGENT).and_then(|v| v.to_str().ok()),
+                        "starting processing request",
+                    );
+                }),
+        );
     let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
         .await
         .context("failed to bind listener")?;

@@ -1,6 +1,7 @@
 In Devlopment
 -------------
 - Serve a `/robots.txt` file denying all robots
+- Log `User-Agent` and `X-Request-ID` headers
 
 v0.5.0 (2024-11-18)
 -------------------

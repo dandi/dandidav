@@ -17,6 +17,7 @@ use crate::zarrman::{ManifestFetcher, ZarrManClient};
 use anyhow::Context;
 use axum::{
     body::Body,
+    error_handling::HandleErrorLayer,
     extract::Request,
     http::{
         header::{
@@ -24,7 +25,7 @@ use axum::{
             USER_AGENT,
         },
         response::Response,
-        Method,
+        Method, StatusCode,
     },
     middleware::{self, Next},
     routing::get,
@@ -35,13 +36,11 @@ use http_body::Body as _;
 use std::fmt;
 use std::net::IpAddr;
 use std::sync::Arc;
-use tower::service_fn;
+use tower::{service_fn, ServiceBuilder};
 use tower_governor::{
     governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer,
 };
-use tower_http::{
-    set_header::response::SetResponseHeaderLayer, timeout::TimeoutLayer, trace::TraceLayer,
-};
+use tower_http::{set_header::response::SetResponseHeaderLayer, trace::TraceLayer};
 use tracing::Level;
 use tracing_subscriber::{filter::Targets, fmt::time::OffsetTime, prelude::*};
 
@@ -50,6 +49,9 @@ static STYLESHEET: &str = include_str!("dav/static/styles.css");
 
 /// The content of the `robots.txt` file to serve at `/robots.txt`
 static ROBOTS_TXT: &str = "User-agent: *\nDisallow: /\n";
+
+/// The body to return with 408 Request Timeout responses
+static REQUEST_TIMEOUT_BODY: &str = "Request could not be completed in time\n";
 
 /// WebDAV view to DANDI Archive
 ///
@@ -186,7 +188,11 @@ fn get_app(cfg: Config) -> anyhow::Result<Router> {
             ACCESS_CONTROL_ALLOW_ORIGIN,
             HeaderValue::from_static("*"),
         ))
-        .layer(TimeoutLayer::new(std::time::Duration::from_secs(25)))
+        .layer(
+            ServiceBuilder::new()
+                .layer(HandleErrorLayer::new(|_| async { (StatusCode::REQUEST_TIMEOUT, REQUEST_TIMEOUT_BODY) }))
+                .timeout(std::time::Duration::from_secs(25))
+        )
         .layer(GovernorLayer {
             config: Arc::new(
                 GovernorConfigBuilder::default()
@@ -287,7 +293,6 @@ impl fmt::Display for UsizeDiff {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::http::StatusCode;
     use http_body_util::BodyExt;
     use tower::ServiceExt; // for `collect`
 

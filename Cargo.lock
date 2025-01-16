@@ -871,6 +871,7 @@ dependencies = [
  "futures-util",
  "get-size",
  "http-body 1.0.1",
+ "http-body-util",
  "humansize",
  "indoc",
  "itertools",

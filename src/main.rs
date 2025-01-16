@@ -30,7 +30,7 @@ use axum::{
     routing::get,
     Router,
 };
-use clap::Parser;
+use clap::{Args, Parser};
 use http_body::Body as _;
 use std::fmt;
 use std::net::IpAddr;
@@ -55,9 +55,8 @@ static ROBOTS_TXT: &str = "User-agent: *\nDisallow: /\n";
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 #[command(version = env!("VERSION_WITH_GIT"))]
 struct Arguments {
-    /// API URL of the DANDI Archive instance to serve
-    #[arg(long, default_value = DEFAULT_API_URL, value_name = "URL")]
-    api_url: HttpUrl,
+    #[command(flatten)]
+    config: Config,
 
     /// IP address to listen on
     #[arg(long, default_value = "127.0.0.1")]
@@ -66,6 +65,13 @@ struct Arguments {
     /// Port to listen on
     #[arg(short, long, default_value_t = 8080)]
     port: u16,
+}
+
+#[derive(Args, Clone, Debug, Eq, PartialEq)]
+struct Config {
+    /// API URL of the DANDI Archive instance to serve
+    #[arg(long, default_value = DEFAULT_API_URL, value_name = "URL")]
+    api_url: HttpUrl,
 
     /// Redirect requests for blob assets directly to S3 instead of to Archive
     /// URLs that redirect to signed S3 URLs
@@ -80,6 +86,19 @@ struct Arguments {
     /// megabytes of parsed manifests at once
     #[arg(short = 'Z', long, default_value_t = 100, value_name = "INT")]
     zarrman_cache_mb: u64,
+}
+
+impl Default for Config {
+    fn default() -> Config {
+        Config {
+            api_url: DEFAULT_API_URL
+                .parse::<HttpUrl>()
+                .expect("DEFAULT_API_URL should be a valid HttpUrl"),
+            prefer_s3_redirects: false,
+            title: env!("CARGO_PKG_NAME").into(),
+            zarrman_cache_mb: 100,
+        }
+    }
 }
 
 // See
@@ -111,18 +130,32 @@ fn main() -> anyhow::Result<()> {
 #[tokio::main]
 async fn run() -> anyhow::Result<()> {
     let args = Arguments::parse();
-    let dandi = DandiClient::new(args.api_url)?;
-    let zarrfetcher = ManifestFetcher::new(args.zarrman_cache_mb * 1_000_000)?;
+    let app = get_app(args.config)?;
+    let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
+        .await
+        .context("failed to bind listener")?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .context("failed to serve application")?;
+    Ok(())
+}
+
+fn get_app(cfg: Config) -> anyhow::Result<Router> {
+    let dandi = DandiClient::new(cfg.api_url)?;
+    let zarrfetcher = ManifestFetcher::new(cfg.zarrman_cache_mb * 1_000_000)?;
     zarrfetcher.install_periodic_dump(ZARR_MANIFEST_CACHE_DUMP_PERIOD);
     let zarrman = ZarrManClient::new(zarrfetcher);
-    let templater = Templater::new(args.title)?;
+    let templater = Templater::new(cfg.title)?;
     let dav = Arc::new(DandiDav {
         dandi,
         zarrman,
         templater,
-        prefer_s3_redirects: args.prefer_s3_redirects,
+        prefer_s3_redirects: cfg.prefer_s3_redirects,
     });
-    let app = Router::new()
+    Ok(Router::new()
         .route(
             "/.static/styles.css",
             get(|| async {
@@ -175,17 +208,7 @@ async fn run() -> anyhow::Result<()> {
                         "starting processing request",
                     );
                 }),
-        );
-    let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
-        .await
-        .context("failed to bind listener")?;
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
-    )
-    .await
-    .context("failed to serve application")?;
-    Ok(())
+        ))
 }
 
 /// Handle `HEAD` requests by converting them to `GET` requests and discarding
@@ -255,5 +278,154 @@ impl fmt::Display for UsizeDiff {
             if self.after < self.before { '-' } else { '+' },
             self.before.abs_diff(self.after)
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::StatusCode;
+    use http_body_util::BodyExt;
+    use tower::ServiceExt; // for `collect`
+
+    fn fill_html_footer(html: &str) -> String {
+        let commit_str = match option_env!("GIT_COMMIT") {
+            Some(s) => std::borrow::Cow::from(format!(", commit {s}")),
+            None => std::borrow::Cow::from(""),
+        };
+        html.replacen(
+            "{package_url}",
+            &env!("CARGO_PKG_REPOSITORY").replace('/', "&#x2F;"),
+            1,
+        )
+        .replacen("{version}", env!("CARGO_PKG_VERSION"), 1)
+        .replacen("{commit}", &commit_str, 1)
+    }
+
+    #[tokio::test]
+    async fn test_get_styles() {
+        let app = get_app(Config::default()).unwrap();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/.static/styles.css")
+                    .header("X-Forwarded-For", "127.0.0.1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok()),
+            Some(CSS_CONTENT_TYPE)
+        );
+        assert!(!response.headers().contains_key("DAV"));
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = String::from_utf8_lossy(&body);
+        assert_eq!(body, STYLESHEET);
+    }
+
+    #[tokio::test]
+    async fn test_get_root() {
+        let app = get_app(Config::default()).unwrap();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .header("X-Forwarded-For", "127.0.0.1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok()),
+            Some(HTML_CONTENT_TYPE)
+        );
+        assert!(response.headers().contains_key("DAV"));
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = String::from_utf8_lossy(&body);
+        let expected = fill_html_footer(include_str!("testdata/index.html"));
+        assert_eq!(body, expected);
+    }
+
+    #[tokio::test]
+    async fn test_head_styles() {
+        let app = get_app(Config::default()).unwrap();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::HEAD)
+                    .uri("/.static/styles.css")
+                    .header("X-Forwarded-For", "127.0.0.1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok()),
+            Some(CSS_CONTENT_TYPE)
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_LENGTH)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.parse::<usize>().ok()),
+            Some(STYLESHEET.len())
+        );
+
+        assert!(!response.headers().contains_key("DAV"));
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        assert!(body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_head_root() {
+        let app = get_app(Config::default()).unwrap();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::HEAD)
+                    .uri("/")
+                    .header("X-Forwarded-For", "127.0.0.1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok()),
+            Some(HTML_CONTENT_TYPE)
+        );
+        let expected = fill_html_footer(include_str!("testdata/index.html"));
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_LENGTH)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.parse::<usize>().ok()),
+            Some(expected.len())
+        );
+        assert!(response.headers().contains_key("DAV"));
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        assert!(body.is_empty());
     }
 }

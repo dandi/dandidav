@@ -39,7 +39,9 @@ use tower::service_fn;
 use tower_governor::{
     governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer,
 };
-use tower_http::{set_header::response::SetResponseHeaderLayer, trace::TraceLayer};
+use tower_http::{
+    set_header::response::SetResponseHeaderLayer, timeout::TimeoutLayer, trace::TraceLayer,
+};
 use tracing::Level;
 use tracing_subscriber::{filter::Targets, fmt::time::OffsetTime, prelude::*};
 
@@ -184,6 +186,7 @@ fn get_app(cfg: Config) -> anyhow::Result<Router> {
             ACCESS_CONTROL_ALLOW_ORIGIN,
             HeaderValue::from_static("*"),
         ))
+        .layer(TimeoutLayer::new(std::time::Duration::from_secs(25)))
         .layer(GovernorLayer {
             config: Arc::new(
                 GovernorConfigBuilder::default()

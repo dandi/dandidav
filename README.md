@@ -61,6 +61,9 @@ Features
     - `/zarrs/`: A view of all Zarrs in the Dandi Archive at various points in
       time, as recorded by/at <https://github.com/dandi/zarr-manifests>
 
+- Rate limiting of incoming requests, provided by
+  [tower_governor](https://crates.io/crates/tower_governor)
+
 
 Building & Running
 ==================

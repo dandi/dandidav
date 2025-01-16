@@ -2,6 +2,7 @@ In Devlopment
 -------------
 - Serve a `/robots.txt` file denying all robots
 - Log `User-Agent` and `X-Request-ID` headers
+- Rate limit incoming requests
 
 v0.5.0 (2024-11-18)
 -------------------

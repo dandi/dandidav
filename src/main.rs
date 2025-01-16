@@ -36,6 +36,9 @@ use std::fmt;
 use std::net::IpAddr;
 use std::sync::Arc;
 use tower::service_fn;
+use tower_governor::{
+    governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer,
+};
 use tower_http::{set_header::response::SetResponseHeaderLayer, trace::TraceLayer};
 use tracing::Level;
 use tracing_subscriber::{filter::Targets, fmt::time::OffsetTime, prelude::*};
@@ -148,6 +151,14 @@ async fn run() -> anyhow::Result<()> {
             ACCESS_CONTROL_ALLOW_ORIGIN,
             HeaderValue::from_static("*"),
         ))
+        .layer(GovernorLayer {
+            config: Arc::new(
+                GovernorConfigBuilder::default()
+                    .key_extractor(SmartIpKeyExtractor)
+                    .finish()
+                    .expect("building GovernorConfig should not fail"),
+            ),
+        })
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(|request: &Request<_>| {
@@ -168,9 +179,12 @@ async fn run() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
         .await
         .context("failed to bind listener")?;
-    axum::serve(listener, app)
-        .await
-        .context("failed to serve application")?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .context("failed to serve application")?;
     Ok(())
 }
 

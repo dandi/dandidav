@@ -57,11 +57,14 @@ jobs:
         if: "!startsWith(github.head_ref, 'dependabot/')"
         uses: Swatinem/rust-cache@v2
 
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+
       - name: Build crate
-        run: cargo build --all-targets --verbose
+        run: cargo hack --workspace build --all-targets --verbose
 
       - name: Test crate
-        run: cargo test --verbose
+        run: cargo hack --workspace test --verbose
 
   coverage:
     # This is separate from the main tests because cargo-llvm-cov doesn't run
@@ -112,11 +115,17 @@ jobs:
         if: "!startsWith(github.head_ref, 'dependabot/')"
         uses: Swatinem/rust-cache@v2
 
-      - name: Check code
-        run: cargo clippy --all-features --all-targets -- -Dwarnings
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+
+      - name: Check code (no tests)
+        run: cargo hack --workspace clippy -- -Dwarnings
+
+      - name: Check code (including tests)
+        run: cargo hack --workspace clippy --all-targets -- -Dwarnings
 
       - name: Check formatting
-        run: cargo fmt --check
+        run: cargo fmt --all --check
 
   docs:
     runs-on: ubuntu-latest

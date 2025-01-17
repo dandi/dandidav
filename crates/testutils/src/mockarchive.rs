@@ -39,7 +39,7 @@ impl Respond for StubResponder {
         };
         let mut stubfile = self.stubdir.clone();
         let mut nonempty = false;
-        for (pos, p) in parts.with_position() {
+        for (pos, p) in parts.filter(|p| !p.is_empty()).with_position() {
             if matches!(pos, Position::Last | Position::Only) {
                 stubfile.push(format!("{p}.json"));
                 nonempty = true;

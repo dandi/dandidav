@@ -2,7 +2,7 @@ use html5ever::rcdom::Handle;
 use soup::{NodeExt, QueryBuilderExt, Soup};
 use thiserror::Error;
 
-static COLUMNS: usize = 5;
+const COLUMNS: usize = 5;
 
 static EXPECTED_COLUMN_NAMES: [&str; COLUMNS] = ["Name", "Type", "Size", "Created", "Modified"];
 

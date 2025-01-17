@@ -1,0 +1,61 @@
+[
+    {
+        "params": {},
+        "response": {
+            "next": null,
+            "results": [
+                {
+                    "identifier": "000001",
+                    "created": "2020-03-15T22:56:55.655000Z",
+                    "modified": "2020-11-06T17:20:30.673000Z",
+                    "contact_person": "Sample, Eggy",
+                    "embargo_status": "OPEN",
+                    "most_recent_published_version": null,
+                    "draft_version": {
+                        "version": "draft",
+                        "name": "Brainscan of a Unicorn",
+                        "asset_count": 42,
+                        "size": 56250,
+                        "status": "Valid",
+                        "created": "2020-03-15T22:56:55.655000Z",
+                        "modified": "2024-05-18T17:13:27.131814Z"
+                    }
+                },
+                {
+                    "identifier": "000002",
+                    "created": "2020-03-16T21:48:04.265000Z",
+                    "modified": "2020-10-03T07:01:25.356000Z",
+                    "contact_person": "Sample, Eggy",
+                    "embargo_status": "OPEN",
+                    "most_recent_published_version": null,
+                    "draft_version": {
+                        "version": "draft",
+                        "name": "Brainscan of a Leprechaun",
+                        "asset_count": 23,
+                        "size": 123456789,
+                        "status": "Valid",
+                        "created": "2020-03-16T21:48:04.265000Z",
+                        "modified": "2024-05-18T17:53:27.096283Z"
+                    }
+                },
+                {
+                    "identifier": "000003",
+                    "created": "2020-03-16T22:52:44.757000Z",
+                    "modified": "2020-04-09T20:59:35.377000Z",
+                    "contact_person": "Sample, Eggy",
+                    "embargo_status": "OPEN",
+                    "most_recent_published_version": null,
+                    "draft_version": {
+                        "version": "draft",
+                        "name": "Brainscan of a Mermaid",
+                        "asset_count": 69,
+                        "size": 69105,
+                        "status": "Valid",
+                        "created": "2020-03-16T22:52:44.757000Z",
+                        "modified": "2020-04-09T20:59:35.377000Z"
+                    }
+                }
+            ]
+        }
+    }
+]

@@ -136,8 +136,8 @@ pub struct CollectionEntry {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Link {
-    text: String,
-    href: String,
+    pub text: String,
+    pub href: String,
 }
 
 impl Link {

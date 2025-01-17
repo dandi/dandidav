@@ -72,6 +72,8 @@ assert_matches = "1.5.0"
 http-body-util = "0.1.2"
 pretty_assertions = "1.4.1"
 rstest = { version = "0.24.0", default-features = false }
+testutils = { path = "crates/testutils" }
+wiremock = "0.6.2"
 
 [build-dependencies]
 anyhow = "1.0.95"

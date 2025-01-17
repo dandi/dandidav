@@ -1,10 +1,10 @@
 use itertools::{Itertools, Position};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use wiremock::{matchers::method, Mock, MockServer, Request, Respond, ResponseTemplate};
 
-pub async fn make_mock_archive(stubdir: &Path) -> MockServer {
+pub async fn make_mock_archive<P: Into<PathBuf> + Send>(stubdir: P) -> MockServer {
     let server = MockServer::start().await;
     let mock = Mock::given(method("GET")).respond_with(StubResponder {
         stubdir: stubdir.into(),

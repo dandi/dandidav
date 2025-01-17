@@ -1,0 +1,19 @@
+[package]
+name = "testutils"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "Utilities used in testing dandidav"
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+itertools = "0.14.0"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.135"
+wiremock = "0.6.2"
+
+[lints]
+workspace = true

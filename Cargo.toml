@@ -1,16 +1,27 @@
-[package]
-name = "dandidav"
-version = "0.5.0"
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
 edition = "2021"
 rust-version = "1.81"
-description = "WebDAV view to DANDI Archive"
 authors = [
     "DANDI Developers <team@dandiarchive.org>",
     "John Thorvald Wodder II <dandidav@varonathe.org>",
 ]
 repository = "https://github.com/dandi/dandidav"
-documentation = "https://github.com/dandi/dandidav"
 license = "MIT"
+
+[package]
+name = "dandidav"
+version = "0.5.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "WebDAV view to DANDI Archive"
+authors.workspace = true
+repository.workspace = true
+documentation = "https://github.com/dandi/dandidav"
+license.workspace = true
 exclude = ["/.*"]
 publish = false
 
@@ -65,7 +76,10 @@ rstest = { version = "0.24.0", default-features = false }
 [build-dependencies]
 anyhow = "1.0.95"
 
-[lints.rust]
+[lints]
+workspace = true
+
+[workspace.lints.rust]
 # Lint groups:
 deprecated_safe = { level = "deny", priority = -1 }
 future_incompatible = { level = "deny", priority = -1 }
@@ -139,7 +153,7 @@ unused_associated_type_bounds = "deny"
 unused_comparisons = "deny"
 while_true = "deny"
 
-[lints.rustdoc]
+[workspace.lints.rustdoc]
 bare_urls = "allow"
 broken_intra_doc_links = "deny"
 invalid_codeblock_attributes = "deny"
@@ -149,7 +163,7 @@ private_intra_doc_links = "deny"
 redundant_explicit_links = "deny"
 unescaped_backticks = "deny"
 
-[lints.clippy]
+[workspace.lints.clippy]
 # Deny all warn-by-default lints:
 all = { level = "deny", priority = -1 }
 

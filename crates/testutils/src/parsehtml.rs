@@ -63,6 +63,7 @@ pub fn parse_collection_page(html: &str) -> Result<CollectionPage, ParseCollecti
             .tag("span")
             .class("item-link")
             .find()
+            .and_then(|handle| handle.tag("a").find())
             .map(Link::from_handle)
         else {
             return Err(ParseCollectionError::NoItemLink);
@@ -180,4 +181,56 @@ pub enum ParseCollectionError {
 pub enum ParseLinkError {
     #[error("<a> tag missing href attribute")]
     NoHref,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_collection_page() {
+        let html = include_str!("testdata/000027.html");
+        let page = parse_collection_page(html).unwrap();
+        assert_eq!(page, CollectionPage {
+            breadcrumbs: vec![
+                Link { text: "dandidav".into(), href: "/".into() },
+                Link { text: "dandisets".into(), href: "/dandisets/".into() },
+                Link { text: "000027".into(), href: "/dandisets/000027/".into() },
+            ],
+            table: vec![
+                CollectionEntry {
+                    name: Link { text: "../".into(), href: "/dandisets/".into() },
+                    metadata_link: None,
+                    typekind: "Parent directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link { text: "draft/".into(), href: "/dandisets/000027/draft/".into() },
+                    metadata_link: Some("https://api.dandiarchive.org/api/dandisets/000027/versions/draft/".into()),
+                    typekind: "Dandiset version".into(),
+                    size: "18.35 KiB".into(),
+                    created: "2020-07-08 21:54:42Z".into(),
+                    modified: "2023-06-20 00:56:23Z".into(),
+                },
+                CollectionEntry {
+                    name: Link { text: "latest/".into(), href: "/dandisets/000027/latest/".into() },
+                    metadata_link: Some("https://api.dandiarchive.org/api/dandisets/000027/versions/0.210831.2033/".into()),
+                    typekind: "Dandiset version".into(),
+                    size: "18.35 KiB".into(),
+                    created: "2021-08-31 20:34:01Z".into(),
+                    modified: "2021-08-31 20:34:01Z".into(),
+                },
+                CollectionEntry {
+                    name: Link { text: "releases/".into(), href: "/dandisets/000027/releases/".into() },
+                    metadata_link: None,
+                    typekind: "Published versions".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+            ],
+        });
+    }
 }

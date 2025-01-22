@@ -2,7 +2,7 @@
 name = "dandidav"
 version = "0.5.0"
 edition = "2021"
-rust-version = "1.78"
+rust-version = "1.81"
 description = "WebDAV view to DANDI Archive"
 authors = [
     "DANDI Developers <team@dandiarchive.org>",

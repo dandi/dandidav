@@ -7,7 +7,7 @@ When `dandidav` receives a request for a path under `/dandisets/`, the requests
 it makes to the DANDI Archive API for each type of `dandidav` request path are
 as follows.
 
-Note that there are two different methods that `dandidav` uses for fetching
+Note that there are two different approaches that `dandidav` uses for fetching
 resources:
 
 - When responding to a `GET` request or a `PROPFIND` request with a `Depth`
@@ -22,7 +22,7 @@ resources:
 Dandiset Index
 --------------
 
-> **Path:** `/dandisets/`
+> **dandidav path:** `/dandisets/`
 
 For deep requests, `dandidav` paginates over the API's `/dandisets/` endpoint.
 
@@ -31,14 +31,14 @@ For shallow requests, `dandidav` does not make any API requests.
 Dandiset Top-Level
 ------------------
 
-> **Path:** `/dandisets/{dandiset_id}/`
+> **dandidav path:** `/dandisets/{dandiset_id}/`
 
 For both deep and shallow requests, `dandidav` makes an API request to `/dandisets/{dandiset_id}/`.
 
 Releases Index
 --------------
 
-> **Path:** `/dandisets/{dandiset_id}/releases/`
+> **dandidav path:** `/dandisets/{dandiset_id}/releases/`
 
 For deep requests, `dandidav` paginates over the API's `/dandisets/{dandiset_id}/versions/` endpoint.
 
@@ -47,7 +47,7 @@ For shallow requests, `dandidav` does not make any API requests.
 Top-Level of a Dandiset Version
 -------------------------------
 
-> **Paths:**
+> **dandidav paths:**
 >
 > - `/dandiset/{dandiset_id}/draft/`
 > - `/dandiset/{dandiset_id}/latest/`
@@ -75,7 +75,7 @@ For shallow requests, `dandidav` makes an API request to
 Metadata File
 -------------
 
-> **Paths:**
+> **dandidav paths:**
 >
 > - `/dandiset/{dandiset_id}/draft/dandiset.yaml`
 > - `/dandiset/{dandiset_id}/latest/dandiset.yaml`
@@ -90,7 +90,7 @@ request to `/dandisets/{dandiset_id}/versions/{version_id}/`.
 Asset Path
 ----------
 
-> **Paths:**
+> **dandidav paths:**
 >
 > - `/dandiset/{dandiset_id}/draft/{path}`
 > - `/dandiset/{dandiset_id}/latest/{path}`

@@ -1,0 +1,19 @@
+[
+  {
+    "params": {},
+    "response": {
+      "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.0/context.json",
+      "dateCreated": "2020-03-16T22:52:44.757000Z",
+      "description": "Researcher will soon be leaving for new life under the sea.",
+      "id": "DANDI:000003/draft",
+      "identifier": "DANDI:000003",
+      "license": [
+        "spdx:CC-BY-4.0"
+      ],
+      "name": "Brainscan of a Leprechaun",
+      "schemaKey": "Dandiset",
+      "url": "https://dandiarchive.mock/dandiset/000003/draft",
+      "version": "draft"
+    }
+  }
+]

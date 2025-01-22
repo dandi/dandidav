@@ -1,0 +1,22 @@
+[
+  {
+    "params": {},
+    "response": {
+      "identifier": "000003",
+      "created": "2020-03-16T22:52:44.757000Z",
+      "modified": "2020-04-09T20:59:35.377000Z",
+      "contact_person": "Sample, Eggy",
+      "embargo_status": "OPEN",
+      "most_recent_published_version": null,
+      "draft_version": {
+        "version": "draft",
+        "name": "Brainscan of a Mermaid",
+        "asset_count": 130,
+        "size": 92130007,
+        "status": "Valid",
+        "created": "2020-03-16T22:52:44.757000Z",
+        "modified": "2020-04-09T20:59:35.377000Z"
+      }
+    }
+  }
+]

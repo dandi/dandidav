@@ -1,0 +1,28 @@
+[
+  {
+    "params": {},
+    "response": {
+      "version": "0.210512.1623",
+      "name": "Brainscan of a Unicorn",
+      "asset_count": 6,
+      "size": 42508453,
+      "status": "Valid",
+      "created": "2021-05-12T16:23:14.388489Z",
+      "modified": "2021-05-12T16:23:19.080882Z",
+      "metadata": {
+        "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.0/context.json",
+        "dateCreated": "2021-05-12T16:23:14.388489Z",
+        "description": "Researcher is seeking funding for surgery to fix goring injuries.",
+        "id": "DANDI:000001/0.210512.1623",
+        "identifier": "DANDI:000027",
+        "license": [
+          "spdx:CC-BY-4.0"
+        ],
+        "name": "Brainscan of a Unicorn",
+        "schemaKey": "Dandiset",
+        "url": "https://dandiarchive.mock/dandiset/000001/0.210512.1623",
+        "version": "0.210512.1623"
+      }
+    }
+  }
+]

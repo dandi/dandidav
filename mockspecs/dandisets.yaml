@@ -79,7 +79,7 @@
         dateCreated: "2020-03-16T21:48:04.265000Z"
         description: "Researcher is seeking funding for cloud-seeding to create rainbows."
 
-    - version": "0.220126.1852"
+    - version: "0.220126.1852"
       name: "Brainscan of a Leprechaun"
       status: "Valid"
       created: "2022-01-26T18:51:20.925155Z"
@@ -101,7 +101,7 @@
   modified: "2020-04-09T20:59:35.377000Z"
   contact_person: "Sample, Eggy"
   embargo_status: "OPEN"
-  most_recent_published_version": null
+  most_recent_published_version: null
   versions:
     - version: "draft"
       name: "Brainscan of a Mermaid"

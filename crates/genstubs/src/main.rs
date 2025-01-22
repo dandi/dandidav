@@ -50,6 +50,7 @@ fn main() -> anyhow::Result<()> {
         }
         let mrpv = versions
             .iter()
+            .filter(|v| v.id != "draft")
             .max_by(|a, b| a.api_payload.created.cmp(&b.api_payload.created))
             .map(|v| v.api_payload.clone());
         let Some(draft) = versions
@@ -86,7 +87,7 @@ fn main() -> anyhow::Result<()> {
     )?;
     for d in dandisets {
         dump_json(
-            &d.api_payload,
+            &vec![Stub::from(&d.api_payload)],
             args.stubdir
                 .join("api")
                 .join("dandisets")
@@ -108,7 +109,7 @@ fn main() -> anyhow::Result<()> {
         )?;
         for v in d.versions {
             dump_json(
-                &v.metadata,
+                &vec![Stub::from(&v.metadata)],
                 args.stubdir
                     .join("api")
                     .join("dandisets")
@@ -117,17 +118,17 @@ fn main() -> anyhow::Result<()> {
                     .join(format!("{}.json", v.id)),
             )?;
             dump_json(
-                &ApiVersionInfo {
+                &vec![Stub::from(&ApiVersionInfo {
                     version: &v.api_payload,
                     metadata: &v.metadata,
-                },
+                })],
                 args.stubdir
                     .join("api")
                     .join("dandisets")
                     .join(&d.id)
                     .join("versions")
                     .join(&v.id)
-                    .join("info"),
+                    .join("info.json"),
             )?;
         }
     }
@@ -161,8 +162,13 @@ fn paginate<T: Clone>(mut items: &[T], path: &str) -> Vec<Stub<Page<T>>> {
 }
 
 fn dump_json<T: Serialize, P: Into<PathBuf>>(value: &T, path: P) -> anyhow::Result<()> {
+    let path = path.into();
+    if let Some(pp) = path.parent() {
+        fs_err::create_dir_all(pp)?;
+    }
     let mut fp = BufWriter::new(fs_err::File::create(path)?);
     serde_json::to_writer_pretty(&mut fp, value)?;
+    fp.write_all(b"\n")?;
     fp.flush()?;
     Ok(())
 }
@@ -253,6 +259,15 @@ struct Version {
 struct Stub<T> {
     params: BTreeMap<String, String>,
     response: T,
+}
+
+impl<T> From<T> for Stub<T> {
+    fn from(response: T) -> Stub<T> {
+        Stub {
+            params: BTreeMap::new(),
+            response,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]

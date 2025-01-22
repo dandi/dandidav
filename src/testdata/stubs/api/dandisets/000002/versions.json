@@ -1,0 +1,29 @@
+[
+  {
+    "params": {},
+    "response": {
+      "count": 2,
+      "next": null,
+      "results": [
+        {
+          "version": "draft",
+          "name": "Brainscan of a Leprechaun",
+          "asset_count": 45,
+          "size": 13319354,
+          "status": "Valid",
+          "created": "2020-03-16T21:48:04.265000Z",
+          "modified": "2024-05-18T17:53:27.096283Z"
+        },
+        {
+          "version": "0.220126.1852",
+          "name": "Brainscan of a Leprechaun",
+          "asset_count": 76,
+          "size": 60752115,
+          "status": "Valid",
+          "created": "2022-01-26T18:51:20.925155Z",
+          "modified": "2022-01-26T18:51:21.037003Z"
+        }
+      ]
+    }
+  }
+]

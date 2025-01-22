@@ -28,7 +28,7 @@ For deep requests, `dandidav` paginates over the API's `/dandisets/` endpoint.
 
 For shallow requests, `dandidav` does not make any API requests.
 
-Dandiset Top-Level
+Dandiset Top Level
 ------------------
 
 > **dandidav path:** `/dandisets/{dandiset_id}/`
@@ -44,7 +44,7 @@ For deep requests, `dandidav` paginates over the API's `/dandisets/{dandiset_id}
 
 For shallow requests, `dandidav` does not make any API requests.
 
-Top-Level of a Dandiset Version
+Top Level of a Dandiset Version
 -------------------------------
 
 > **dandidav paths:**

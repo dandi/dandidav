@@ -3,7 +3,7 @@ use super::*;
 use axum::body::Bytes;
 use http_body_util::BodyExt; // for `collect`
 use testutils::{CollectionEntry, CollectionPage, Link};
-use tower::ServiceExt; // for `oneshot`
+use tower::{Service, ServiceExt}; // for `ready`
 
 fn fill_html_footer(html: &str) -> String {
     let commit_str = match option_env!("GIT_COMMIT") {
@@ -24,6 +24,7 @@ struct MockApp {
     app: Router,
     #[allow(dead_code)]
     mock_archive: wiremock::MockServer,
+    archive_url: String,
 }
 
 impl MockApp {
@@ -33,20 +34,24 @@ impl MockApp {
             "/src/testdata/stubs"
         ))
         .await;
+        let archive_url = format!("{}/api", mock_archive.uri());
         let cfg = Config {
-            api_url: format!("{}/api", mock_archive.uri())
-                .parse::<HttpUrl>()
-                .unwrap(),
+            api_url: archive_url.parse::<HttpUrl>().unwrap(),
             ..Config::default()
         };
         let app = get_app(cfg).unwrap();
-        MockApp { app, mock_archive }
+        MockApp {
+            app,
+            mock_archive,
+            archive_url,
+        }
     }
 
-    async fn get(self, path: &str) -> Response<Bytes> {
-        let response = self
-            .app
-            .oneshot(
+    async fn get(&mut self, path: &str) -> Response<Bytes> {
+        let response = <Router as ServiceExt<Request<Body>>>::ready(&mut self.app)
+            .await
+            .unwrap()
+            .call(
                 Request::builder()
                     .uri(path)
                     .header("X-Forwarded-For", "127.0.0.1")
@@ -60,10 +65,11 @@ impl MockApp {
         Response::from_parts(parts, body)
     }
 
-    async fn head(self, path: &str) -> Response<Bytes> {
-        let response = self
-            .app
-            .oneshot(
+    async fn head(&mut self, path: &str) -> Response<Bytes> {
+        let response = <Router as ServiceExt<Request<Body>>>::ready(&mut self.app)
+            .await
+            .unwrap()
+            .call(
                 Request::builder()
                     .method(Method::HEAD)
                     .uri(path)
@@ -78,7 +84,7 @@ impl MockApp {
         Response::from_parts(parts, body)
     }
 
-    async fn get_collection_html(self, path: &str) -> CollectionPage {
+    async fn get_collection_html(&mut self, path: &str) -> CollectionPage {
         let response = self.get(path).await;
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
@@ -95,7 +101,7 @@ impl MockApp {
 
 #[tokio::test]
 async fn test_get_styles() {
-    let app = MockApp::new().await;
+    let mut app = MockApp::new().await;
     let response = app.get("/.static/styles.css").await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
@@ -112,7 +118,7 @@ async fn test_get_styles() {
 
 #[tokio::test]
 async fn test_get_root() {
-    let app = MockApp::new().await;
+    let mut app = MockApp::new().await;
     let response = app.get("/").await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
@@ -130,7 +136,7 @@ async fn test_get_root() {
 
 #[tokio::test]
 async fn test_head_styles() {
-    let app = MockApp::new().await;
+    let mut app = MockApp::new().await;
     let response = app.head("/.static/styles.css").await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
@@ -154,7 +160,7 @@ async fn test_head_styles() {
 
 #[tokio::test]
 async fn test_head_root() {
-    let app = MockApp::new().await;
+    let mut app = MockApp::new().await;
     let response = app.head("/").await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
@@ -179,7 +185,7 @@ async fn test_head_root() {
 
 #[tokio::test]
 async fn test_get_dandisets_index() {
-    let app = MockApp::new().await;
+    let mut app = MockApp::new().await;
     let page = app.get_collection_html("/dandisets/").await;
     pretty_assertions::assert_eq!(
         page,
@@ -236,6 +242,135 @@ async fn test_get_dandisets_index() {
                     metadata_link: None,
                     typekind: "Dandiset".into(),
                     size: "\u{2014}".into(),
+                    created: "2020-03-16 22:52:44Z".into(),
+                    modified: "2020-04-09 20:59:35Z".into(),
+                },
+            ],
+        }
+    );
+}
+
+#[tokio::test]
+async fn test_get_dandiset_with_published() {
+    let mut app = MockApp::new().await;
+    let page = app.get_collection_html("/dandisets/000001/").await;
+    pretty_assertions::assert_eq!(
+        page,
+        CollectionPage {
+            breadcrumbs: vec![
+                Link {
+                    text: "dandidav".into(),
+                    href: "/".into()
+                },
+                Link {
+                    text: "dandisets".into(),
+                    href: "/dandisets/".into()
+                },
+                Link {
+                    text: "000001".into(),
+                    href: "/dandisets/000001/".into()
+                },
+            ],
+            table: vec![
+                CollectionEntry {
+                    name: Link {
+                        text: "../".into(),
+                        href: "/dandisets/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Parent directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "draft/".into(),
+                        href: "/dandisets/000001/draft/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/draft/",
+                        app.archive_url
+                    )),
+                    typekind: "Dandiset version".into(),
+                    size: "18.35 KiB".into(),
+                    created: "2020-03-15 22:56:55Z".into(),
+                    modified: "2024-05-18 17:13:27Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "latest/".into(),
+                        href: "/dandisets/000001/latest/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/",
+                        app.archive_url
+                    )),
+                    typekind: "Dandiset version".into(),
+                    size: "171.91 KiB".into(),
+                    created: "2023-06-29 19:55:31Z".into(),
+                    modified: "2023-06-29 19:55:35Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "releases/".into(),
+                        href: "/dandisets/000001/releases/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Published versions".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+            ],
+        }
+    );
+}
+
+#[tokio::test]
+async fn test_get_dandiset_without_published() {
+    let mut app = MockApp::new().await;
+    let page = app.get_collection_html("/dandisets/000003/").await;
+    pretty_assertions::assert_eq!(
+        page,
+        CollectionPage {
+            breadcrumbs: vec![
+                Link {
+                    text: "dandidav".into(),
+                    href: "/".into()
+                },
+                Link {
+                    text: "dandisets".into(),
+                    href: "/dandisets/".into()
+                },
+                Link {
+                    text: "000003".into(),
+                    href: "/dandisets/000003/".into()
+                },
+            ],
+            table: vec![
+                CollectionEntry {
+                    name: Link {
+                        text: "../".into(),
+                        href: "/dandisets/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Parent directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "draft/".into(),
+                        href: "/dandisets/000003/draft/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000003/versions/draft/",
+                        app.archive_url
+                    )),
+                    typekind: "Dandiset version".into(),
+                    size: "87.86 MiB".into(),
                     created: "2020-03-16 22:52:44Z".into(),
                     modified: "2020-04-09 20:59:35Z".into(),
                 },

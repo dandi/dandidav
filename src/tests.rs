@@ -378,3 +378,73 @@ async fn test_get_dandiset_without_published() {
         }
     );
 }
+
+#[tokio::test]
+async fn test_get_dandiset_releases() {
+    let mut app = MockApp::new().await;
+    let page = app.get_collection_html("/dandisets/000001/releases/").await;
+    pretty_assertions::assert_eq!(
+        page,
+        CollectionPage {
+            breadcrumbs: vec![
+                Link {
+                    text: "dandidav".into(),
+                    href: "/".into()
+                },
+                Link {
+                    text: "dandisets".into(),
+                    href: "/dandisets/".into()
+                },
+                Link {
+                    text: "000001".into(),
+                    href: "/dandisets/000001/".into()
+                },
+                Link {
+                    text: "releases".into(),
+                    href: "/dandisets/000001/releases/".into()
+                },
+            ],
+            table: vec![
+                CollectionEntry {
+                    name: Link {
+                        text: "../".into(),
+                        href: "/dandisets/000001/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Parent directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "0.210512.1623/".into(),
+                        href: "/dandisets/000001/releases/0.210512.1623/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.210512.1623/",
+                        app.archive_url
+                    )),
+                    typekind: "Dandiset version".into(),
+                    size: "40.54 MiB".into(),
+                    created: "2021-05-12 16:23:14Z".into(),
+                    modified: "2021-05-12 16:23:19Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "0.230629.1955/".into(),
+                        href: "/dandisets/000001/releases/0.230629.1955/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/",
+                        app.archive_url
+                    )),
+                    typekind: "Dandiset version".into(),
+                    size: "171.91 KiB".into(),
+                    created: "2023-06-29 19:55:31Z".into(),
+                    modified: "2023-06-29 19:55:35Z".into(),
+                },
+            ],
+        }
+    );
+}

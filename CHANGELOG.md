@@ -1,9 +1,10 @@
-In Devlopment
--------------
+In Development
+--------------
 - Serve a `/robots.txt` file denying all robots
 - Log `User-Agent` and `X-Request-ID` headers
 - Rate limit incoming requests
 - Handling of incoming requests now times out after 25 seconds
+- Increased MSRV to 1.81
 
 v0.5.0 (2024-11-18)
 -------------------

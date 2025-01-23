@@ -185,6 +185,10 @@ impl HttpError {
     pub(crate) fn class(&self) -> ErrorClass {
         match self {
             HttpError::NotFound { .. } => ErrorClass::NotFound,
+            HttpError::Send { source, .. } if source.is_timeout() => ErrorClass::GatewayTimeout,
+            HttpError::Deserialize { source, .. } if source.is_timeout() => {
+                ErrorClass::GatewayTimeout
+            }
             _ => ErrorClass::BadGateway,
         }
     }

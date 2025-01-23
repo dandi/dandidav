@@ -436,6 +436,10 @@ pub(crate) enum ErrorClass {
     /// error or invalid response
     BadGateway,
 
+    /// The error was ultimately caused by a request to an upstream server
+    /// timing out
+    GatewayTimeout,
+
     /// The error was ultimately caused by something going wrong in `dandidav`
     Internal,
 }
@@ -446,6 +450,7 @@ impl ErrorClass {
         match self {
             ErrorClass::NotFound => StatusCode::NOT_FOUND,
             ErrorClass::BadGateway => StatusCode::BAD_GATEWAY,
+            ErrorClass::GatewayTimeout => StatusCode::GATEWAY_TIMEOUT,
             ErrorClass::Internal => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

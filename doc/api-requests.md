@@ -67,7 +67,7 @@ For deep requests, `dandidav` makes API requests to the following endpoints:
       `/dandisets/{dandiset_id}/versions/{version_id}/assets/{asset_id}/info/`
       to fetch further details about the asset.
 - `/dandisets/{dandiset_id}/versions/{version_id}/` (to fetch the version
-  metadata)
+  metadata so that its size can be reported)
 
 For shallow requests, `dandidav` makes an API request to
 `/dandisets/{dandiset_id}/versions/{version_id}/info/`.

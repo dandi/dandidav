@@ -32,6 +32,7 @@ impl Client {
         let client = reqwest_middleware::ClientBuilder::new(
             reqwest::ClientBuilder::new()
                 .user_agent(USER_AGENT)
+                .timeout(std::time::Duration::from_secs(10))
                 .build()?,
         )
         .with(SimpleReqwestLogger)
@@ -184,6 +185,10 @@ impl HttpError {
     pub(crate) fn class(&self) -> ErrorClass {
         match self {
             HttpError::NotFound { .. } => ErrorClass::NotFound,
+            HttpError::Send { source, .. } if source.is_timeout() => ErrorClass::GatewayTimeout,
+            HttpError::Deserialize { source, .. } if source.is_timeout() => {
+                ErrorClass::GatewayTimeout
+            }
             _ => ErrorClass::BadGateway,
         }
     }

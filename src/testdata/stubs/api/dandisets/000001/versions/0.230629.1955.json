@@ -1,0 +1,19 @@
+[
+  {
+    "params": {},
+    "response": {
+      "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.0/context.json",
+      "dateCreated": "2023-06-29T19:55:31.388489Z",
+      "description": "Researcher is seeking funding for surgery to fix goring injuries.",
+      "id": "DANDI:000001/0.230629.1955",
+      "identifier": "DANDI:000027",
+      "license": [
+        "spdx:CC-BY-4.0"
+      ],
+      "name": "Brainscan of a Unicorn",
+      "schemaKey": "Dandiset",
+      "url": "https://dandiarchive.mock/dandiset/000001/0.230629.1955",
+      "version": "0.230629.1955"
+    }
+  }
+]

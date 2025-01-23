@@ -1,0 +1,2 @@
+[alias]
+genstubs = ["run", "-p", "genstubs", "--", "mockspecs", "src/testdata/stubs"]

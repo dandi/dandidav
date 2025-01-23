@@ -1,0 +1,172 @@
+[
+  {
+    "params": {},
+    "response": {
+      "count": 10,
+      "next": null,
+      "results": [
+        {
+          "path": "0tRyK6Tf.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 4350,
+          "asset": {
+            "asset_id": "3dd294c8-0296-4b88-bf5c-427700982bc5"
+          }
+        },
+        {
+          "path": "2jsP1o.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 3587,
+          "asset": {
+            "asset_id": "60e3e62f-679d-4903-8ff9-eed67cb83947"
+          }
+        },
+        {
+          "path": "30l.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 8342,
+          "asset": {
+            "asset_id": "7204338c-874b-4081-a494-d8b1988561d6"
+          }
+        },
+        {
+          "path": "F2GW.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 7647,
+          "asset": {
+            "asset_id": "fa25bbd0-e053-46a6-8404-a4f88457c898"
+          }
+        },
+        {
+          "path": "JEhE.tsv",
+          "aggregate_files": 1,
+          "aggregate_size": 5681,
+          "asset": {
+            "asset_id": "faeb54dc-f906-40fa-b48e-28816c422ec5"
+          }
+        },
+        {
+          "path": "KsAtGTXP",
+          "aggregate_files": 17,
+          "aggregate_size": 163613,
+          "asset": null
+        },
+        {
+          "path": "bM1QHwex.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 4492,
+          "asset": {
+            "asset_id": "f4274f89-301e-4ce9-9425-a096970cfcba"
+          }
+        },
+        {
+          "path": "fRLy",
+          "aggregate_files": 20,
+          "aggregate_size": 13101026,
+          "asset": null
+        },
+        {
+          "path": "nPjB.json",
+          "aggregate_files": 1,
+          "aggregate_size": 11902,
+          "asset": {
+            "asset_id": "08938c9b-b248-4aa0-b963-859029a1f38b"
+          }
+        },
+        {
+          "path": "ykBgN.tsv",
+          "aggregate_files": 1,
+          "aggregate_size": 8714,
+          "asset": {
+            "asset_id": "3a4bc5da-4920-467b-9a82-4e1a9cac90b7"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "params": {
+      "path_prefix": "fRLy/"
+    },
+    "response": {
+      "count": 10,
+      "next": null,
+      "results": [
+        {
+          "path": "fRLy/9xj.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 24861,
+          "asset": {
+            "asset_id": "b82113fc-48e4-4645-a52f-d8fdf47e1624"
+          }
+        },
+        {
+          "path": "fRLy/EZP9eyg",
+          "aggregate_files": 5,
+          "aggregate_size": 52347,
+          "asset": null
+        },
+        {
+          "path": "fRLy/GpJEYT9.ngff",
+          "aggregate_files": 1,
+          "aggregate_size": 12091132,
+          "asset": {
+            "asset_id": "869c1d3e-ab25-452c-bc69-605e094aa3a2"
+          }
+        },
+        {
+          "path": "fRLy/NYW8SD",
+          "aggregate_files": 3,
+          "aggregate_size": 9590,
+          "asset": null
+        },
+        {
+          "path": "fRLy/OWG.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 47773,
+          "asset": {
+            "asset_id": "e46ae092-a818-42ef-a7c1-12bca5b4ffdd"
+          }
+        },
+        {
+          "path": "fRLy/UP8CFrHpN",
+          "aggregate_files": 5,
+          "aggregate_size": 56942,
+          "asset": null
+        },
+        {
+          "path": "fRLy/hH.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 7720,
+          "asset": {
+            "asset_id": "6243f6dd-4418-498d-afe3-589c6ac8778e"
+          }
+        },
+        {
+          "path": "fRLy/yY9p4f.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 21595,
+          "asset": {
+            "asset_id": "d0e64671-2d87-4ecf-8287-709cdafbce70"
+          }
+        },
+        {
+          "path": "fRLy/zBbN.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 1406,
+          "asset": {
+            "asset_id": "c28fd72b-944f-4e3d-865a-0f6eb38b7e17"
+          }
+        },
+        {
+          "path": "fRLy/zfa6zGT.zarr",
+          "aggregate_files": 1,
+          "aggregate_size": 787660,
+          "asset": {
+            "asset_id": "94e691a5-8031-4a73-b063-374bccee7154"
+          }
+        }
+      ]
+    }
+  }
+]

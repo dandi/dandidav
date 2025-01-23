@@ -1,0 +1,30 @@
+[
+  {
+    "params": {},
+    "response": {
+      "identifier": "000001",
+      "created": "2020-03-15T22:56:55.655000Z",
+      "modified": "2020-11-06T17:20:30.673000Z",
+      "contact_person": "Sample, Eggy",
+      "embargo_status": "OPEN",
+      "most_recent_published_version": {
+        "version": "0.230629.1955",
+        "name": "Brainscan of a Unicorn",
+        "asset_count": 6,
+        "size": 176031,
+        "status": "Valid",
+        "created": "2023-06-29T19:55:31.388489Z",
+        "modified": "2023-06-29T19:55:35.080882Z"
+      },
+      "draft_version": {
+        "version": "draft",
+        "name": "Brainscan of a Unicorn",
+        "asset_count": 1,
+        "size": 18792,
+        "status": "Valid",
+        "created": "2020-03-15T22:56:55.655000Z",
+        "modified": "2024-05-18T17:13:27.131814Z"
+      }
+    }
+  }
+]

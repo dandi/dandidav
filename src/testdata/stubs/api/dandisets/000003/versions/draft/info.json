@@ -1,0 +1,28 @@
+[
+  {
+    "params": {},
+    "response": {
+      "version": "draft",
+      "name": "Brainscan of a Mermaid",
+      "asset_count": 130,
+      "size": 92130007,
+      "status": "Valid",
+      "created": "2020-03-16T22:52:44.757000Z",
+      "modified": "2020-04-09T20:59:35.377000Z",
+      "metadata": {
+        "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.0/context.json",
+        "dateCreated": "2020-03-16T22:52:44.757000Z",
+        "description": "Researcher will soon be leaving for new life under the sea.",
+        "id": "DANDI:000003/draft",
+        "identifier": "DANDI:000003",
+        "license": [
+          "spdx:CC-BY-4.0"
+        ],
+        "name": "Brainscan of a Leprechaun",
+        "schemaKey": "Dandiset",
+        "url": "https://dandiarchive.mock/dandiset/000003/draft",
+        "version": "draft"
+      }
+    }
+  }
+]

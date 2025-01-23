@@ -1,0 +1,28 @@
+[
+  {
+    "params": {},
+    "response": {
+      "version": "0.220126.1852",
+      "name": "Brainscan of a Leprechaun",
+      "asset_count": 76,
+      "size": 60752115,
+      "status": "Valid",
+      "created": "2022-01-26T18:51:20.925155Z",
+      "modified": "2022-01-26T18:51:21.037003Z",
+      "metadata": {
+        "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.0/context.json",
+        "dateCreated": "2022-01-26T18:51:20.925155Z",
+        "description": "Researcher is seeking funding for cloud-seeding to create rainbows.",
+        "id": "DANDI:000002/0.220126.1852",
+        "identifier": "DANDI:000002",
+        "license": [
+          "spdx:CC-BY-4.0"
+        ],
+        "name": "Brainscan of a Leprechaun",
+        "schemaKey": "Dandiset",
+        "url": "https://dandiarchive.mock/dandiset/000002/0.220126.1852",
+        "version": "0.220126.1852"
+      }
+    }
+  }
+]

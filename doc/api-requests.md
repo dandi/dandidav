@@ -138,7 +138,7 @@ Shallow requests stop making requests to the Archive at this point.  Deep
 requests continue as follows:
 
 - If an asset folder was found at path `path`, a paginated request is made to
-  `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths/?path_prefix={path}`.
+  `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths/?path_prefix={path}/`.
   For each separate asset returned from this endpoint, `dandidav` makes another
   request to
   `/dandisets/{dandiset_id}/versions/{version_id}/assets/{asset_id}/info/` to

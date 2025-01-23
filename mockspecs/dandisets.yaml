@@ -78,6 +78,9 @@
         version: "draft"
         dateCreated: "2020-03-16T21:48:04.265000Z"
         description: "Researcher is seeking funding for cloud-seeding to create rainbows."
+      asset_dirs:
+        - null
+        - fRLy
 
     - version: "0.220126.1852"
       name: "Brainscan of a Leprechaun"

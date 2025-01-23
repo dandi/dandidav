@@ -124,6 +124,15 @@ pub struct CollectionPage {
     pub table: Vec<CollectionEntry>,
 }
 
+impl CollectionPage {
+    pub fn into_names(self) -> Vec<String> {
+        self.table
+            .into_iter()
+            .map(|entry| entry.name.text)
+            .collect()
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CollectionEntry {
     pub name: Link,

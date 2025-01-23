@@ -1304,6 +1304,7 @@ dependencies = [
  "anyhow",
  "clap",
  "fs-err",
+ "itertools",
  "serde",
  "serde_json",
  "serde_yaml",

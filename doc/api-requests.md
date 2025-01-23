@@ -62,10 +62,12 @@ For deep requests, `dandidav` makes API requests to the following endpoints:
 
 - `/dandisets/{dandiset_id}/versions/{version_id}/info/`
 - `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths/` (paginated)
-    - For each separate asset returned from this endpoint, `dandidav` makes
-      another request to
+    - Because this endpoint only provides assets' paths, IDs, and sizes, for
+      each separate asset returned from this endpoint, `dandidav` makes another
+      request to
       `/dandisets/{dandiset_id}/versions/{version_id}/assets/{asset_id}/info/`
-      to fetch further details about the asset.
+      to fetch further details about the asset (See ["Other
+      Notes"](#other-notes) below).
 - `/dandisets/{dandiset_id}/versions/{version_id}/` (to fetch the version
   metadata so that its size can be reported)
 
@@ -139,10 +141,11 @@ requests continue as follows:
 
 - If an asset folder was found at path `path`, a paginated request is made to
   `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths/?path_prefix={path}/`.
-  For each separate asset returned from this endpoint, `dandidav` makes another
-  request to
-  `/dandisets/{dandiset_id}/versions/{version_id}/assets/{asset_id}/info/` to
-  fetch further details about the asset.
+  Because this endpoint only provides assets' paths, IDs, and sizes, for each
+  separate asset returned from this endpoint, `dandidav` makes another request
+  to `/dandisets/{dandiset_id}/versions/{version_id}/assets/{asset_id}/info/`
+  to fetch further details about the asset (See ["Other Notes"](#other-notes)
+  below).
 
 - If a blob asset was found, no more requests are made to the Archive.
 
@@ -154,3 +157,50 @@ Other Notes
 
 - Paginated requests to the Archive use the default `per_page` value and are
   requested serially.
+
+- `dandidav` requires the following information from the Archive about each
+  type of resource, not always at the same time.  Required information about
+  the relationships between resources is not listed here.
+
+    - Dandisets:
+        - identifier (to serve as the resource name)
+        - creation & modification timestamps
+
+    - Versions:
+        - identifier (to serve as the resource name)
+        - size
+        - creation & modification timestamps
+        - metadata (to serve the virtual `dandiset.yaml` resources)
+
+    - Asset folders:
+        - path/name
+
+    - Assets:
+        - path/name
+        - ID (for computing the metadata URL to display in the web view)
+        - blob ID and Zarr ID (to determine the asset type)
+        - size
+        - creation & modification timestamps
+        - metadata:
+
+            - `digest` — For blob assets, the `"dandi:dandi-etag"` digest is
+              used as the resource's ETag in `PROPFIND` responses
+
+            - `contentUrl` — As a reminder, this array contains both an Archive
+              download URL and a direct S3 URL.  Which one is used depends on
+              the asset type and the situation:
+
+                - Blob assets: When rendering links in the web (HTML) view, the
+                  Archive download URL is used, as this results in a redirect
+                  to a signed S3 URL that sets the Content-Disposition header,
+                  thereby ensuring that the user's browser downloads the asset
+                  to a file of the same name.  When responding to `GET`
+                  requests for blob assets, either URL may be used, depending
+                  on the presence of the `--prefer-s3-redirects` command-line
+                  option.
+
+                - Zarr assets: The S3 URL is parsed by `dandidav` to locate the
+                  Zarr's entries on S3.
+
+            - `encodingFormat` — Used as the resource's Content Type in
+              `PROPFIND` responses

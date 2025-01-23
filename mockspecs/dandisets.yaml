@@ -60,7 +60,6 @@
   modified: "2020-10-03T07:01:25.356000Z"
   contact_person: "Sample, Eggy"
   embargo_status: "OPEN"
-  most_recent_published_version: null
   versions:
     - version: "draft"
       name: "Brainscan of a Leprechaun"
@@ -104,7 +103,6 @@
   modified: "2020-04-09T20:59:35.377000Z"
   contact_person: "Sample, Eggy"
   embargo_status: "OPEN"
-  most_recent_published_version: null
   versions:
     - version: "draft"
       name: "Brainscan of a Mermaid"

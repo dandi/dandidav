@@ -32,6 +32,7 @@ impl Client {
         let client = reqwest_middleware::ClientBuilder::new(
             reqwest::ClientBuilder::new()
                 .user_agent(USER_AGENT)
+                .timeout(std::time::Duration::from_secs(10))
                 .build()?,
         )
         .with(SimpleReqwestLogger)

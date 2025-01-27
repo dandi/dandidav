@@ -11,7 +11,7 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.95"
-clap = { version = "4.5.26", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
+clap = { version = "4.5.27", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
 fs-err = "3.1.0"
 itertools = "0.14.0"
 serde = { version = "1.0.217", features = ["derive"] }

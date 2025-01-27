@@ -109,6 +109,10 @@ Options
 - `--ip-addr <IPADDR>` — Specify the IP address for the server to listen on
   [default: 127.0.0.1]
 
+- `--log-memory` — Log the process's memory usage at the start & end of each
+  incoming request.  Note that this slows down the overall request-processing
+  time.
+
 - `-p <PORT>`, `--port <PORT>` — Specify the port for the server to listen on
   [default: 8080]
 

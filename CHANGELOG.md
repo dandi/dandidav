@@ -6,6 +6,8 @@ In Development
 - Handling of incoming requests now times out after 25 seconds
 - Increased MSRV to 1.81
 - Outgoing requests to servers other than S3 now time out after 10 seconds
+- Memory usage is now only logged if `--log-memory` was supplied on the command
+  line
 
 v0.5.0 (2024-11-18)
 -------------------

@@ -78,6 +78,11 @@ struct Config {
     #[arg(long, default_value = DEFAULT_API_URL, value_name = "URL")]
     api_url: HttpUrl,
 
+    /// Log the process's memory usage at the start & end of each incoming
+    /// request
+    #[arg(long)]
+    log_memory: bool,
+
     /// Redirect requests for blob assets directly to S3 instead of to Archive
     /// URLs that redirect to signed S3 URLs
     #[arg(long)]
@@ -99,6 +104,7 @@ impl Default for Config {
             api_url: DEFAULT_API_URL
                 .parse::<HttpUrl>()
                 .expect("DEFAULT_API_URL should be a valid HttpUrl"),
+            log_memory: false,
             prefer_s3_redirects: false,
             title: env!("CARGO_PKG_NAME").into(),
             zarrman_cache_mb: 100,
@@ -160,7 +166,7 @@ fn get_app(cfg: Config) -> anyhow::Result<Router> {
         templater,
         prefer_s3_redirects: cfg.prefer_s3_redirects,
     });
-    Ok(Router::new()
+    let mut app = Router::new()
         .route(
             "/.static/styles.css",
             get(|| async {
@@ -179,8 +185,11 @@ fn get_app(cfg: Config) -> anyhow::Result<Router> {
             let dav = Arc::clone(&dav);
             async move { dav.handle_request(req).await }
         }))
-        .layer(middleware::from_fn(handle_head))
-        .layer(middleware::from_fn(log_memory))
+        .layer(middleware::from_fn(handle_head));
+    if cfg.log_memory {
+        app = app.layer(middleware::from_fn(log_memory));
+    }
+    app = app
         .layer(SetResponseHeaderLayer::if_not_present(
             SERVER,
             HeaderValue::from_static(SERVER_VALUE),
@@ -218,7 +227,8 @@ fn get_app(cfg: Config) -> anyhow::Result<Router> {
                         "starting processing request",
                     );
                 }),
-        ))
+        );
+    Ok(app)
 }
 
 /// Handle `HEAD` requests by converting them to `GET` requests and discarding

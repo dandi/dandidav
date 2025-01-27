@@ -155,7 +155,7 @@ requests continue as follows:
 Other Notes
 -----------
 
-- Paginated requests to the Archive use the default `per_page` value and are
+- Paginated requests to the Archive use the default `page_size` value and are
   requested serially.
 
 - `dandidav` requires the following information from the Archive about each

@@ -41,7 +41,12 @@ pub(crate) static YAML_CONTENT_TYPE: &str = "text/yaml; charset=utf-8";
 pub(crate) static DEFAULT_CONTENT_TYPE: &str = "application/octet-stream";
 
 /// The "Content-Type" value for `PROPFIND` XML responses
-pub(crate) static DAV_XML_CONTENT_TYPE: &str = "text/xml; charset=utf-8";
+///
+/// Quoth §8.2 of RFC 4918:
+///
+/// > When XML is used for a request or response body, the Content-Type type
+/// > SHOULD be application/xml. … Use of text/xml is deprecated.
+pub(crate) static DAV_XML_CONTENT_TYPE: &str = "application/xml; charset=utf-8";
 
 /// The XML namespace for standard WebDAV elements
 pub(crate) static DAV_XMLNS: &str = "DAV:";

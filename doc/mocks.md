@@ -41,14 +41,15 @@ is an object with the following fields:
     - `created` — timestamp
     - `modified` — timestamp
     - `metadata` — arbitrary JSON-compatible data
+    - `assets` *(optional)* — A list of asset paths that the tests will query
+      for and thus that appropriate stubs should be generated for.
+    - `asset_dirs` *(optional)* — A list of asset directory paths (sans trailing
+      slash) that the tests will query for and thus that appropriate stubs should
+      be generated for.  A path of `null` denotes the root directory.
 
     There must be one version with a `version` value of "draft".  The non-draft
     version with the latest `created` date, if any, becomes the most recent
     published version.
-
-- `asset_dirs` *(optional)* — A list of asset directory paths (sans trailing
-  slash) that the tests will query for and thus that appropriate stubs should
-  be generated for.  A path of `null` denotes the root directory.
 
 ### Asset Listings
 

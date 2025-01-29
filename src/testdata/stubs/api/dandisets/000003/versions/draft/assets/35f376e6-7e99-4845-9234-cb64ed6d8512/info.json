@@ -1,0 +1,33 @@
+[
+  {
+    "params": {},
+    "response": {
+      "asset_id": "35f376e6-7e99-4845-9234-cb64ed6d8512",
+      "blob": null,
+      "zarr": "fac4d74f-087b-4bd0-8ef8-b18173fa344a",
+      "path": "INOz0S.ngff",
+      "size": 6418418,
+      "created": "2021-11-27T13:37:17.600267+00:00",
+      "modified": "2024-08-28T07:42:38.353696+00:00",
+      "metadata": {
+        "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.3/context.json",
+        "blobDateModified": "2024-08-15T03:51:22.189893+00:00",
+        "contentSize": 6418418,
+        "contentUrl": [
+          "https://api.dandiarchive.org/api/assets/35f376e6-7e99-4845-9234-cb64ed6d8512/download/",
+          "https://dandiarchive.s3.amazonaws.com/zarr/fac4d74f-087b-4bd0-8ef8-b18173fa344a/"
+        ],
+        "dateModified": "2023-04-24T03:35:45.156671+00:00",
+        "digest": {
+          "dandi:dandi-zarr-checksum": "bf6f2f372fc940bc2cd92a677e1bfcf5-834--6418418"
+        },
+        "encodingFormat": "application/x-zarr",
+        "id": "dandiasset:35f376e6-7e99-4845-9234-cb64ed6d8512",
+        "identifier": "35f376e6-7e99-4845-9234-cb64ed6d8512",
+        "path": "INOz0S.ngff",
+        "schemaKey": "Asset",
+        "schemaVersion": "0.6.3"
+      }
+    }
+  }
+]

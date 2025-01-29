@@ -1,0 +1,1106 @@
+[
+  {
+    "params": {},
+    "response": {
+      "count": 130,
+      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=2",
+      "results": [
+        {
+          "path": "15j3l.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 5062,
+          "asset": {
+            "asset_id": "c9b2491c-3ac8-441e-9212-0bbe64797501"
+          }
+        },
+        {
+          "path": "17Z.tsv",
+          "aggregate_files": 1,
+          "aggregate_size": 14816,
+          "asset": {
+            "asset_id": "b8d818bc-12e1-4c5b-89ae-90f0c22daa8f"
+          }
+        },
+        {
+          "path": "1NjQC.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 25132,
+          "asset": {
+            "asset_id": "4190194a-34c5-47f1-85cf-1120589ff657"
+          }
+        },
+        {
+          "path": "1eoEJ.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 26940,
+          "asset": {
+            "asset_id": "220e205b-dcdd-4e78-82da-96ba32981705"
+          }
+        },
+        {
+          "path": "1fCq6.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 7191,
+          "asset": {
+            "asset_id": "81267adb-85a1-42e5-b3d7-c2fd8d215461"
+          }
+        },
+        {
+          "path": "2k.zarr",
+          "aggregate_files": 1,
+          "aggregate_size": 12749146,
+          "asset": {
+            "asset_id": "ccc15133-2747-48c4-aa62-c38209320ec3"
+          }
+        },
+        {
+          "path": "37GrgQ1.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 5556,
+          "asset": {
+            "asset_id": "8aa1d663-dc0f-43fe-8528-24e7cac8981b"
+          }
+        },
+        {
+          "path": "4Wy1T8.zarr",
+          "aggregate_files": 1,
+          "aggregate_size": 1878244,
+          "asset": {
+            "asset_id": "4b0b12fc-ad96-4a81-9387-1afeb0bb0dce"
+          }
+        },
+        {
+          "path": "4r05W.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 14716,
+          "asset": {
+            "asset_id": "af8a9a72-2326-415f-86e2-1ea3487d4c5d"
+          }
+        },
+        {
+          "path": "4uR.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 7386,
+          "asset": {
+            "asset_id": "cd34cfa3-dfef-4d1f-8819-67fc3b25dd12"
+          }
+        },
+        {
+          "path": "5Fc4.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 397,
+          "asset": {
+            "asset_id": "c461120d-ac14-4f52-b9e6-05b8eff63f06"
+          }
+        },
+        {
+          "path": "5T3A.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 715,
+          "asset": {
+            "asset_id": "54cf7617-4fc3-4dbe-85cf-457a17f8bdac"
+          }
+        },
+        {
+          "path": "5UZm.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 4469,
+          "asset": {
+            "asset_id": "8b09c785-e86d-4a47-9641-475f6df378a3"
+          }
+        },
+        {
+          "path": "6.ngff",
+          "aggregate_files": 1,
+          "aggregate_size": 45375,
+          "asset": {
+            "asset_id": "7bcfbfdd-73e3-4af7-85ab-74d3a7b16732"
+          }
+        },
+        {
+          "path": "6ZTXo.json",
+          "aggregate_files": 1,
+          "aggregate_size": 8487,
+          "asset": {
+            "asset_id": "518f2411-a516-495e-ba27-dd6387bbb89f"
+          }
+        },
+        {
+          "path": "7MDPQWiFr.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 18211,
+          "asset": {
+            "asset_id": "6111310a-f775-411b-9587-503c14cc7042"
+          }
+        },
+        {
+          "path": "7kQh.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 445,
+          "asset": {
+            "asset_id": "626dc8b7-1f64-4531-9e4f-94ed3af2bf7d"
+          }
+        },
+        {
+          "path": "7t6W4.json",
+          "aggregate_files": 1,
+          "aggregate_size": 4337,
+          "asset": {
+            "asset_id": "a67e9324-a61f-4744-9d31-23a870c27a6a"
+          }
+        },
+        {
+          "path": "8E2BCLV1.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 2095,
+          "asset": {
+            "asset_id": "f34d33fb-e1ac-424b-bb5a-570f7d67457b"
+          }
+        },
+        {
+          "path": "8sBwoQQs7.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 1767,
+          "asset": {
+            "asset_id": "de130589-dc65-4973-9e6d-abe42e26aeb6"
+          }
+        },
+        {
+          "path": "8sM.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 26732,
+          "asset": {
+            "asset_id": "0605c07e-f8b0-4118-8a88-5c5df902bade"
+          }
+        },
+        {
+          "path": "9QtXsu0.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 31067,
+          "asset": {
+            "asset_id": "146873ac-f6df-4825-bd2a-fd2a0c2db83e"
+          }
+        },
+        {
+          "path": "9c0OSZ.json",
+          "aggregate_files": 1,
+          "aggregate_size": 1430,
+          "asset": {
+            "asset_id": "525b7f47-335c-4937-be4e-6ef2a92b695d"
+          }
+        },
+        {
+          "path": "9q63CS.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 5383,
+          "asset": {
+            "asset_id": "a7ef4e2a-e66c-4601-b01f-966ba3081f02"
+          }
+        },
+        {
+          "path": "9qeEtGK3Q.json",
+          "aggregate_files": 1,
+          "aggregate_size": 2743,
+          "asset": {
+            "asset_id": "992db74c-4d91-4add-bf56-3f14d36e52d2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "params": {
+      "page": "2"
+    },
+    "response": {
+      "count": 130,
+      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=3",
+      "results": [
+        {
+          "path": "ADKiUC.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 26313,
+          "asset": {
+            "asset_id": "fc0e957b-bada-4367-9022-70f358471574"
+          }
+        },
+        {
+          "path": "AXq5IXd.tsv",
+          "aggregate_files": 1,
+          "aggregate_size": 5296,
+          "asset": {
+            "asset_id": "628a1cae-cea6-485c-81e1-8c938e391f21"
+          }
+        },
+        {
+          "path": "BGklF.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 7739,
+          "asset": {
+            "asset_id": "231ab9dd-c4b7-492b-8cd0-18f1bf160640"
+          }
+        },
+        {
+          "path": "BIS7eFZbbq1.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 7751,
+          "asset": {
+            "asset_id": "447d6dbb-2a65-4631-9d72-849ef2664600"
+          }
+        },
+        {
+          "path": "BKK.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 3942,
+          "asset": {
+            "asset_id": "604f77fd-1cec-4f68-91c1-f19974e7fd9d"
+          }
+        },
+        {
+          "path": "C7ZG51.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 2079,
+          "asset": {
+            "asset_id": "686c3ece-3558-420b-81dc-93af115a6bca"
+          }
+        },
+        {
+          "path": "CMqZ.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 14522,
+          "asset": {
+            "asset_id": "8bd36474-0045-4b2e-8f58-3731d83ac692"
+          }
+        },
+        {
+          "path": "CSZ5s8.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 19523,
+          "asset": {
+            "asset_id": "9e0d50d4-960a-435c-b18b-a32d1acb6b72"
+          }
+        },
+        {
+          "path": "Cmt.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 27366,
+          "asset": {
+            "asset_id": "8335819f-3078-41fa-a930-0a748ac0522a"
+          }
+        },
+        {
+          "path": "Cn.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 3669,
+          "asset": {
+            "asset_id": "5206719b-547d-46f3-bc0a-d2a0e21281df"
+          }
+        },
+        {
+          "path": "DmFPfNMF.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 5920,
+          "asset": {
+            "asset_id": "e0631cda-a652-4031-a133-4ab3f629223f"
+          }
+        },
+        {
+          "path": "DpmL.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 20848,
+          "asset": {
+            "asset_id": "d342ec28-5ff6-4c33-9a35-ba56b7d4d973"
+          }
+        },
+        {
+          "path": "EN4tkG.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 2473,
+          "asset": {
+            "asset_id": "ba68a2c7-96b0-4a35-97f5-9056f171e57a"
+          }
+        },
+        {
+          "path": "EbsJOJ.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 5783,
+          "asset": {
+            "asset_id": "a981ba74-0ad6-4348-a059-a35062de391a"
+          }
+        },
+        {
+          "path": "FDCkjq.ngff",
+          "aggregate_files": 1,
+          "aggregate_size": 27552137,
+          "asset": {
+            "asset_id": "951782e6-75b0-405e-bdf5-5414d94079c4"
+          }
+        },
+        {
+          "path": "FwQp.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 4639,
+          "asset": {
+            "asset_id": "1b97e4cc-7079-4aff-9908-1bfa11961f0d"
+          }
+        },
+        {
+          "path": "GsjxHru.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 4371,
+          "asset": {
+            "asset_id": "28e15657-121c-4124-a295-c2e2a6c06289"
+          }
+        },
+        {
+          "path": "HxjO.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 19698,
+          "asset": {
+            "asset_id": "7d79f802-ed77-41e3-9af0-4c416ca8fd99"
+          }
+        },
+        {
+          "path": "I5sI5g8uuI.tsv",
+          "aggregate_files": 1,
+          "aggregate_size": 11485,
+          "asset": {
+            "asset_id": "e63883dc-0df7-43cd-a63f-7df12cfb60f1"
+          }
+        },
+        {
+          "path": "I69RZy.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 763,
+          "asset": {
+            "asset_id": "d2171438-f167-4d22-bce4-e25fd98007df"
+          }
+        },
+        {
+          "path": "I6a1OD6.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 19142,
+          "asset": {
+            "asset_id": "3c13d2b0-9f6b-4d50-83a4-bc26e6258b36"
+          }
+        },
+        {
+          "path": "ICVSnu.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 6577,
+          "asset": {
+            "asset_id": "e91d7031-6e33-4a76-9608-376434f9086b"
+          }
+        },
+        {
+          "path": "INOz0S.ngff",
+          "aggregate_files": 1,
+          "aggregate_size": 6418418,
+          "asset": {
+            "asset_id": "35f376e6-7e99-4845-9234-cb64ed6d8512"
+          }
+        },
+        {
+          "path": "J8U1J.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 2155,
+          "asset": {
+            "asset_id": "3e1e2083-4e8d-471f-856a-02b799c5eb92"
+          }
+        },
+        {
+          "path": "JnwbKo.tsv",
+          "aggregate_files": 1,
+          "aggregate_size": 2883,
+          "asset": {
+            "asset_id": "bcd529da-ccb5-4e70-8d10-69675de57c69"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "params": {
+      "page": "3"
+    },
+    "response": {
+      "count": 130,
+      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=4",
+      "results": [
+        {
+          "path": "LK.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 46494,
+          "asset": {
+            "asset_id": "f1210a89-f4f0-4e1b-afa7-9ed43331fc14"
+          }
+        },
+        {
+          "path": "LaI8.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 4864,
+          "asset": {
+            "asset_id": "f9ebd2f1-7f31-4ab7-97a5-02b075355677"
+          }
+        },
+        {
+          "path": "MMWRtm.zarr",
+          "aggregate_files": 1,
+          "aggregate_size": 18610063,
+          "asset": {
+            "asset_id": "90f719c9-6299-42da-9120-07da8b4dbb59"
+          }
+        },
+        {
+          "path": "NX6Ee.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 21687,
+          "asset": {
+            "asset_id": "210e30bf-0329-4f5a-885a-73a3432d6f0d"
+          }
+        },
+        {
+          "path": "NZMqQ.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 132,
+          "asset": {
+            "asset_id": "387f2f89-ef98-4a37-a65f-a18037f29d79"
+          }
+        },
+        {
+          "path": "NqAzdR.json",
+          "aggregate_files": 1,
+          "aggregate_size": 4904,
+          "asset": {
+            "asset_id": "62d28354-e05e-47a7-a938-1315c6695894"
+          }
+        },
+        {
+          "path": "OEuTn.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 16509,
+          "asset": {
+            "asset_id": "d7e92137-1948-4535-810f-2773a83dd1a4"
+          }
+        },
+        {
+          "path": "Q.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 3108,
+          "asset": {
+            "asset_id": "ca73fb4d-6842-4a0e-9284-5f5ded945586"
+          }
+        },
+        {
+          "path": "QAsu2PQ.json",
+          "aggregate_files": 1,
+          "aggregate_size": 2440,
+          "asset": {
+            "asset_id": "e872cf63-a5ed-4d23-a80f-d1178fcb33e7"
+          }
+        },
+        {
+          "path": "RDGFMu.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 1514,
+          "asset": {
+            "asset_id": "f510b77b-b954-4692-ba9d-fcc8b4058731"
+          }
+        },
+        {
+          "path": "RRH.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 10203,
+          "asset": {
+            "asset_id": "b45358e4-0aa8-4e1b-be7e-ddea72159f4f"
+          }
+        },
+        {
+          "path": "SDeG.json",
+          "aggregate_files": 1,
+          "aggregate_size": 14721,
+          "asset": {
+            "asset_id": "5504c244-111d-42dd-956b-dd115b1e5fa7"
+          }
+        },
+        {
+          "path": "TGOl.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 14851,
+          "asset": {
+            "asset_id": "c6597bf3-d0e0-4243-baf9-63e3cc217fe3"
+          }
+        },
+        {
+          "path": "UZhMF.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 19697,
+          "asset": {
+            "asset_id": "8a93781a-e9ec-41d5-bb96-7b7ba4b2bf3c"
+          }
+        },
+        {
+          "path": "VEU.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 2233,
+          "asset": {
+            "asset_id": "9c7d83cf-6ba6-4b05-bf49-a77954ed5fc5"
+          }
+        },
+        {
+          "path": "WN1zzt.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 2473,
+          "asset": {
+            "asset_id": "50a5dc53-a85b-4683-b512-484afbade94e"
+          }
+        },
+        {
+          "path": "WnZJ.zarr",
+          "aggregate_files": 1,
+          "aggregate_size": 4675514,
+          "asset": {
+            "asset_id": "182aee0f-beba-4c2e-9408-2d7a3578ae50"
+          }
+        },
+        {
+          "path": "XhiuiyWH.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 27872,
+          "asset": {
+            "asset_id": "ecc2f3a9-fae6-4d7e-b014-bf9802d92772"
+          }
+        },
+        {
+          "path": "XmNaS.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 3327,
+          "asset": {
+            "asset_id": "722ad855-6a06-4c57-a635-b23fa00129f4"
+          }
+        },
+        {
+          "path": "Y.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 1027,
+          "asset": {
+            "asset_id": "8b3df93a-3c65-4a29-b7da-a2cda98fdef9"
+          }
+        },
+        {
+          "path": "Yv.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 36048,
+          "asset": {
+            "asset_id": "4f654fd8-7cb8-44d0-a821-d3b2354198ff"
+          }
+        },
+        {
+          "path": "ZszxeN.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 5030,
+          "asset": {
+            "asset_id": "7a67e691-6698-4cb1-b1e6-2359ece49198"
+          }
+        },
+        {
+          "path": "aDOGxj.tsv",
+          "aggregate_files": 1,
+          "aggregate_size": 4094,
+          "asset": {
+            "asset_id": "fcce65b3-f974-4c7a-9eca-57a5f33874d9"
+          }
+        },
+        {
+          "path": "be5.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 879,
+          "asset": {
+            "asset_id": "1b8290dc-fc04-4cc1-83f1-f163bcc07cfc"
+          }
+        },
+        {
+          "path": "bkpe.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 35873,
+          "asset": {
+            "asset_id": "ff90c589-bcfb-4284-abea-f2dc2064f70f"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "params": {
+      "page": "4"
+    },
+    "response": {
+      "count": 130,
+      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=5",
+      "results": [
+        {
+          "path": "bw6B.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 6674,
+          "asset": {
+            "asset_id": "950d65c6-0fdf-432f-be2e-f1a893e0fd5d"
+          }
+        },
+        {
+          "path": "cCcOG.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 14162,
+          "asset": {
+            "asset_id": "7c83bf62-24f1-430f-8ff4-f473d4725b94"
+          }
+        },
+        {
+          "path": "cZyni.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 2181,
+          "asset": {
+            "asset_id": "03a1ecae-1873-423d-b282-d6f4c5ec8601"
+          }
+        },
+        {
+          "path": "djkK.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 4439,
+          "asset": {
+            "asset_id": "886467ca-61ae-42ce-b170-afd4e7134bc1"
+          }
+        },
+        {
+          "path": "dudzw.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 34798,
+          "asset": {
+            "asset_id": "18118bb4-09ae-4b4c-91ea-3e265b37acd5"
+          }
+        },
+        {
+          "path": "e7da.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 5166,
+          "asset": {
+            "asset_id": "c7f355ee-38f1-49e9-96d3-811c7041b11c"
+          }
+        },
+        {
+          "path": "eFLJW.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 17289,
+          "asset": {
+            "asset_id": "ab4e57cd-4168-4e19-bb9e-ca80cbc21421"
+          }
+        },
+        {
+          "path": "eVcVtX5.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 9698,
+          "asset": {
+            "asset_id": "e6035133-7fec-4ab2-a18c-5b2a8180789a"
+          }
+        },
+        {
+          "path": "f2uf.ngff",
+          "aggregate_files": 1,
+          "aggregate_size": 4336702,
+          "asset": {
+            "asset_id": "0cf68d43-c880-487f-bd5e-833e59c4f800"
+          }
+        },
+        {
+          "path": "fElqTX.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 1655,
+          "asset": {
+            "asset_id": "fc2e1d39-baea-4e55-9678-fd27b9fe63ed"
+          }
+        },
+        {
+          "path": "fRBSP.zarr",
+          "aggregate_files": 1,
+          "aggregate_size": 4042569,
+          "asset": {
+            "asset_id": "2aee22d7-a40b-49d6-8e35-630a2a4f3680"
+          }
+        },
+        {
+          "path": "g7lf3c0.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 8889,
+          "asset": {
+            "asset_id": "0c8153fa-719d-4277-ae45-19e5cea667e6"
+          }
+        },
+        {
+          "path": "gqwwP.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 1548,
+          "asset": {
+            "asset_id": "30becce5-77ba-4890-93fb-4d65d003b0fb"
+          }
+        },
+        {
+          "path": "gx8mRsV.tsv",
+          "aggregate_files": 1,
+          "aggregate_size": 602,
+          "asset": {
+            "asset_id": "413dd390-2efa-4ab4-bde4-4cba6015e53b"
+          }
+        },
+        {
+          "path": "hwi8.zarr",
+          "aggregate_files": 1,
+          "aggregate_size": 150225,
+          "asset": {
+            "asset_id": "a3ad079d-8fad-4fd3-9cde-0d5c6b33c82b"
+          }
+        },
+        {
+          "path": "jQ.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 957,
+          "asset": {
+            "asset_id": "992339c2-0b0a-4b74-8ef1-35ac75bc81e4"
+          }
+        },
+        {
+          "path": "jQkb.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 8723,
+          "asset": {
+            "asset_id": "2b8140db-30f0-440a-b0e5-7407ff24bd26"
+          }
+        },
+        {
+          "path": "jby.json",
+          "aggregate_files": 1,
+          "aggregate_size": 22446,
+          "asset": {
+            "asset_id": "b05b1967-6970-4657-a605-1e478cf74fab"
+          }
+        },
+        {
+          "path": "jt4Lg.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 3884,
+          "asset": {
+            "asset_id": "daec9fd7-1333-422a-8121-4cb2e83fb6a6"
+          }
+        },
+        {
+          "path": "kCmm9z.zarr",
+          "aggregate_files": 1,
+          "aggregate_size": 3185033,
+          "asset": {
+            "asset_id": "4ddb2458-fc96-4ec7-94df-d2bf84b7842d"
+          }
+        },
+        {
+          "path": "kMHk5hZK.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 4492,
+          "asset": {
+            "asset_id": "2c0a66b4-feb4-435f-9130-c557510d76ee"
+          }
+        },
+        {
+          "path": "kQa76T.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 11988,
+          "asset": {
+            "asset_id": "a00d3805-9110-4d9a-a6a3-9bfc8fb19673"
+          }
+        },
+        {
+          "path": "lG89e.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 17493,
+          "asset": {
+            "asset_id": "ff8ac119-5de2-4f11-88cd-ada28041a699"
+          }
+        },
+        {
+          "path": "lg.zarr",
+          "aggregate_files": 1,
+          "aggregate_size": 2689118,
+          "asset": {
+            "asset_id": "6b66b755-eacd-4f44-8dd2-00022aa76ddf"
+          }
+        },
+        {
+          "path": "lxey.json",
+          "aggregate_files": 1,
+          "aggregate_size": 901,
+          "asset": {
+            "asset_id": "e3741f30-b9a3-4ebd-8d33-086c320ab673"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "params": {
+      "page": "5"
+    },
+    "response": {
+      "count": 130,
+      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=6",
+      "results": [
+        {
+          "path": "mQJQ.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 5723,
+          "asset": {
+            "asset_id": "111a1d14-1044-4cbe-b975-72044f91b1e4"
+          }
+        },
+        {
+          "path": "mb9.zarr",
+          "aggregate_files": 1,
+          "aggregate_size": 1837418,
+          "asset": {
+            "asset_id": "af39bce2-6630-4bd3-b860-3740cd261303"
+          }
+        },
+        {
+          "path": "mv3.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 32589,
+          "asset": {
+            "asset_id": "093b3b08-afb1-4c26-ad93-3e1119bc43a6"
+          }
+        },
+        {
+          "path": "n9ngBF.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 16033,
+          "asset": {
+            "asset_id": "26b99166-71cc-421f-b99f-65f42e234783"
+          }
+        },
+        {
+          "path": "nD69k.ngff",
+          "aggregate_files": 1,
+          "aggregate_size": 2831617,
+          "asset": {
+            "asset_id": "20c49da2-ca2b-4e36-acb8-77aa88913ec6"
+          }
+        },
+        {
+          "path": "nRG.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 368,
+          "asset": {
+            "asset_id": "f944ef15-784f-4573-b60d-8ae4dbb82d66"
+          }
+        },
+        {
+          "path": "nz3hfBA.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 671,
+          "asset": {
+            "asset_id": "7ce98d37-8188-460d-bc5a-2a3c4ea6ef65"
+          }
+        },
+        {
+          "path": "pD7BaY.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 2182,
+          "asset": {
+            "asset_id": "630ff832-c714-482a-8e76-74a10837e9e2"
+          }
+        },
+        {
+          "path": "pLFH.json",
+          "aggregate_files": 1,
+          "aggregate_size": 8081,
+          "asset": {
+            "asset_id": "37f9a0c3-2eba-4ceb-ae6a-cdac7b76eff5"
+          }
+        },
+        {
+          "path": "q7UK9e.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 12065,
+          "asset": {
+            "asset_id": "4e7909db-41f8-4313-af13-3c2463da482c"
+          }
+        },
+        {
+          "path": "qnqQx8.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 230,
+          "asset": {
+            "asset_id": "4a04022b-d244-465c-ab0d-cf5748ae770a"
+          }
+        },
+        {
+          "path": "qrarmCzj.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 12270,
+          "asset": {
+            "asset_id": "5f96303f-a367-4a0f-9de3-898c638a51a1"
+          }
+        },
+        {
+          "path": "rWQvwKwv.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 9046,
+          "asset": {
+            "asset_id": "3eb16854-1224-4568-8958-cb8a4f780611"
+          }
+        },
+        {
+          "path": "sEA7W.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 4038,
+          "asset": {
+            "asset_id": "20940185-786c-4cd2-b33c-02153db5aefd"
+          }
+        },
+        {
+          "path": "sXCkWz.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 12284,
+          "asset": {
+            "asset_id": "18e297fc-5b4d-4637-bb7b-e9541b8fa08a"
+          }
+        },
+        {
+          "path": "se7zPH.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 5691,
+          "asset": {
+            "asset_id": "87075d21-0acc-44c4-ad8d-0fe34afc271c"
+          }
+        },
+        {
+          "path": "sju0Oc2.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 4108,
+          "asset": {
+            "asset_id": "4e43754c-6704-4159-b3de-d2da32b10ca5"
+          }
+        },
+        {
+          "path": "t2ZsXo.json",
+          "aggregate_files": 1,
+          "aggregate_size": 682,
+          "asset": {
+            "asset_id": "8c56d13a-d00e-45a5-a0ec-659f08163dcc"
+          }
+        },
+        {
+          "path": "t4G8u.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 12606,
+          "asset": {
+            "asset_id": "63f679ee-5611-4397-b94a-fa528a32dded"
+          }
+        },
+        {
+          "path": "tWL4.json",
+          "aggregate_files": 1,
+          "aggregate_size": 8418,
+          "asset": {
+            "asset_id": "73316350-7860-4390-9a84-c37daaa17085"
+          }
+        },
+        {
+          "path": "uZ2v8IBn.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 11686,
+          "asset": {
+            "asset_id": "8f57bad5-3156-4692-ad42-dc78da49ce12"
+          }
+        },
+        {
+          "path": "v2MbtC1L.json",
+          "aggregate_files": 1,
+          "aggregate_size": 5381,
+          "asset": {
+            "asset_id": "a6120dd2-c0bb-4240-8b91-4dc50d63ed37"
+          }
+        },
+        {
+          "path": "vWqtq1z.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 120,
+          "asset": {
+            "asset_id": "325b9db1-274b-443f-a008-fbf35c975e55"
+          }
+        },
+        {
+          "path": "vadY9.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 17853,
+          "asset": {
+            "asset_id": "105ec579-df21-4bac-bf99-a3ebc0f3fe34"
+          }
+        },
+        {
+          "path": "x63UdC.tsv",
+          "aggregate_files": 1,
+          "aggregate_size": 13640,
+          "asset": {
+            "asset_id": "b92ce441-8eb0-4b60-aa07-c9f983c44ee2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "params": {
+      "page": "6"
+    },
+    "response": {
+      "count": 130,
+      "next": null,
+      "results": [
+        {
+          "path": "xAYoWn.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 3693,
+          "asset": {
+            "asset_id": "2e8e81b7-1daa-44c9-b55d-0e12a1d73664"
+          }
+        },
+        {
+          "path": "xv2ucf6.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 3035,
+          "asset": {
+            "asset_id": "c7583f2e-aef2-4fc4-b84c-2f0c474da706"
+          }
+        },
+        {
+          "path": "y1kz9.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 2818,
+          "asset": {
+            "asset_id": "a863ad3c-a94c-45bc-bf92-0c66cac2bddf"
+          }
+        },
+        {
+          "path": "yEprIh.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 22921,
+          "asset": {
+            "asset_id": "33ac0e10-96fe-456b-a35a-3aa91971c878"
+          }
+        },
+        {
+          "path": "yvCRuG6N.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 2217,
+          "asset": {
+            "asset_id": "9974891a-e453-4094-b84d-ff782ebdfffe"
+          }
+        }
+      ]
+    }
+  }
+]

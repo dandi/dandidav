@@ -1,7 +1,9 @@
 #![cfg(test)]
 use super::*;
+use crate::consts::YAML_CONTENT_TYPE;
 use axum::body::Bytes;
 use http_body_util::BodyExt; // for `collect`
+use indoc::indoc;
 use testutils::{CollectionEntry, CollectionPage, Link};
 use tower::{Service, ServiceExt}; // for `ready`
 
@@ -29,16 +31,17 @@ struct MockApp {
 
 impl MockApp {
     async fn new() -> MockApp {
+        MockApp::with_config(Config::default()).await
+    }
+
+    async fn with_config(mut cfg: Config) -> MockApp {
         let mock_archive = testutils::make_mock_archive(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/src/testdata/stubs"
         ))
         .await;
         let archive_url = format!("{}/api", mock_archive.uri());
-        let cfg = Config {
-            api_url: archive_url.parse::<HttpUrl>().unwrap(),
-            ..Config::default()
-        };
+        cfg.api_url = archive_url.parse::<HttpUrl>().unwrap();
         let app = get_app(cfg).unwrap();
         MockApp {
             app,
@@ -642,46 +645,527 @@ async fn test_get_asset_folder() {
     let page = app
         .get_collection_html("/dandisets/000002/draft/fRLy/")
         .await;
-    // TODO: Expand into a full comparison
     pretty_assertions::assert_eq!(
-        page.breadcrumbs,
-        vec![
-            Link {
-                text: "dandidav".into(),
-                href: "/".into()
-            },
-            Link {
-                text: "dandisets".into(),
-                href: "/dandisets/".into()
-            },
-            Link {
-                text: "000002".into(),
-                href: "/dandisets/000002/".into()
-            },
-            Link {
-                text: "draft".into(),
-                href: "/dandisets/000002/draft/".into()
-            },
-            Link {
-                text: "fRLy".into(),
-                href: "/dandisets/000002/draft/fRLy/".into()
-            },
-        ]
+        page,
+        CollectionPage {
+            breadcrumbs: vec![
+                Link {
+                    text: "dandidav".into(),
+                    href: "/".into()
+                },
+                Link {
+                    text: "dandisets".into(),
+                    href: "/dandisets/".into()
+                },
+                Link {
+                    text: "000002".into(),
+                    href: "/dandisets/000002/".into()
+                },
+                Link {
+                    text: "draft".into(),
+                    href: "/dandisets/000002/draft/".into()
+                },
+                Link {
+                    text: "fRLy".into(),
+                    href: "/dandisets/000002/draft/fRLy/".into()
+                },
+            ],
+            table: vec![
+                CollectionEntry {
+                    name: Link {
+                        text: "../".into(),
+                        href: "/dandisets/000002/draft/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Parent directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "9xj.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/b82113fc-48e4-4645-a52f-d8fdf47e1624/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/b82113fc-48e4-4645-a52f-d8fdf47e1624/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "24.28 KiB".into(),
+                    created: "2023-06-03 21:54:42Z".into(),
+                    modified: "2024-12-30 01:25:21Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "EZP9eyg/".into(),
+                        href: "/dandisets/000002/draft/fRLy/EZP9eyg/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "GpJEYT9.ngff/".into(),
+                        href: "/dandisets/000002/draft/fRLy/GpJEYT9.ngff/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/869c1d3e-ab25-452c-bc69-605e094aa3a2/",
+                        app.archive_url
+                    )),
+                    typekind: "Zarr asset".into(),
+                    size: "11.53 MiB".into(),
+                    created: "2020-11-10 19:51:46Z".into(),
+                    modified: "2024-09-24 14:57:34Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "NYW8SD/".into(),
+                        href: "/dandisets/000002/draft/fRLy/NYW8SD/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "OWG.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/e46ae092-a818-42ef-a7c1-12bca5b4ffdd/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/e46ae092-a818-42ef-a7c1-12bca5b4ffdd/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "46.65 KiB".into(),
+                    created: "2022-04-16 12:10:08Z".into(),
+                    modified: "2024-11-17 14:09:58Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "UP8CFrHpN/".into(),
+                        href: "/dandisets/000002/draft/fRLy/UP8CFrHpN/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "hH.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/6243f6dd-4418-498d-afe3-589c6ac8778e/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/6243f6dd-4418-498d-afe3-589c6ac8778e/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "7.54 KiB".into(),
+                    created: "2022-06-07 18:41:49Z".into(),
+                    modified: "2024-10-24 07:13:43Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "yY9p4f.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/d0e64671-2d87-4ecf-8287-709cdafbce70/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/d0e64671-2d87-4ecf-8287-709cdafbce70/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "21.09 KiB".into(),
+                    created: "2021-02-14 11:32:18Z".into(),
+                    modified: "2022-07-08 12:49:19Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "zBbN.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/c28fd72b-944f-4e3d-865a-0f6eb38b7e17/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/c28fd72b-944f-4e3d-865a-0f6eb38b7e17/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "1.37 KiB".into(),
+                    created: "2021-11-02 19:29:07Z".into(),
+                    modified: "2024-12-12 09:12:44Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "zfa6zGT.zarr/".into(),
+                        href: "/dandisets/000002/draft/fRLy/zfa6zGT.zarr/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/94e691a5-8031-4a73-b063-374bccee7154/",
+                        app.archive_url
+                    )),
+                    typekind: "Zarr asset".into(),
+                    size: "769.20 KiB".into(),
+                    created: "2021-04-13 17:19:48Z".into(),
+                    modified: "2024-07-08 23:18:03Z".into(),
+                },
+            ],
+        }
     );
+}
+
+#[tokio::test]
+async fn get_dandiset_yaml() {
+    let mut app = MockApp::new().await;
+    let response = app.get("/dandisets/000001/draft/dandiset.yaml").await;
+    assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
+        response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok()),
+        Some(YAML_CONTENT_TYPE)
+    );
+    assert!(response.headers().contains_key("DAV"));
+    let body = String::from_utf8_lossy(response.body());
+    pretty_assertions::assert_eq!(
+        body,
+        indoc! {"
+      '@context': https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.0/context.json
+      dateCreated: 2020-03-15T22:56:55.655000+00:00
+      description: Researcher is seeking funding for surgery to fix goring injuries.
+      id: DANDI:000001/draft
+      identifier: DANDI:000027
+      license:
+      - spdx:CC-BY-4.0
+      name: Brainscan of a Unicorn
+      schemaKey: Dandiset
+      url: https://dandiarchive.mock/dandiset/000001/draft
+      version: draft
+    "}
+    );
+}
+
+#[tokio::test]
+async fn get_paginated_assets() {
+    let mut app = MockApp::new().await;
+    let page = app.get_collection_html("/dandisets/000003/draft/").await;
+    pretty_assertions::assert_eq!(
         page.into_names(),
         vec![
             "../",
-            "9xj.nwb",
-            "EZP9eyg/",
-            "GpJEYT9.ngff/",
-            "NYW8SD/",
-            "OWG.nwb",
-            "UP8CFrHpN/",
-            "hH.nwb",
-            "yY9p4f.nwb",
-            "zBbN.nwb",
-            "zfa6zGT.zarr/"
+            "15j3l.nwb",
+            "17Z.tsv",
+            "1NjQC.nwb",
+            "1eoEJ.nwb",
+            "1fCq6.nwb",
+            "2k.zarr/",
+            "37GrgQ1.nwb",
+            "4Wy1T8.zarr/",
+            "4r05W.nwb",
+            "4uR.nwb",
+            "5Fc4.nwb",
+            "5T3A.nwb",
+            "5UZm.nwb",
+            "6.ngff/",
+            "6ZTXo.json",
+            "7MDPQWiFr.nwb",
+            "7kQh.nwb",
+            "7t6W4.json",
+            "8E2BCLV1.nwb",
+            "8sBwoQQs7.nwb",
+            "8sM.nwb",
+            "9QtXsu0.nwb",
+            "9c0OSZ.json",
+            "9q63CS.nwb",
+            "9qeEtGK3Q.json",
+            "ADKiUC.nwb",
+            "AXq5IXd.tsv",
+            "BGklF.nwb",
+            "BIS7eFZbbq1.nwb",
+            "BKK.nwb",
+            "C7ZG51.nwb",
+            "CMqZ.nwb",
+            "CSZ5s8.nwb",
+            "Cmt.nwb",
+            "Cn.nwb",
+            "DmFPfNMF.nwb",
+            "DpmL.nwb",
+            "EN4tkG.nwb",
+            "EbsJOJ.nwb",
+            "FDCkjq.ngff/",
+            "FwQp.nwb",
+            "GsjxHru.nwb",
+            "HxjO.nwb",
+            "I5sI5g8uuI.tsv",
+            "I69RZy.nwb",
+            "I6a1OD6.nwb",
+            "ICVSnu.nwb",
+            "INOz0S.ngff/",
+            "J8U1J.nwb",
+            "JnwbKo.tsv",
+            "LK.nwb",
+            "LaI8.nwb",
+            "MMWRtm.zarr/",
+            "NX6Ee.nwb",
+            "NZMqQ.nwb",
+            "NqAzdR.json",
+            "OEuTn.nwb",
+            "Q.nwb",
+            "QAsu2PQ.json",
+            "RDGFMu.nwb",
+            "RRH.nwb",
+            "SDeG.json",
+            "TGOl.nwb",
+            "UZhMF.nwb",
+            "VEU.nwb",
+            "WN1zzt.nwb",
+            "WnZJ.zarr/",
+            "XhiuiyWH.nwb",
+            "XmNaS.nwb",
+            "Y.nwb",
+            "Yv.nwb",
+            "ZszxeN.nwb",
+            "aDOGxj.tsv",
+            "be5.nwb",
+            "bkpe.nwb",
+            "bw6B.nwb",
+            "cCcOG.nwb",
+            "cZyni.nwb",
+            "dandiset.yaml",
+            "djkK.nwb",
+            "dudzw.nwb",
+            "e7da.nwb",
+            "eFLJW.nwb",
+            "eVcVtX5.nwb",
+            "f2uf.ngff/",
+            "fElqTX.nwb",
+            "fRBSP.zarr/",
+            "g7lf3c0.nwb",
+            "gqwwP.nwb",
+            "gx8mRsV.tsv",
+            "hwi8.zarr/",
+            "jQ.nwb",
+            "jQkb.nwb",
+            "jby.json",
+            "jt4Lg.nwb",
+            "kCmm9z.zarr/",
+            "kMHk5hZK.nwb",
+            "kQa76T.nwb",
+            "lG89e.nwb",
+            "lg.zarr/",
+            "lxey.json",
+            "mQJQ.nwb",
+            "mb9.zarr/",
+            "mv3.nwb",
+            "n9ngBF.nwb",
+            "nD69k.ngff/",
+            "nRG.nwb",
+            "nz3hfBA.nwb",
+            "pD7BaY.nwb",
+            "pLFH.json",
+            "q7UK9e.nwb",
+            "qnqQx8.nwb",
+            "qrarmCzj.nwb",
+            "rWQvwKwv.nwb",
+            "sEA7W.nwb",
+            "sXCkWz.nwb",
+            "se7zPH.nwb",
+            "sju0Oc2.nwb",
+            "t2ZsXo.json",
+            "t4G8u.nwb",
+            "tWL4.json",
+            "uZ2v8IBn.nwb",
+            "v2MbtC1L.json",
+            "vWqtq1z.nwb",
+            "vadY9.nwb",
+            "x63UdC.tsv",
+            "xAYoWn.nwb",
+            "xv2ucf6.nwb",
+            "y1kz9.nwb",
+            "yEprIh.nwb",
+            "yvCRuG6N.nwb",
         ]
+    );
+}
+
+#[tokio::test]
+async fn get_blob_asset() {
+    let mut app = MockApp::new().await;
+    let response = app
+        .get("/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb")
+        .await;
+    assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+    assert_eq!(
+        response
+            .headers()
+            .get(axum::http::header::LOCATION)
+            .and_then(|v| v.to_str().ok()),
+        Some("https://api.dandiarchive.org/api/assets/838bab7b-9ab4-4d66-97b3-898a367c9c7e/download/"),
+    );
+    assert!(response.headers().contains_key("DAV"));
+    assert!(response.body().is_empty());
+}
+
+#[tokio::test]
+async fn get_blob_asset_prefer_s3_redirects() {
+    let mut app = MockApp::with_config(Config {
+        prefer_s3_redirects: true,
+        ..Config::default()
+    })
+    .await;
+    let response = app
+        .get("/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb")
+        .await;
+    assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+    assert_eq!(
+        response
+            .headers()
+            .get(axum::http::header::LOCATION)
+            .and_then(|v| v.to_str().ok()),
+      Some("https://dandiarchive.s3.amazonaws.com/blobs/2db/af0/2dbaf0fd-5003-4a0a-b4c0-bc8cdbdb3826"),
+    );
+    assert!(response.headers().contains_key("DAV"));
+    assert!(response.body().is_empty());
+}
+
+#[tokio::test]
+async fn get_latest_version() {
+    let mut app = MockApp::new().await;
+    let page = app.get_collection_html("/dandisets/000001/latest/").await;
+    pretty_assertions::assert_eq!(
+        page,
+        CollectionPage {
+            breadcrumbs: vec![
+                Link {
+                    text: "dandidav".into(),
+                    href: "/".into()
+                },
+                Link {
+                    text: "dandisets".into(),
+                    href: "/dandisets/".into()
+                },
+                Link {
+                    text: "000001".into(),
+                    href: "/dandisets/000001/".into()
+                },
+                Link {
+                    text: "latest".into(),
+                    href: "/dandisets/000001/latest/".into()
+                },
+            ],
+            table: vec![
+                CollectionEntry {
+                    name: Link {
+                        text: "../".into(),
+                        href: "/dandisets/000001/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Parent directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "9coP.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/af17d53e-1bbf-473b-9a3c-5ca32db1e90d/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/af17d53e-1bbf-473b-9a3c-5ca32db1e90d/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "3.79 KiB".into(),
+                    created: "2020-05-09 00:21:08Z".into(),
+                    modified: "2023-01-29 18:58:27Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "OK.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/86645ab4-782a-403e-9e1a-f65df91b70a9/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/86645ab4-782a-403e-9e1a-f65df91b70a9/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "14.10 KiB".into(),
+                    created: "2021-04-07 15:29:52Z".into(),
+                    modified: "2024-12-29 20:05:23Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "PYQIm.tsv".into(),
+                        href: "https://api.dandiarchive.org/api/assets/34523ca7-ff7c-42b3-a311-2f2d0ccc780f/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/34523ca7-ff7c-42b3-a311-2f2d0ccc780f/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "6.89 KiB".into(),
+                    created: "2020-08-17 10:19:11Z".into(),
+                    modified: "2024-06-05 02:34:12Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "b.zarr/".into(),
+                        href: "/dandisets/000001/latest/b.zarr/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/9bb35766-4d95-48d7-88df-68a23cd43b74/",
+                        app.archive_url
+                    )),
+                    typekind: "Zarr asset".into(),
+                    size: "125.56 KiB".into(),
+                    created: "2021-04-04 04:17:58Z".into(),
+                    modified: "2024-07-07 10:10:04Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "dandiset.yaml".into(),
+                        href: "/dandisets/000001/latest/dandiset.yaml".into(),
+                    },
+                    metadata_link: None,
+                    typekind: "Version metadata".into(),
+                    size: "429 B".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "mv.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/6d8e773d-fb9c-45e6-9a14-2c249399a901/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/6d8e773d-fb9c-45e6-9a14-2c249399a901/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "14.61 KiB".into(),
+                    created: "2022-11-14 02:46:29Z".into(),
+                    modified: "2024-09-23 17:50:51Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "yCw7krL6rM.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/864dffcb-61f7-4a1a-b26c-462739931efa/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/864dffcb-61f7-4a1a-b26c-462739931efa/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "6.96 KiB".into(),
+                    created: "2022-03-19 20:29:49Z".into(),
+                    modified: "2024-10-16 15:26:16Z".into(),
+                },
+            ],
+        }
     );
 }

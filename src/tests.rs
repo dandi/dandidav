@@ -644,47 +644,176 @@ async fn test_get_asset_folder() {
     let page = app
         .get_collection_html("/dandisets/000002/draft/fRLy/")
         .await;
-    // TODO: Expand into a full comparison
     pretty_assertions::assert_eq!(
-        page.breadcrumbs,
-        vec![
-            Link {
-                text: "dandidav".into(),
-                href: "/".into()
-            },
-            Link {
-                text: "dandisets".into(),
-                href: "/dandisets/".into()
-            },
-            Link {
-                text: "000002".into(),
-                href: "/dandisets/000002/".into()
-            },
-            Link {
-                text: "draft".into(),
-                href: "/dandisets/000002/draft/".into()
-            },
-            Link {
-                text: "fRLy".into(),
-                href: "/dandisets/000002/draft/fRLy/".into()
-            },
-        ]
-    );
-    assert_eq!(
-        page.into_names(),
-        vec![
-            "../",
-            "9xj.nwb",
-            "EZP9eyg/",
-            "GpJEYT9.ngff/",
-            "NYW8SD/",
-            "OWG.nwb",
-            "UP8CFrHpN/",
-            "hH.nwb",
-            "yY9p4f.nwb",
-            "zBbN.nwb",
-            "zfa6zGT.zarr/"
-        ]
+        page,
+        CollectionPage {
+            breadcrumbs: vec![
+                Link {
+                    text: "dandidav".into(),
+                    href: "/".into()
+                },
+                Link {
+                    text: "dandisets".into(),
+                    href: "/dandisets/".into()
+                },
+                Link {
+                    text: "000002".into(),
+                    href: "/dandisets/000002/".into()
+                },
+                Link {
+                    text: "draft".into(),
+                    href: "/dandisets/000002/draft/".into()
+                },
+                Link {
+                    text: "fRLy".into(),
+                    href: "/dandisets/000002/draft/fRLy/".into()
+                },
+            ],
+            table: vec![
+                CollectionEntry {
+                    name: Link {
+                        text: "../".into(),
+                        href: "/dandisets/000002/draft/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Parent directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "9xj.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/b82113fc-48e4-4645-a52f-d8fdf47e1624/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/b82113fc-48e4-4645-a52f-d8fdf47e1624/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "24.28 KiB".into(),
+                    created: "2023-06-03 21:54:42Z".into(),
+                    modified: "2024-12-30 01:25:21Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "EZP9eyg/".into(),
+                        href: "/dandisets/000002/draft/fRLy/EZP9eyg/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "GpJEYT9.ngff/".into(),
+                        href: "/dandisets/000002/draft/fRLy/GpJEYT9.ngff/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/869c1d3e-ab25-452c-bc69-605e094aa3a2/",
+                        app.archive_url
+                    )),
+                    typekind: "Zarr asset".into(),
+                    size: "11.53 MiB".into(),
+                    created: "2020-11-10 19:51:46Z".into(),
+                    modified: "2024-09-24 14:57:34Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "NYW8SD/".into(),
+                        href: "/dandisets/000002/draft/fRLy/NYW8SD/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "OWG.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/e46ae092-a818-42ef-a7c1-12bca5b4ffdd/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/e46ae092-a818-42ef-a7c1-12bca5b4ffdd/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "46.65 KiB".into(),
+                    created: "2022-04-16 12:10:08Z".into(),
+                    modified: "2024-11-17 14:09:58Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "UP8CFrHpN/".into(),
+                        href: "/dandisets/000002/draft/fRLy/UP8CFrHpN/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "hH.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/6243f6dd-4418-498d-afe3-589c6ac8778e/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/6243f6dd-4418-498d-afe3-589c6ac8778e/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "7.54 KiB".into(),
+                    created: "2022-06-07 18:41:49Z".into(),
+                    modified: "2024-10-24 07:13:43Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "yY9p4f.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/d0e64671-2d87-4ecf-8287-709cdafbce70/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/d0e64671-2d87-4ecf-8287-709cdafbce70/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "21.09 KiB".into(),
+                    created: "2021-02-14 11:32:18Z".into(),
+                    modified: "2022-07-08 12:49:19Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "zBbN.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/c28fd72b-944f-4e3d-865a-0f6eb38b7e17/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/c28fd72b-944f-4e3d-865a-0f6eb38b7e17/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "1.37 KiB".into(),
+                    created: "2021-11-02 19:29:07Z".into(),
+                    modified: "2024-12-12 09:12:44Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "zfa6zGT.zarr/".into(),
+                        href: "/dandisets/000002/draft/fRLy/zfa6zGT.zarr/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000002/versions/draft/assets/94e691a5-8031-4a73-b063-374bccee7154/",
+                        app.archive_url
+                    )),
+                    typekind: "Zarr asset".into(),
+                    size: "769.20 KiB".into(),
+                    created: "2021-04-13 17:19:48Z".into(),
+                    modified: "2024-07-08 23:18:03Z".into(),
+                },
+            ],
+        }
     );
 }
 

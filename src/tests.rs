@@ -1,7 +1,9 @@
 #![cfg(test)]
 use super::*;
+use crate::consts::YAML_CONTENT_TYPE;
 use axum::body::Bytes;
 use http_body_util::BodyExt; // for `collect`
+use indoc::indoc;
 use testutils::{CollectionEntry, CollectionPage, Link};
 use tower::{Service, ServiceExt}; // for `ready`
 
@@ -683,5 +685,37 @@ async fn test_get_asset_folder() {
             "zBbN.nwb",
             "zfa6zGT.zarr/"
         ]
+    );
+}
+
+#[tokio::test]
+async fn get_dandiset_yaml() {
+    let mut app = MockApp::new().await;
+    let response = app.get("/dandisets/000001/draft/dandiset.yaml").await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok()),
+        Some(YAML_CONTENT_TYPE)
+    );
+    assert!(response.headers().contains_key("DAV"));
+    let body = String::from_utf8_lossy(response.body());
+    pretty_assertions::assert_eq!(
+        body,
+        indoc! {"
+      '@context': https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.0/context.json
+      dateCreated: 2020-03-15T22:56:55.655000+00:00
+      description: Researcher is seeking funding for surgery to fix goring injuries.
+      id: DANDI:000001/draft
+      identifier: DANDI:000027
+      license:
+      - spdx:CC-BY-4.0
+      name: Brainscan of a Unicorn
+      schemaKey: Dandiset
+      url: https://dandiarchive.mock/dandiset/000001/draft
+      version: draft
+    "}
     );
 }

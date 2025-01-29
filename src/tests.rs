@@ -1032,3 +1032,140 @@ async fn get_blob_asset_prefer_s3_redirects() {
     assert!(response.headers().contains_key("DAV"));
     assert!(response.body().is_empty());
 }
+
+#[tokio::test]
+async fn get_latest_version() {
+    let mut app = MockApp::new().await;
+    let page = app.get_collection_html("/dandisets/000001/latest/").await;
+    pretty_assertions::assert_eq!(
+        page,
+        CollectionPage {
+            breadcrumbs: vec![
+                Link {
+                    text: "dandidav".into(),
+                    href: "/".into()
+                },
+                Link {
+                    text: "dandisets".into(),
+                    href: "/dandisets/".into()
+                },
+                Link {
+                    text: "000001".into(),
+                    href: "/dandisets/000001/".into()
+                },
+                Link {
+                    text: "latest".into(),
+                    href: "/dandisets/000001/latest/".into()
+                },
+            ],
+            table: vec![
+                CollectionEntry {
+                    name: Link {
+                        text: "../".into(),
+                        href: "/dandisets/000001/".into()
+                    },
+                    metadata_link: None,
+                    typekind: "Parent directory".into(),
+                    size: "\u{2014}".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "9coP.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/af17d53e-1bbf-473b-9a3c-5ca32db1e90d/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/af17d53e-1bbf-473b-9a3c-5ca32db1e90d/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "3.79 KiB".into(),
+                    created: "2020-05-09 00:21:08Z".into(),
+                    modified: "2023-01-29 18:58:27Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "OK.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/86645ab4-782a-403e-9e1a-f65df91b70a9/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/86645ab4-782a-403e-9e1a-f65df91b70a9/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "14.10 KiB".into(),
+                    created: "2021-04-07 15:29:52Z".into(),
+                    modified: "2024-12-29 20:05:23Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "PYQIm.tsv".into(),
+                        href: "https://api.dandiarchive.org/api/assets/34523ca7-ff7c-42b3-a311-2f2d0ccc780f/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/34523ca7-ff7c-42b3-a311-2f2d0ccc780f/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "6.89 KiB".into(),
+                    created: "2020-08-17 10:19:11Z".into(),
+                    modified: "2024-06-05 02:34:12Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "b.zarr/".into(),
+                        href: "/dandisets/000001/latest/b.zarr/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/9bb35766-4d95-48d7-88df-68a23cd43b74/",
+                        app.archive_url
+                    )),
+                    typekind: "Zarr asset".into(),
+                    size: "125.56 KiB".into(),
+                    created: "2021-04-04 04:17:58Z".into(),
+                    modified: "2024-07-07 10:10:04Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "dandiset.yaml".into(),
+                        href: "/dandisets/000001/latest/dandiset.yaml".into(),
+                    },
+                    metadata_link: None,
+                    typekind: "Version metadata".into(),
+                    size: "429 B".into(),
+                    created: "\u{2014}".into(),
+                    modified: "\u{2014}".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "mv.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/6d8e773d-fb9c-45e6-9a14-2c249399a901/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/6d8e773d-fb9c-45e6-9a14-2c249399a901/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "14.61 KiB".into(),
+                    created: "2022-11-14 02:46:29Z".into(),
+                    modified: "2024-09-23 17:50:51Z".into(),
+                },
+                CollectionEntry {
+                    name: Link {
+                        text: "yCw7krL6rM.nwb".into(),
+                        href: "https://api.dandiarchive.org/api/assets/864dffcb-61f7-4a1a-b26c-462739931efa/download/".into()
+                    },
+                    metadata_link: Some(format!(
+                        "{}/dandisets/000001/versions/0.230629.1955/assets/864dffcb-61f7-4a1a-b26c-462739931efa/",
+                        app.archive_url
+                    )),
+                    typekind: "Blob asset".into(),
+                    size: "6.96 KiB".into(),
+                    created: "2022-03-19 20:29:49Z".into(),
+                    modified: "2024-10-16 15:26:16Z".into(),
+                },
+            ],
+        }
+    );
+}

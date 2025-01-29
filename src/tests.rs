@@ -31,16 +31,17 @@ struct MockApp {
 
 impl MockApp {
     async fn new() -> MockApp {
+        MockApp::with_config(Config::default()).await
+    }
+
+    async fn with_config(mut cfg: Config) -> MockApp {
         let mock_archive = testutils::make_mock_archive(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/src/testdata/stubs"
         ))
         .await;
         let archive_url = format!("{}/api", mock_archive.uri());
-        let cfg = Config {
-            api_url: archive_url.parse::<HttpUrl>().unwrap(),
-            ..Config::default()
-        };
+        cfg.api_url = archive_url.parse::<HttpUrl>().unwrap();
         let app = get_app(cfg).unwrap();
         MockApp {
             app,
@@ -990,4 +991,44 @@ async fn get_paginated_assets() {
             "yvCRuG6N.nwb",
         ]
     );
+}
+
+#[tokio::test]
+async fn get_blob_asset() {
+    let mut app = MockApp::new().await;
+    let response = app
+        .get("/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb")
+        .await;
+    assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+    assert_eq!(
+        response
+            .headers()
+            .get(axum::http::header::LOCATION)
+            .and_then(|v| v.to_str().ok()),
+        Some("https://api.dandiarchive.org/api/assets/838bab7b-9ab4-4d66-97b3-898a367c9c7e/download/"),
+    );
+    assert!(response.headers().contains_key("DAV"));
+    assert!(response.body().is_empty());
+}
+
+#[tokio::test]
+async fn get_blob_asset_prefer_s3_redirects() {
+    let mut app = MockApp::with_config(Config {
+        prefer_s3_redirects: true,
+        ..Config::default()
+    })
+    .await;
+    let response = app
+        .get("/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb")
+        .await;
+    assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+    assert_eq!(
+        response
+            .headers()
+            .get(axum::http::header::LOCATION)
+            .and_then(|v| v.to_str().ok()),
+      Some("https://dandiarchive.s3.amazonaws.com/blobs/2db/af0/2dbaf0fd-5003-4a0a-b4c0-bc8cdbdb3826"),
+    );
+    assert!(response.headers().contains_key("DAV"));
+    assert!(response.body().is_empty());
 }

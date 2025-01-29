@@ -47,6 +47,7 @@ fn main() -> anyhow::Result<()> {
                 },
                 metadata: v.metadata,
                 assets,
+                assets_req: v.assets,
                 asset_dirs: v.asset_dirs,
             });
         }
@@ -201,6 +202,22 @@ fn main() -> anyhow::Result<()> {
                     ));
                 }
             }
+            for apath in &v.assets_req {
+                let assets = v
+                    .assets
+                    .iter()
+                    .filter(|a| a.properties.path.starts_with(apath))
+                    .collect::<Vec<_>>();
+                assets_responses.extend(paginate(
+                    &assets,
+                    &format!("/api/dandisets/{}/versions/{}/assets/", d.id, v.id),
+                    BTreeMap::from([
+                        ("metadata".to_owned(), "1".to_owned()),
+                        ("order".to_owned(), "path".to_owned()),
+                        ("path".to_owned(), apath.clone()),
+                    ]),
+                ));
+            }
             if !assets_responses.is_empty() {
                 dump_json(
                     &assets_responses,
@@ -305,6 +322,8 @@ struct VersionSpec {
     modified: String,
     metadata: serde_json::Value,
     #[serde(default)]
+    assets: Vec<String>,
+    #[serde(default)]
     asset_dirs: Vec<Option<String>>,
 }
 
@@ -368,6 +387,7 @@ struct Version {
     api_payload: ApiVersion,
     metadata: serde_json::Value,
     assets: Vec<Asset>,
+    assets_req: Vec<String>,
     asset_dirs: Vec<Option<String>>,
 }
 

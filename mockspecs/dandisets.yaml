@@ -20,6 +20,8 @@
         version: "draft"
         dateCreated: "2020-03-15T22:56:55.655000+00:00"
         description: "Researcher is seeking funding for surgery to fix goring injuries."
+      assets:
+        - sub-RAT123/sub-RAT123.nwb
 
     - version: "0.210512.1623"
       name: "Brainscan of a Unicorn"

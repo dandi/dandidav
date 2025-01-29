@@ -249,9 +249,9 @@ impl<'a> VersionEndpoint<'a> {
     }
 
     /// Retrieve information about the version
-    pub(crate) async fn get(&self) -> Result<DandisetVersion, DandiError> {
+    pub(crate) async fn get(&self) -> Result<VersionInfo, DandiError> {
         self.client
-            .get::<RawDandisetVersion>(self.client.get_url([
+            .get::<RawVersionInfo>(self.client.get_url([
                 "dandisets",
                 self.dandiset_id.as_ref(),
                 "versions",
@@ -264,11 +264,10 @@ impl<'a> VersionEndpoint<'a> {
 
     /// Retrieve the version's metadata as serialized YAML
     pub(crate) async fn get_metadata(&self) -> Result<VersionMetadata, DandiError> {
-        let data = self
-            .client
-            .get::<serde_json::Value>(self.metadata_url())
-            .await?;
-        Ok(VersionMetadata(dump_json_as_yaml(data).into_bytes()))
+        self.client
+            .get::<VersionMetadata>(self.metadata_url())
+            .await
+            .map_err(Into::into)
     }
 
     /// Get details on the resource at the given `path` in the version's file
@@ -568,55 +567,5 @@ impl ZarrToS3Error {
                 }
             }
         }
-    }
-}
-
-/// Serialize the given deserialized JSON value as YAML
-///
-/// # Panics
-///
-/// Panics if the value cannot be serialized.  This should not happen.
-fn dump_json_as_yaml(data: serde_json::Value) -> String {
-    serde_yaml::to_string(&data).expect("converting JSON to YAML should not fail")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use indoc::indoc;
-    use serde_json::json;
-
-    #[test]
-    fn test_dump_json_as_yaml() {
-        let data = json! ({
-            "key": "value",
-            "int": 42,
-            "truth": true,
-            "void": null,
-            "list": ["apple", "banana", "coconut"],
-            "mapping": {
-                "apple": "green",
-                "banana": "yellow",
-                "coconut": "brown",
-            }
-        });
-        let s = dump_json_as_yaml(data);
-        assert_eq!(
-            s,
-            indoc! {"
-            key: value
-            int: 42
-            truth: true
-            void: null
-            list:
-            - apple
-            - banana
-            - coconut
-            mapping:
-              apple: green
-              banana: yellow
-              coconut: brown
-        "}
-        );
     }
 }

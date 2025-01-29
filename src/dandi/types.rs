@@ -2,7 +2,7 @@ use super::{DandisetId, VersionId};
 use crate::httputil::HttpUrl;
 use crate::paths::{PureDirPath, PurePath};
 use crate::s3::{PrefixedS3Client, S3Entry, S3Folder, S3Location, S3Object};
-use serde::Deserialize;
+use serde::{de::Deserializer, Deserialize};
 use thiserror::Error;
 use time::OffsetDateTime;
 
@@ -81,6 +81,28 @@ pub(crate) struct DandisetVersion {
     pub(crate) metadata_url: HttpUrl,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub(super) struct RawVersionInfo {
+    #[serde(flatten)]
+    properties: RawDandisetVersion,
+    metadata: VersionMetadata,
+}
+
+impl RawVersionInfo {
+    pub(super) fn with_metadata_url(self, metadata_url: HttpUrl) -> VersionInfo {
+        VersionInfo {
+            properties: self.properties.with_metadata_url(metadata_url),
+            metadata: self.metadata,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct VersionInfo {
+    pub(crate) properties: DandisetVersion,
+    pub(crate) metadata: VersionMetadata,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct VersionMetadata(pub(super) Vec<u8>);
 
@@ -93,6 +115,16 @@ impl VersionMetadata {
 impl From<VersionMetadata> for Vec<u8> {
     fn from(value: VersionMetadata) -> Vec<u8> {
         value.0
+    }
+}
+
+impl<'de> Deserialize<'de> for VersionMetadata {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let data = serde_json::Value::deserialize(deserializer)?;
+        Ok(VersionMetadata(dump_json_as_yaml(data).into_bytes()))
     }
 }
 
@@ -418,4 +450,54 @@ pub(crate) enum DandiResourceWithChildren {
         children: Vec<DandiResource>,
     },
     ZarrEntry(ZarrEntry),
+}
+
+/// Serialize the given deserialized JSON value as YAML
+///
+/// # Panics
+///
+/// Panics if the value cannot be serialized.  This should not happen.
+fn dump_json_as_yaml(data: serde_json::Value) -> String {
+    serde_yaml::to_string(&data).expect("converting JSON to YAML should not fail")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use indoc::indoc;
+    use serde_json::json;
+
+    #[test]
+    fn test_dump_json_as_yaml() {
+        let data = json! ({
+            "key": "value",
+            "int": 42,
+            "truth": true,
+            "void": null,
+            "list": ["apple", "banana", "coconut"],
+            "mapping": {
+                "apple": "green",
+                "banana": "yellow",
+                "coconut": "brown",
+            }
+        });
+        let s = dump_json_as_yaml(data);
+        assert_eq!(
+            s,
+            indoc! {"
+            key: value
+            int: 42
+            truth: true
+            void: null
+            list:
+            - apple
+            - banana
+            - coconut
+            mapping:
+              apple: green
+              banana: yellow
+              coconut: brown
+        "}
+        );
+    }
 }

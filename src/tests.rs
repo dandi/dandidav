@@ -1,10 +1,10 @@
 #![cfg(test)]
 use super::*;
-use crate::consts::YAML_CONTENT_TYPE;
+use crate::consts::{DAV_XML_CONTENT_TYPE, YAML_CONTENT_TYPE};
 use axum::body::Bytes;
 use http_body_util::BodyExt; // for `collect`
 use indoc::indoc;
-use testutils::{CollectionEntry, CollectionPage, Link};
+use testutils::{CollectionEntry, CollectionPage, Link, Resource, Trinary};
 use tower::{Service, ServiceExt}; // for `ready`
 
 fn fill_html_footer(html: &str) -> String {
@@ -100,10 +100,49 @@ impl MockApp {
         let body = std::str::from_utf8(response.body()).unwrap();
         testutils::parse_collection_page(body).unwrap()
     }
+
+    async fn propfind(&mut self, path: &str, body: &'static str, depth: &str) -> Response<Bytes> {
+        let response = <Router as ServiceExt<Request<Body>>>::ready(&mut self.app)
+            .await
+            .unwrap()
+            .call(
+                Request::builder()
+                    .method("PROPFIND")
+                    .uri(path)
+                    .header("X-Forwarded-For", "127.0.0.1")
+                    .header("Depth", depth)
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let (parts, body) = response.into_parts();
+        let body = body.collect().await.unwrap().to_bytes();
+        Response::from_parts(parts, body)
+    }
+
+    async fn propfind_resource(
+        &mut self,
+        path: &str,
+        body: &'static str,
+        depth: &str,
+    ) -> Vec<Resource> {
+        let response = self.propfind(path, body, depth).await;
+        assert_eq!(response.status(), StatusCode::MULTI_STATUS);
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok()),
+            Some(DAV_XML_CONTENT_TYPE)
+        );
+        let body = std::str::from_utf8(response.body()).unwrap();
+        testutils::parse_propfind_response(body).unwrap()
+    }
 }
 
 #[tokio::test]
-async fn test_get_styles() {
+async fn get_styles() {
     let mut app = MockApp::new().await;
     let response = app.get("/.static/styles.css").await;
     assert_eq!(response.status(), StatusCode::OK);
@@ -120,7 +159,7 @@ async fn test_get_styles() {
 }
 
 #[tokio::test]
-async fn test_get_root() {
+async fn get_root() {
     let mut app = MockApp::new().await;
     let response = app.get("/").await;
     assert_eq!(response.status(), StatusCode::OK);
@@ -138,7 +177,7 @@ async fn test_get_root() {
 }
 
 #[tokio::test]
-async fn test_head_styles() {
+async fn head_styles() {
     let mut app = MockApp::new().await;
     let response = app.head("/.static/styles.css").await;
     assert_eq!(response.status(), StatusCode::OK);
@@ -162,7 +201,7 @@ async fn test_head_styles() {
 }
 
 #[tokio::test]
-async fn test_head_root() {
+async fn head_root() {
     let mut app = MockApp::new().await;
     let response = app.head("/").await;
     assert_eq!(response.status(), StatusCode::OK);
@@ -187,7 +226,71 @@ async fn test_head_root() {
 }
 
 #[tokio::test]
-async fn test_get_dandisets_index() {
+async fn propfind_root_depth_0() {
+    let mut app = MockApp::new().await;
+    let resources = app.propfind_resource("/", "", "0").await;
+    pretty_assertions::assert_eq!(
+        resources,
+        vec![Resource {
+            href: "/".into(),
+            creation_date: Trinary::Void,
+            display_name: Trinary::Void,
+            content_length: Trinary::Void,
+            content_type: Trinary::Void,
+            last_modified: Trinary::Void,
+            etag: Trinary::Void,
+            language: Trinary::Void,
+            is_collection: Some(true),
+        }],
+    );
+}
+
+#[tokio::test]
+async fn propfind_root_depth_1() {
+    let mut app = MockApp::new().await;
+    let resources = app.propfind_resource("/", "", "1").await;
+    pretty_assertions::assert_eq!(
+        resources,
+        vec![
+            Resource {
+                href: "/".into(),
+                creation_date: Trinary::Void,
+                display_name: Trinary::Void,
+                content_length: Trinary::Void,
+                content_type: Trinary::Void,
+                last_modified: Trinary::Void,
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(true),
+            },
+            Resource {
+                href: "/dandisets/".into(),
+                creation_date: Trinary::Void,
+                display_name: Trinary::Set("dandisets".into()),
+                content_length: Trinary::Void,
+                content_type: Trinary::Void,
+                last_modified: Trinary::Void,
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(true),
+            },
+            Resource {
+                href: "/zarrs/".into(),
+                creation_date: Trinary::Void,
+                display_name: Trinary::Set("zarrs".into()),
+                content_length: Trinary::Void,
+                content_type: Trinary::Void,
+                last_modified: Trinary::Void,
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(true),
+            },
+        ],
+    );
+}
+
+#[tokio::test]
+async fn get_dandisets_index() {
     let mut app = MockApp::new().await;
     let page = app.get_collection_html("/dandisets/").await;
     pretty_assertions::assert_eq!(
@@ -254,7 +357,7 @@ async fn test_get_dandisets_index() {
 }
 
 #[tokio::test]
-async fn test_get_dandiset_with_published() {
+async fn get_dandiset_with_published() {
     let mut app = MockApp::new().await;
     let page = app.get_collection_html("/dandisets/000001/").await;
     pretty_assertions::assert_eq!(
@@ -331,7 +434,7 @@ async fn test_get_dandiset_with_published() {
 }
 
 #[tokio::test]
-async fn test_get_dandiset_without_published() {
+async fn get_dandiset_without_published() {
     let mut app = MockApp::new().await;
     let page = app.get_collection_html("/dandisets/000003/").await;
     pretty_assertions::assert_eq!(
@@ -383,7 +486,7 @@ async fn test_get_dandiset_without_published() {
 }
 
 #[tokio::test]
-async fn test_get_dandiset_releases() {
+async fn get_dandiset_releases() {
     let mut app = MockApp::new().await;
     let page = app.get_collection_html("/dandisets/000001/releases/").await;
     pretty_assertions::assert_eq!(
@@ -453,7 +556,7 @@ async fn test_get_dandiset_releases() {
 }
 
 #[tokio::test]
-async fn test_get_version_toplevel() {
+async fn get_version_toplevel() {
     let mut app = MockApp::new().await;
     let page = app.get_collection_html("/dandisets/000002/draft/").await;
     pretty_assertions::assert_eq!(
@@ -640,7 +743,7 @@ async fn test_get_version_toplevel() {
 }
 
 #[tokio::test]
-async fn test_get_asset_folder() {
+async fn get_asset_folder() {
     let mut app = MockApp::new().await;
     let page = app
         .get_collection_html("/dandisets/000002/draft/fRLy/")
@@ -1027,10 +1130,32 @@ async fn get_blob_asset_prefer_s3_redirects() {
             .headers()
             .get(axum::http::header::LOCATION)
             .and_then(|v| v.to_str().ok()),
-      Some("https://dandiarchive.s3.amazonaws.com/blobs/2db/af0/2dbaf0fd-5003-4a0a-b4c0-bc8cdbdb3826"),
+        Some("https://dandiarchive.s3.amazonaws.com/blobs/2db/af0/2dbaf0fd-5003-4a0a-b4c0-bc8cdbdb3826"),
     );
     assert!(response.headers().contains_key("DAV"));
     assert!(response.body().is_empty());
+}
+
+#[tokio::test]
+async fn propfind_blob_asset() {
+    let mut app = MockApp::new().await;
+    let resources = app
+        .propfind_resource("/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb", "", "1")
+        .await;
+    pretty_assertions::assert_eq!(
+        resources,
+        vec![Resource {
+            href: "/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb".into(),
+            creation_date: Trinary::Set("2023-03-02T22:10:45.985334Z".into()),
+            display_name: Trinary::Set("sub-RAT123.nwb".into()),
+            content_length: Trinary::Set(18792),
+            content_type: Trinary::Set("application/x-nwb".into()),
+            last_modified: Trinary::Set("Thu, 02 Mar 2023 22:10:46 GMT".into()),
+            etag: Trinary::Set("6ec084ca9d3be17ec194a8f700d65344-1".into()),
+            language: Trinary::Void,
+            is_collection: Some(false),
+        }],
+    );
 }
 
 #[tokio::test]

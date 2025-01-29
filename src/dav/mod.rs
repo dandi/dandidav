@@ -206,7 +206,7 @@ impl DandiDav {
                 .await?
                 .get()
                 .await
-                .map(DavResource::Collection),
+                .map(|(col, _)| DavResource::Collection(col)),
             DavPath::DandisetYaml {
                 dandiset_id,
                 version,
@@ -299,9 +299,9 @@ impl DandiDav {
                 version,
             } => {
                 let handler = self.get_version_handler(dandiset_id, version).await?;
-                let col = handler.get().await?;
+                let (col, dsyaml) = handler.get().await?;
                 let mut children = handler.get_root_children().await?;
-                children.push(handler.get_dandiset_yaml().await.map(DavResource::Item)?);
+                children.push(DavResource::Item(dsyaml));
                 Ok(DavResourceWithChildren::Collection { col, children })
             }
             DavPath::DandisetYaml {
@@ -354,11 +354,19 @@ struct VersionHandler<'a> {
 }
 
 impl VersionHandler<'_> {
-    /// Get details on the version itself as a collection sans children
-    async fn get(&self) -> Result<DavCollection, DavError> {
-        let v = self.endpoint.get().await?;
+    /// Get details on the version itself as a collection sans children.  The
+    /// `dandiset.yaml` item is also included in order to save on a request
+    /// later in the "with children" case.
+    async fn get(&self) -> Result<(DavCollection, DavItem), DavError> {
+        let VersionInfo {
+            properties,
+            metadata,
+        } = self.endpoint.get().await?;
         let path = version_path(self.dandiset_id, self.version_spec);
-        Ok(DavCollection::dandiset_version(v, path))
+        let col = DavCollection::dandiset_version(properties, path);
+        let dandiset_yaml =
+            DavItem::from(metadata).under_version_path(self.dandiset_id, self.version_spec);
+        Ok((col, dandiset_yaml))
     }
 
     /// Get details on all resources at the root of the version's file tree

@@ -954,6 +954,30 @@ async fn get_dandiset_yaml() {
 }
 
 #[tokio::test]
+async fn propfind_dandiset_yaml() {
+    let mut app = MockApp::new().await;
+    for depth in ["0", "1"] {
+        let resources = app
+            .propfind_resource("/dandisets/000001/draft/dandiset.yaml", "", depth)
+            .await;
+        pretty_assertions::assert_eq!(
+            resources,
+            vec![Resource {
+                href: "/dandisets/000001/draft/dandiset.yaml".into(),
+                creation_date: Trinary::Void,
+                display_name: Trinary::Set("dandiset.yaml".into()),
+                content_length: Trinary::Set(410),
+                content_type: Trinary::Set(YAML_CONTENT_TYPE.into()),
+                last_modified: Trinary::Void,
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(false),
+            }],
+        );
+    }
+}
+
+#[tokio::test]
 async fn get_paginated_assets() {
     let mut app = MockApp::new().await;
     let page = app.get_collection_html("/dandisets/000003/draft/").await;

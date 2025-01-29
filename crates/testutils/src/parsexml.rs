@@ -1,12 +1,21 @@
+// Only honors tags defined in RFC 4918
 use serde::Deserialize;
 use thiserror::Error;
 
-// Only honors tags defined in RFC 4918
 pub fn parse_propfind_response(xml: &str) -> Result<Vec<Resource>, PropfindError> {
     quick_xml::de::from_str::<Multistatus>(xml)?
         .response
         .into_iter()
         .map(Resource::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(Into::into)
+}
+
+pub fn parse_propname_response(xml: &str) -> Result<Vec<ResourceProps>, PropfindError> {
+    quick_xml::de::from_str::<Multistatus>(xml)?
+        .response
+        .into_iter()
+        .map(ResourceProps::try_from)
         .collect::<Result<Vec<_>, _>>()
         .map_err(Into::into)
 }
@@ -100,6 +109,75 @@ impl TryFrom<Response> for Resource {
                 }
                 if ps.prop.resourcetype.is_some() {
                     return Err(ResourceError::ResourceType404(r.href));
+                }
+            } else {
+                return Err(ResourceError::BadStatus {
+                    href: r.href,
+                    status: ps.status,
+                });
+            }
+        }
+        Ok(r)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResourceProps {
+    pub href: String,
+    pub creation_date: bool,
+    pub display_name: bool,
+    pub content_length: bool,
+    pub content_type: bool,
+    pub last_modified: bool,
+    pub etag: bool,
+    pub language: bool,
+    pub resource_type: bool,
+}
+
+impl TryFrom<Response> for ResourceProps {
+    type Error = ResourceError;
+
+    fn try_from(value: Response) -> Result<ResourceProps, ResourceError> {
+        let mut r = ResourceProps {
+            href: value.href,
+            creation_date: false,
+            display_name: false,
+            content_length: false,
+            content_type: false,
+            last_modified: false,
+            etag: false,
+            language: false,
+            resource_type: false,
+        };
+        let mut seen_200 = false;
+        for ps in value.propstat {
+            if ps.status == "HTTP/1.1 200 OK" {
+                if std::mem::replace(&mut seen_200, true) {
+                    return Err(ResourceError::Multiple200(r.href));
+                }
+                if ps.prop.creationdate.is_some() {
+                    r.creation_date = true;
+                }
+                if ps.prop.displayname.is_some() {
+                    r.display_name = true;
+                }
+                if ps.prop.getcontentlength.is_some() {
+                    r.content_length = true;
+                }
+                if ps.prop.getcontenttype.is_some() {
+                    r.content_type = true;
+                }
+                if ps.prop.getlastmodified.is_some() {
+                    r.last_modified = true;
+                }
+                if ps.prop.getetag.is_some() {
+                    r.etag = true;
+                }
+                if ps.prop.getcontentlanguage.is_some() {
+                    r.language = true;
+                }
+                if ps.prop.resourcetype.is_some() {
+                    r.resource_type = true;
                 }
             } else {
                 return Err(ResourceError::BadStatus {
@@ -286,6 +364,116 @@ mod tests {
                     last_modified: Trinary::NotFound,
                     language: Trinary::Void,
                     is_collection: Some(false),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn test_parse_propname_response() {
+        let xml = include_str!("testdata/propname.xml");
+        let resources = parse_propname_response(xml).unwrap();
+        assert_eq!(
+            resources,
+            vec![
+                ResourceProps {
+                    href: "/dandisets/000108/draft/".into(),
+                    creation_date: true,
+                    display_name: true,
+                    content_length: true,
+                    last_modified: true,
+                    resource_type: true,
+                    content_type: false,
+                    etag: false,
+                    language: false,
+                },
+                ResourceProps {
+                    href: "/dandisets/000108/draft/dataset_description.json".into(),
+                    creation_date: true,
+                    display_name: true,
+                    content_length: true,
+                    content_type: true,
+                    etag: true,
+                    last_modified: true,
+                    resource_type: true,
+                    language: false,
+                },
+                ResourceProps {
+                    href: "/dandisets/000108/draft/samples.tsv".into(),
+                    creation_date: true,
+                    display_name: true,
+                    content_length: true,
+                    content_type: true,
+                    etag: true,
+                    last_modified: true,
+                    resource_type: true,
+                    language: false,
+                },
+                ResourceProps {
+                    href: "/dandisets/000108/draft/sub-mEhm/".into(),
+                    display_name: true,
+                    resource_type: true,
+                    creation_date: false,
+                    content_length: false,
+                    content_type: false,
+                    etag: false,
+                    last_modified: false,
+                    language: false,
+                },
+                ResourceProps {
+                    href: "/dandisets/000108/draft/sub-MITU01/".into(),
+                    display_name: true,
+                    resource_type: true,
+                    creation_date: false,
+                    content_length: false,
+                    content_type: false,
+                    etag: false,
+                    last_modified: false,
+                    language: false,
+                },
+                ResourceProps {
+                    href: "/dandisets/000108/draft/sub-MITU01h3/".into(),
+                    display_name: true,
+                    resource_type: true,
+                    creation_date: false,
+                    content_length: false,
+                    content_type: false,
+                    etag: false,
+                    last_modified: false,
+                    language: false,
+                },
+                ResourceProps {
+                    href: "/dandisets/000108/draft/sub-SChmi53/".into(),
+                    display_name: true,
+                    resource_type: true,
+                    creation_date: false,
+                    content_length: false,
+                    content_type: false,
+                    etag: false,
+                    last_modified: false,
+                    language: false,
+                },
+                ResourceProps {
+                    href: "/dandisets/000108/draft/sub-U01hm15x/".into(),
+                    display_name: true,
+                    resource_type: true,
+                    creation_date: false,
+                    content_length: false,
+                    content_type: false,
+                    etag: false,
+                    last_modified: false,
+                    language: false,
+                },
+                ResourceProps {
+                    href: "/dandisets/000108/draft/dandiset.yaml".into(),
+                    creation_date: false,
+                    display_name: true,
+                    content_length: true,
+                    content_type: true,
+                    etag: false,
+                    last_modified: false,
+                    language: false,
+                    resource_type: true,
                 },
             ]
         );

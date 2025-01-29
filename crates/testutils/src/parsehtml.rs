@@ -1,5 +1,4 @@
-use html5ever::rcdom::Handle;
-use soup::{NodeExt, QueryBuilderExt, Soup};
+use soupy::{parser::HTMLNode, query::QueryItem, Node, Queryable, Soup};
 use thiserror::Error;
 
 const COLUMNS: usize = 5;
@@ -7,31 +6,33 @@ const COLUMNS: usize = 5;
 static EXPECTED_COLUMN_NAMES: [&str; COLUMNS] = ["Name", "Type", "Size", "Created", "Modified"];
 
 pub fn parse_collection_page(html: &str) -> Result<CollectionPage, ParseCollectionError> {
-    let soup = Soup::new(html);
+    let soup = Soup::html(html);
     let breadcrumbs = soup
         .tag("div")
-        .class("breadcrumbs")
-        .find()
+        .attr("class", "breadcrumbs")
+        .first()
         .ok_or(ParseCollectionError::NoBreadcrumbs)?
+        .query()
         .tag("a")
-        .find_all()
-        .map(Link::from_handle)
+        .all()
+        .map(Link::from_node)
         .collect::<Result<Vec<_>, _>>()?;
     let table_tag = soup
         .tag("table")
-        .class("collection")
-        .find()
-        .ok_or(ParseCollectionError::NoTable)?;
-    let header_cells = table_tag
+        .attr("class", "collection")
+        .first()
+        .ok_or(ParseCollectionError::NoTable)?
+        .query();
+    let headrow = table_tag
         .tag("thead")
-        .find()
+        .first()
         .ok_or(ParseCollectionError::NoTHead)?
+        .query()
         .tag("tr")
-        .find()
+        .first()
         .ok_or(ParseCollectionError::NoHeaderRow)?
-        .tag("th")
-        .find_all()
-        .collect::<Vec<_>>();
+        .query();
+    let header_cells = headrow.tag("th").all().collect::<Vec<_>>();
     if header_cells.len() != COLUMNS {
         return Err(ParseCollectionError::ColumnQtyMismatch {
             expected: COLUMNS,
@@ -39,7 +40,7 @@ pub fn parse_collection_page(html: &str) -> Result<CollectionPage, ParseCollecti
         });
     }
     for (expected, th) in std::iter::zip(EXPECTED_COLUMN_NAMES, header_cells) {
-        let actual = th.text();
+        let actual = th.all_text();
         if actual != expected {
             return Err(ParseCollectionError::ColumnNameMismatch { expected, actual });
         }
@@ -47,12 +48,14 @@ pub fn parse_collection_page(html: &str) -> Result<CollectionPage, ParseCollecti
     let mut table = Vec::new();
     for tr in table_tag
         .tag("tbody")
-        .find()
+        .first()
         .ok_or(ParseCollectionError::NoTBody)?
+        .query()
         .tag("tr")
-        .find_all()
+        .all()
+        .map(|tr| tr.query())
     {
-        let mut cells = tr.tag("td").find_all();
+        let mut cells = tr.tag("td").all();
         let Some(name_td) = cells.next() else {
             return Err(ParseCollectionError::RowLengthMismatch {
                 expected: COLUMNS,
@@ -60,40 +63,45 @@ pub fn parse_collection_page(html: &str) -> Result<CollectionPage, ParseCollecti
             });
         };
         let Some(name) = name_td
+            .query()
             .tag("span")
-            .class("item-link")
-            .find()
-            .and_then(|handle| handle.tag("a").find())
-            .map(Link::from_handle)
+            .attr("class", "item-link")
+            .first()
+            .and_then(|node| node.query().tag("a").first().map(Link::from_node))
         else {
             return Err(ParseCollectionError::NoItemLink);
         };
         let name = name?;
         let metadata_link = name_td
+            .query()
             .tag("span")
-            .class("metadata-link")
-            .find()
-            .and_then(|handle| handle.tag("a").find())
-            .and_then(|atag| atag.get("href"));
-        let Some(typekind) = cells.next().map(|td| td.text()) else {
+            .attr("class", "metadata-link")
+            .first()
+            .and_then(|node| {
+                node.query()
+                    .tag("a")
+                    .first()
+                    .and_then(|atag| atag.get("href").map(ToString::to_string))
+            });
+        let Some(typekind) = cells.next().map(|td| td.all_text()) else {
             return Err(ParseCollectionError::RowLengthMismatch {
                 expected: COLUMNS,
                 actual: 1,
             });
         };
-        let Some(size) = cells.next().map(|td| td.text()) else {
+        let Some(size) = cells.next().map(|td| td.all_text()) else {
             return Err(ParseCollectionError::RowLengthMismatch {
                 expected: COLUMNS,
                 actual: 2,
             });
         };
-        let Some(created) = cells.next().map(|td| td.text()) else {
+        let Some(created) = cells.next().map(|td| td.all_text()) else {
             return Err(ParseCollectionError::RowLengthMismatch {
                 expected: COLUMNS,
                 actual: 3,
             });
         };
-        let Some(modified) = cells.next().map(|td| td.text()) else {
+        let Some(modified) = cells.next().map(|td| td.all_text()) else {
             return Err(ParseCollectionError::RowLengthMismatch {
                 expected: COLUMNS,
                 actual: 4,
@@ -150,9 +158,11 @@ pub struct Link {
 }
 
 impl Link {
-    fn from_handle(handle: Handle) -> Result<Link, ParseLinkError> {
-        let href = handle.get("href").ok_or(ParseLinkError::NoHref)?;
-        let text = handle.text();
+    fn from_node(
+        node: QueryItem<'_, HTMLNode<tendril::Tendril<tendril::fmt::UTF8>>>,
+    ) -> Result<Link, ParseLinkError> {
+        let href = node.get("href").ok_or(ParseLinkError::NoHref)?.to_string();
+        let text = node.all_text();
         Ok(Link { text, href })
     }
 }

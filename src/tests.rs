@@ -1139,23 +1139,29 @@ async fn get_blob_asset_prefer_s3_redirects() {
 #[tokio::test]
 async fn propfind_blob_asset() {
     let mut app = MockApp::new().await;
-    let resources = app
-        .propfind_resource("/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb", "", "1")
-        .await;
-    pretty_assertions::assert_eq!(
-        resources,
-        vec![Resource {
-            href: "/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb".into(),
-            creation_date: Trinary::Set("2023-03-02T22:10:45.985334Z".into()),
-            display_name: Trinary::Set("sub-RAT123.nwb".into()),
-            content_length: Trinary::Set(18792),
-            content_type: Trinary::Set("application/x-nwb".into()),
-            last_modified: Trinary::Set("Thu, 02 Mar 2023 22:10:46 GMT".into()),
-            etag: Trinary::Set("6ec084ca9d3be17ec194a8f700d65344-1".into()),
-            language: Trinary::Void,
-            is_collection: Some(false),
-        }],
-    );
+    for depth in ["0", "1"] {
+        let resources = app
+            .propfind_resource(
+                "/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb",
+                "",
+                depth,
+            )
+            .await;
+        pretty_assertions::assert_eq!(
+            resources,
+            vec![Resource {
+                href: "/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb".into(),
+                creation_date: Trinary::Set("2023-03-02T22:10:45.985334Z".into()),
+                display_name: Trinary::Set("sub-RAT123.nwb".into()),
+                content_length: Trinary::Set(18792),
+                content_type: Trinary::Set("application/x-nwb".into()),
+                last_modified: Trinary::Set("Thu, 02 Mar 2023 22:10:46 GMT".into()),
+                etag: Trinary::Set("6ec084ca9d3be17ec194a8f700d65344-1".into()),
+                language: Trinary::Void,
+                is_collection: Some(false),
+            }],
+        );
+    }
 }
 
 #[tokio::test]

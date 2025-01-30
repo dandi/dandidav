@@ -38,6 +38,23 @@ curl -fsSL \
 
 curl -fsSL \
     -X PROPFIND \
+    -H "Depth: 1" \
+    -d '
+        <propfind xmlns="DAV:">
+          <prop>
+            <creationdate/>
+            <displayname/>
+            <getcontentlength/>
+            <getcontenttype/>
+            <getetag/>
+            <getlastmodified/>
+            <resourcetype/>
+          </prop>
+        </propfind>' \
+    "$endpoint/$collection" > "$outdir"/everyprop.xml
+
+curl -fsSL \
+    -X PROPFIND \
     -H "Depth: 0" \
     -d '
         <propfind xmlns="DAV:">

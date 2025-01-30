@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<multistatus xmlns="DAV:">
+    <response>
+        <href>/dandisets/000108/draft/</href>
+        <propstat>
+            <prop>
+                <creationdate>2021-06-01T14:35:34.214567Z</creationdate>
+                <displayname>draft</displayname>
+                <getcontentlength>374730983049354</getcontentlength>
+                <getlastmodified>Fri, 03 Nov 2023 11:01:20 GMT</getlastmodified>
+                <resourcetype>
+                    <collection />
+                </resourcetype>
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+        <propstat>
+            <prop>
+                <getcontenttype />
+                <getetag />
+            </prop>
+            <status>HTTP/1.1 404 NOT FOUND</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/dataset_description.json</href>
+        <propstat>
+            <prop>
+                <creationdate>2021-07-03T04:23:52.38146Z</creationdate>
+                <displayname>dataset_description.json</displayname>
+                <getcontentlength>71</getcontentlength>
+                <getcontenttype>application/json</getcontenttype>
+                <getetag>f4a034fbf965f76828fa027c29860bc0-1</getetag>
+                <getlastmodified>Wed, 13 Jul 2022 21:40:28 GMT</getlastmodified>
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/samples.tsv</href>
+        <propstat>
+            <prop>
+                <creationdate>2021-07-21T23:39:29.733695Z</creationdate>
+                <displayname>samples.tsv</displayname>
+                <getcontentlength>572</getcontentlength>
+                <getcontenttype>text/tab-separated-values</getcontenttype>
+                <getetag>a6ac1fb127e17b2e3360c64154f69a57-1</getetag>
+                <getlastmodified>Wed, 13 Jul 2022 21:41:07 GMT</getlastmodified>
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/sub-mEhm/</href>
+        <propstat>
+            <prop>
+                <displayname>sub-mEhm</displayname>
+                <resourcetype>
+                    <collection />
+                </resourcetype>
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+        <propstat>
+            <prop>
+                <creationdate />
+                <getcontentlength />
+                <getcontenttype />
+                <getetag />
+                <getlastmodified />
+            </prop>
+            <status>HTTP/1.1 404 NOT FOUND</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/sub-MITU01/</href>
+        <propstat>
+            <prop>
+                <displayname>sub-MITU01</displayname>
+                <resourcetype>
+                    <collection />
+                </resourcetype>
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+        <propstat>
+            <prop>
+                <creationdate />
+                <getcontentlength />
+                <getcontenttype />
+                <getetag />
+                <getlastmodified />
+            </prop>
+            <status>HTTP/1.1 404 NOT FOUND</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/sub-MITU01h3/</href>
+        <propstat>
+            <prop>
+                <displayname>sub-MITU01h3</displayname>
+                <resourcetype>
+                    <collection />
+                </resourcetype>
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+        <propstat>
+            <prop>
+                <creationdate />
+                <getcontentlength />
+                <getcontenttype />
+                <getetag />
+                <getlastmodified />
+            </prop>
+            <status>HTTP/1.1 404 NOT FOUND</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/sub-SChmi53/</href>
+        <propstat>
+            <prop>
+                <displayname>sub-SChmi53</displayname>
+                <resourcetype>
+                    <collection />
+                </resourcetype>
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+        <propstat>
+            <prop>
+                <creationdate />
+                <getcontentlength />
+                <getcontenttype />
+                <getetag />
+                <getlastmodified />
+            </prop>
+            <status>HTTP/1.1 404 NOT FOUND</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/sub-U01hm15x/</href>
+        <propstat>
+            <prop>
+                <displayname>sub-U01hm15x</displayname>
+                <resourcetype>
+                    <collection />
+                </resourcetype>
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+        <propstat>
+            <prop>
+                <creationdate />
+                <getcontentlength />
+                <getcontenttype />
+                <getetag />
+                <getlastmodified />
+            </prop>
+            <status>HTTP/1.1 404 NOT FOUND</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/dandiset.yaml</href>
+        <propstat>
+            <prop>
+                <displayname>dandiset.yaml</displayname>
+                <getcontentlength>4543</getcontentlength>
+                <getcontenttype>text/yaml; charset=utf-8</getcontenttype>
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+        <propstat>
+            <prop>
+                <creationdate />
+                <getetag />
+                <getlastmodified />
+            </prop>
+            <status>HTTP/1.1 404 NOT FOUND</status>
+        </propstat>
+    </response>
+</multistatus>

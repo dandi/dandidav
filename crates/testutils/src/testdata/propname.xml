@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<multistatus xmlns="DAV:">
+    <response>
+        <href>/dandisets/000108/draft/</href>
+        <propstat>
+            <prop>
+                <creationdate />
+                <displayname />
+                <getcontentlength />
+                <getlastmodified />
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/dataset_description.json</href>
+        <propstat>
+            <prop>
+                <creationdate />
+                <displayname />
+                <getcontentlength />
+                <getcontenttype />
+                <getetag />
+                <getlastmodified />
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/samples.tsv</href>
+        <propstat>
+            <prop>
+                <creationdate />
+                <displayname />
+                <getcontentlength />
+                <getcontenttype />
+                <getetag />
+                <getlastmodified />
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/sub-mEhm/</href>
+        <propstat>
+            <prop>
+                <displayname />
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/sub-MITU01/</href>
+        <propstat>
+            <prop>
+                <displayname />
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/sub-MITU01h3/</href>
+        <propstat>
+            <prop>
+                <displayname />
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/sub-SChmi53/</href>
+        <propstat>
+            <prop>
+                <displayname />
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/sub-U01hm15x/</href>
+        <propstat>
+            <prop>
+                <displayname />
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+    <response>
+        <href>/dandisets/000108/draft/dandiset.yaml</href>
+        <propstat>
+            <prop>
+                <displayname />
+                <getcontentlength />
+                <getcontenttype />
+                <resourcetype />
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+</multistatus>

@@ -109,7 +109,7 @@ struct Propfinder<'a> {
     app: &'a mut MockApp,
     path: &'static str,
     body: Option<&'static str>,
-    depth: &'static str,
+    depth: Option<&'static str>,
 }
 
 impl<'a> Propfinder<'a> {
@@ -118,7 +118,7 @@ impl<'a> Propfinder<'a> {
             app,
             path,
             body: None,
-            depth: "1",
+            depth: Some("1"),
         }
     }
 
@@ -130,23 +130,27 @@ impl<'a> Propfinder<'a> {
     */
 
     fn depth(mut self, depth: &'static str) -> Self {
-        self.depth = depth;
+        self.depth = Some(depth);
+        self
+    }
+
+    fn no_depth(mut self) -> Self {
+        self.depth = None;
         self
     }
 
     async fn send(self) -> PropfindResponse {
-        let resp = self
-            .app
-            .request(
-                Request::builder()
-                    .method("PROPFIND")
-                    .uri(self.path)
-                    .header("X-Forwarded-For", "127.0.0.1")
-                    .header("Depth", self.depth)
-                    .body(self.body.map_or_else(Body::empty, Body::from))
-                    .unwrap(),
-            )
-            .await;
+        let mut req = Request::builder()
+            .method("PROPFIND")
+            .uri(self.path)
+            .header("X-Forwarded-For", "127.0.0.1");
+        if let Some(depth) = self.depth {
+            req = req.header("Depth", depth);
+        }
+        let req = req
+            .body(self.body.map_or_else(Body::empty, Body::from))
+            .unwrap();
+        let resp = self.app.request(req).await;
         PropfindResponse(resp)
     }
 }
@@ -155,26 +159,33 @@ impl<'a> Propfinder<'a> {
 struct PropfindResponse(Response<Bytes>);
 
 impl PropfindResponse {
-    fn success(self) -> Self {
-        assert_eq!(self.0.status(), StatusCode::MULTI_STATUS);
-        assert_eq!(
-            self.0
-                .headers()
-                .get(CONTENT_TYPE)
-                .and_then(|v| v.to_str().ok()),
-            Some(DAV_XML_CONTENT_TYPE)
-        );
-        self
-    }
-
     fn assert_status(self, status: StatusCode) -> Self {
         assert_eq!(self.0.status(), status);
         self
     }
 
+    fn assert_header(self, header: axum::http::header::HeaderName, value: &str) -> Self {
+        assert_eq!(
+            self.0.headers().get(header).and_then(|v| v.to_str().ok()),
+            Some(value)
+        );
+        self
+    }
+
+    fn success(self) -> Self {
+        self.assert_status(StatusCode::MULTI_STATUS)
+            .assert_header(CONTENT_TYPE, DAV_XML_CONTENT_TYPE)
+    }
+
     fn into_resources(self) -> Vec<Resource> {
         let body = std::str::from_utf8(self.0.body()).unwrap();
         testutils::parse_propfind_response(body).unwrap()
+    }
+
+    fn assert_body(self, expected: &str) -> Self {
+        let body = std::str::from_utf8(self.0.body()).unwrap();
+        assert_eq!(body, expected);
+        self
     }
 }
 
@@ -1395,4 +1406,48 @@ async fn propfind_404() {
             .await
             .assert_status(StatusCode::NOT_FOUND);
     }
+}
+
+#[tokio::test]
+async fn propfind_infinite_depth() {
+    let mut app = MockApp::new().await;
+    app.propfind("/")
+        .depth("infinity")
+        .send()
+        .await
+        .assert_status(StatusCode::FORBIDDEN)
+        .assert_header(CONTENT_TYPE, DAV_XML_CONTENT_TYPE)
+        .assert_body(indoc! {r#"
+            <?xml version="1.0" encoding="utf-8"?>
+            <error xmlns="DAV:">
+                <propfind-finite-depth />
+            </error>
+            "#});
+}
+
+#[tokio::test]
+async fn propfind_no_depth() {
+    let mut app = MockApp::new().await;
+    app.propfind("/")
+        .no_depth()
+        .send()
+        .await
+        .assert_status(StatusCode::FORBIDDEN)
+        .assert_header(CONTENT_TYPE, DAV_XML_CONTENT_TYPE)
+        .assert_body(indoc! {r#"
+            <?xml version="1.0" encoding="utf-8"?>
+            <error xmlns="DAV:">
+                <propfind-finite-depth />
+            </error>
+            "#});
+}
+
+#[tokio::test]
+async fn propfind_invalid_depth() {
+    let mut app = MockApp::new().await;
+    app.propfind("/")
+        .depth("2")
+        .send()
+        .await
+        .assert_status(StatusCode::BAD_REQUEST);
 }

@@ -50,17 +50,11 @@ impl MockApp {
         }
     }
 
-    async fn get(&mut self, path: &str) -> Response<Bytes> {
+    async fn request(&mut self, req: Request) -> Response<Bytes> {
         let response = <Router as ServiceExt<Request<Body>>>::ready(&mut self.app)
             .await
             .unwrap()
-            .call(
-                Request::builder()
-                    .uri(path)
-                    .header("X-Forwarded-For", "127.0.0.1")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .call(req)
             .await
             .unwrap();
         let (parts, body) = response.into_parts();
@@ -68,23 +62,27 @@ impl MockApp {
         Response::from_parts(parts, body)
     }
 
+    async fn get(&mut self, path: &str) -> Response<Bytes> {
+        self.request(
+            Request::builder()
+                .uri(path)
+                .header("X-Forwarded-For", "127.0.0.1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+    }
+
     async fn head(&mut self, path: &str) -> Response<Bytes> {
-        let response = <Router as ServiceExt<Request<Body>>>::ready(&mut self.app)
-            .await
-            .unwrap()
-            .call(
-                Request::builder()
-                    .method(Method::HEAD)
-                    .uri(path)
-                    .header("X-Forwarded-For", "127.0.0.1")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        let (parts, body) = response.into_parts();
-        let body = body.collect().await.unwrap().to_bytes();
-        Response::from_parts(parts, body)
+        self.request(
+            Request::builder()
+                .method(Method::HEAD)
+                .uri(path)
+                .header("X-Forwarded-For", "127.0.0.1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
     }
 
     async fn get_collection_html(&mut self, path: &str) -> CollectionPage {
@@ -101,42 +99,76 @@ impl MockApp {
         testutils::parse_collection_page(body).unwrap()
     }
 
-    async fn propfind(&mut self, path: &str, body: &'static str, depth: &str) -> Response<Bytes> {
-        let response = <Router as ServiceExt<Request<Body>>>::ready(&mut self.app)
-            .await
-            .unwrap()
-            .call(
-                Request::builder()
-                    .method("PROPFIND")
-                    .uri(path)
-                    .header("X-Forwarded-For", "127.0.0.1")
-                    .header("Depth", depth)
-                    .body(Body::from(body))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        let (parts, body) = response.into_parts();
-        let body = body.collect().await.unwrap().to_bytes();
-        Response::from_parts(parts, body)
+    fn propfind(&mut self, path: &'static str) -> Propfinder<'_> {
+        Propfinder::new(self, path)
+    }
+}
+
+#[derive(Debug)]
+struct Propfinder<'a> {
+    app: &'a mut MockApp,
+    path: &'static str,
+    body: Option<&'static str>,
+    depth: &'static str,
+}
+
+impl<'a> Propfinder<'a> {
+    fn new(app: &'a mut MockApp, path: &'static str) -> Self {
+        Propfinder {
+            app,
+            path,
+            body: None,
+            depth: "1",
+        }
     }
 
-    async fn propfind_resource(
-        &mut self,
-        path: &str,
-        body: &'static str,
-        depth: &str,
-    ) -> Vec<Resource> {
-        let response = self.propfind(path, body, depth).await;
-        assert_eq!(response.status(), StatusCode::MULTI_STATUS);
+    /*
+    fn body(mut self, body: &'static str) -> Self {
+        self.body = Some(body);
+        self
+    }
+    */
+
+    fn depth(mut self, depth: &'static str) -> Self {
+        self.depth = depth;
+        self
+    }
+
+    async fn send(self) -> PropfindResponse {
+        let resp = self
+            .app
+            .request(
+                Request::builder()
+                    .method("PROPFIND")
+                    .uri(self.path)
+                    .header("X-Forwarded-For", "127.0.0.1")
+                    .header("Depth", self.depth)
+                    .body(self.body.map_or_else(Body::empty, Body::from))
+                    .unwrap(),
+            )
+            .await;
+        PropfindResponse(resp)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct PropfindResponse(Response<Bytes>);
+
+impl PropfindResponse {
+    fn success(self) -> Self {
+        assert_eq!(self.0.status(), StatusCode::MULTI_STATUS);
         assert_eq!(
-            response
+            self.0
                 .headers()
                 .get(CONTENT_TYPE)
                 .and_then(|v| v.to_str().ok()),
             Some(DAV_XML_CONTENT_TYPE)
         );
-        let body = std::str::from_utf8(response.body()).unwrap();
+        self
+    }
+
+    fn into_resources(self) -> Vec<Resource> {
+        let body = std::str::from_utf8(self.0.body()).unwrap();
         testutils::parse_propfind_response(body).unwrap()
     }
 }
@@ -228,7 +260,13 @@ async fn head_root() {
 #[tokio::test]
 async fn propfind_root_depth_0() {
     let mut app = MockApp::new().await;
-    let resources = app.propfind_resource("/", "", "0").await;
+    let resources = app
+        .propfind("/")
+        .depth("0")
+        .send()
+        .await
+        .success()
+        .into_resources();
     pretty_assertions::assert_eq!(
         resources,
         vec![Resource {
@@ -248,7 +286,13 @@ async fn propfind_root_depth_0() {
 #[tokio::test]
 async fn propfind_root_depth_1() {
     let mut app = MockApp::new().await;
-    let resources = app.propfind_resource("/", "", "1").await;
+    let resources = app
+        .propfind("/")
+        .depth("1")
+        .send()
+        .await
+        .success()
+        .into_resources();
     pretty_assertions::assert_eq!(
         resources,
         vec![
@@ -958,8 +1002,12 @@ async fn propfind_dandiset_yaml() {
     let mut app = MockApp::new().await;
     for depth in ["0", "1"] {
         let resources = app
-            .propfind_resource("/dandisets/000001/draft/dandiset.yaml", "", depth)
-            .await;
+            .propfind("/dandisets/000001/draft/dandiset.yaml")
+            .depth(depth)
+            .send()
+            .await
+            .success()
+            .into_resources();
         pretty_assertions::assert_eq!(
             resources,
             vec![Resource {
@@ -1165,12 +1213,12 @@ async fn propfind_blob_asset() {
     let mut app = MockApp::new().await;
     for depth in ["0", "1"] {
         let resources = app
-            .propfind_resource(
-                "/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb",
-                "",
-                depth,
-            )
-            .await;
+            .propfind("/dandisets/000001/draft/sub-RAT123/sub-RAT123.nwb")
+            .depth(depth)
+            .send()
+            .await
+            .success()
+            .into_resources();
         pretty_assertions::assert_eq!(
             resources,
             vec![Resource {

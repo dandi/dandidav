@@ -4,7 +4,7 @@ use crate::consts::{DAV_XML_CONTENT_TYPE, YAML_CONTENT_TYPE};
 use axum::body::Bytes;
 use http_body_util::BodyExt; // for `collect`
 use indoc::indoc;
-use testutils::{CollectionEntry, CollectionPage, Link, Resource, Trinary};
+use testutils::{CollectionEntry, CollectionPage, Link, Resource, ResourceProps, Trinary};
 use tower::{Service, ServiceExt}; // for `ready`
 
 fn fill_html_footer(html: &str) -> String {
@@ -122,12 +122,10 @@ impl<'a> Propfinder<'a> {
         }
     }
 
-    /*
     fn body(mut self, body: &'static str) -> Self {
         self.body = Some(body);
         self
     }
-    */
 
     fn depth(mut self, depth: &'static str) -> Self {
         self.depth = Some(depth);
@@ -180,6 +178,11 @@ impl PropfindResponse {
     fn into_resources(self) -> Vec<Resource> {
         let body = std::str::from_utf8(self.0.body()).unwrap();
         testutils::parse_propfind_response(body).unwrap()
+    }
+
+    fn into_propnames(self) -> Vec<ResourceProps> {
+        let body = std::str::from_utf8(self.0.body()).unwrap();
+        testutils::parse_propname_response(body).unwrap()
     }
 
     fn assert_body(self, expected: &str) -> Self {
@@ -1468,7 +1471,7 @@ async fn propfind_version_toplevel() {
                 href: "/dandisets/000001/releases/0.210512.1623/".into(),
                 creation_date: Trinary::Set("2021-05-12T16:23:14.388489Z".into()),
                 display_name: Trinary::Set("0.210512.1623".into()),
-                content_length: Trinary::Set(42489179,),
+                content_length: Trinary::Set(42489179),
                 content_type: Trinary::Void,
                 last_modified: Trinary::Set("Wed, 12 May 2021 16:23:19 GMT".into()),
                 etag: Trinary::Void,
@@ -1556,6 +1559,67 @@ async fn propfind_asset_folder() {
                 etag: Trinary::Void,
                 language: Trinary::Void,
                 is_collection: Some(true),
+            },
+        ]
+    );
+}
+
+#[tokio::test]
+async fn propfind_propname() {
+    let mut app = MockApp::new().await;
+    let props = app
+        .propfind("/dandisets/000001/releases/0.210512.1623/")
+        .body(r#"<?xml version="1.0" encoding="utf-8"?><propfind xmlns="DAV:"><propname /></propfind>"#)
+        .send()
+        .await
+        .success()
+        .into_propnames();
+    pretty_assertions::assert_eq!(
+        props,
+        vec![
+            ResourceProps {
+                href: "/dandisets/000001/releases/0.210512.1623/".into(),
+                creation_date: true,
+                display_name: true,
+                content_length: true,
+                content_type: false,
+                last_modified: true,
+                etag: false,
+                language: false,
+                resource_type: true,
+            },
+            ResourceProps {
+                href: "/dandisets/000001/releases/0.210512.1623/participants.tsv".into(),
+                creation_date: true,
+                display_name: true,
+                content_length: true,
+                content_type: true,
+                last_modified: true,
+                etag: true,
+                language: false,
+                resource_type: true,
+            },
+            ResourceProps {
+                href: "/dandisets/000001/releases/0.210512.1623/sub-RAT123/".into(),
+                creation_date: false,
+                display_name: true,
+                content_length: false,
+                content_type: false,
+                last_modified: false,
+                etag: false,
+                language: false,
+                resource_type: true,
+            },
+            ResourceProps {
+                href: "/dandisets/000001/releases/0.210512.1623/dandiset.yaml".into(),
+                creation_date: false,
+                display_name: true,
+                content_length: true,
+                content_type: true,
+                last_modified: false,
+                etag: false,
+                language: false,
+                resource_type: true,
             },
         ]
     );

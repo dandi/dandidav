@@ -30,8 +30,8 @@ tree and the Zarr manifests are expected to meet the following requirements:
     - `{prefix1}` is the first three characters of `{zarr_id}`
     - `{prefix2}` is the next three characters of `{zarr_id}`
     - `{zarr_id}` is the Zarr ID of the Zarr on the Archive instance
-    - `{checksum}` is the [Zarr checksum][] of the Zarr's contents at point in
-      time that the manifest represents
+    - `{checksum}` is the [Zarr checksum][] of the Zarr's contents at the point
+      in time that the manifest represents
 
 - The manifest tree should not contain any files that are not Zarr manifests
   nor any directories that are not a parent directory of a Zarr manifest.

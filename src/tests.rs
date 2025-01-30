@@ -187,7 +187,7 @@ impl PropfindResponse {
 
     fn assert_body(self, expected: &str) -> Self {
         let body = std::str::from_utf8(self.0.body()).unwrap();
-        assert_eq!(body, expected);
+        pretty_assertions::assert_eq!(body, expected);
         self
     }
 }
@@ -1694,4 +1694,120 @@ async fn propfind_prop() {
             },
         ]
     );
+}
+
+#[tokio::test]
+async fn propfind_include_unknown_properties() {
+    let mut app = MockApp::new().await;
+    app.propfind("/dandisets/000001/draft/dandiset.yaml")
+        .body(indoc! {r#"
+            <?xml version="1.0" encoding="utf-8"?>
+            <propfind xmlns="DAV:">
+                <allprop />
+                <include>
+                    <flavor xmlns="https://www.example.com/" />
+                    <unknown-dav />
+                </include>
+            </propfind>
+        "#})
+        .send()
+        .await
+        .success()
+        .assert_body(indoc! {r#"
+            <?xml version="1.0" encoding="UTF-8"?>
+            <multistatus xmlns="DAV:">
+                <response>
+                    <href>/dandisets/000001/draft/dandiset.yaml</href>
+                    <propstat>
+                        <prop>
+                            <displayname>dandiset.yaml</displayname>
+                            <getcontentlength>410</getcontentlength>
+                            <getcontenttype>text/yaml; charset=utf-8</getcontenttype>
+                            <resourcetype />
+                        </prop>
+                        <status>HTTP/1.1 200 OK</status>
+                    </propstat>
+                    <propstat>
+                        <prop>
+                            <flavor xmlns="https://www.example.com/" />
+                            <unknown-dav />
+                        </prop>
+                        <status>HTTP/1.1 404 NOT FOUND</status>
+                    </propstat>
+                </response>
+            </multistatus>
+        "#});
+}
+
+#[tokio::test]
+async fn propfind_prop_unknown_properties() {
+    let mut app = MockApp::new().await;
+    app.propfind("/dandisets/000001/draft/dandiset.yaml")
+        .body(indoc! {r#"
+            <?xml version="1.0" encoding="utf-8"?>
+            <propfind xmlns="DAV:">
+                <prop>
+                    <flavor xmlns="https://www.example.com/" />
+                    <unknown-dav />
+                </prop>
+            </propfind>
+        "#})
+        .send()
+        .await
+        .success()
+        .assert_body(indoc! {r#"
+            <?xml version="1.0" encoding="UTF-8"?>
+            <multistatus xmlns="DAV:">
+                <response>
+                    <href>/dandisets/000001/draft/dandiset.yaml</href>
+                    <propstat>
+                        <prop>
+                            <flavor xmlns="https://www.example.com/" />
+                            <unknown-dav />
+                        </prop>
+                        <status>HTTP/1.1 404 NOT FOUND</status>
+                    </propstat>
+                </response>
+            </multistatus>
+        "#});
+}
+
+#[tokio::test]
+async fn propfind_prop_with_unknown_properties() {
+    let mut app = MockApp::new().await;
+    app.propfind("/dandisets/000001/draft/dandiset.yaml")
+        .body(indoc! {r#"
+            <?xml version="1.0" encoding="utf-8"?>
+            <propfind xmlns="DAV:">
+                <prop>
+                    <resourcetype />
+                    <flavor xmlns="https://www.example.com/" />
+                    <unknown-dav />
+                </prop>
+            </propfind>
+        "#})
+        .send()
+        .await
+        .success()
+        .assert_body(indoc! {r#"
+            <?xml version="1.0" encoding="UTF-8"?>
+            <multistatus xmlns="DAV:">
+                <response>
+                    <href>/dandisets/000001/draft/dandiset.yaml</href>
+                    <propstat>
+                        <prop>
+                            <resourcetype />
+                        </prop>
+                        <status>HTTP/1.1 200 OK</status>
+                    </propstat>
+                    <propstat>
+                        <prop>
+                            <flavor xmlns="https://www.example.com/" />
+                            <unknown-dav />
+                        </prop>
+                        <status>HTTP/1.1 404 NOT FOUND</status>
+                    </propstat>
+                </response>
+            </multistatus>
+        "#});
 }

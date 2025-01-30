@@ -167,6 +167,11 @@ impl PropfindResponse {
         self
     }
 
+    fn assert_status(self, status: StatusCode) -> Self {
+        assert_eq!(self.0.status(), status);
+        self
+    }
+
     fn into_resources(self) -> Vec<Resource> {
         let body = std::str::from_utf8(self.0.body()).unwrap();
         testutils::parse_propfind_response(body).unwrap()
@@ -1371,4 +1376,23 @@ async fn get_latest_version() {
             ],
         }
     );
+}
+
+#[tokio::test]
+async fn get_404() {
+    let mut app = MockApp::new().await;
+    let response = app.get("/dandisets/999999/").await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn propfind_404() {
+    let mut app = MockApp::new().await;
+    for depth in ["0", "1"] {
+        app.propfind("/dandisets/999999/")
+            .depth(depth)
+            .send()
+            .await
+            .assert_status(StatusCode::NOT_FOUND);
+    }
 }

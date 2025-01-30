@@ -1624,3 +1624,74 @@ async fn propfind_propname() {
         ]
     );
 }
+
+#[tokio::test]
+async fn propfind_prop() {
+    let mut app = MockApp::new().await;
+    let resources = app
+        .propfind("/dandisets/000001/releases/0.210512.1623/")
+        .body(indoc! {r#"
+            <?xml version="1.0" encoding="utf-8"?>
+            <propfind xmlns="DAV:">
+                <prop>
+                    <displayname />
+                    <getcontentlength />
+                    <creationdate />
+                    <resourcetype />
+                </prop>
+            </propfind>
+        "#})
+        .send()
+        .await
+        .success()
+        .into_resources();
+    pretty_assertions::assert_eq!(
+        resources,
+        vec![
+            Resource {
+                href: "/dandisets/000001/releases/0.210512.1623/".into(),
+                creation_date: Trinary::Set("2021-05-12T16:23:14.388489Z".into()),
+                display_name: Trinary::Set("0.210512.1623".into()),
+                content_length: Trinary::Set(42489179),
+                content_type: Trinary::Void,
+                last_modified: Trinary::Void,
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(true),
+            },
+            Resource {
+                href: "/dandisets/000001/releases/0.210512.1623/participants.tsv".into(),
+                creation_date: Trinary::Set("2022-08-26T03:21:32.305654Z".into()),
+                display_name: Trinary::Set("participants.tsv".into()),
+                content_length: Trinary::Set(5968),
+                content_type: Trinary::Void,
+                last_modified: Trinary::Void,
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(false),
+            },
+            Resource {
+                href: "/dandisets/000001/releases/0.210512.1623/sub-RAT123/".into(),
+                creation_date: Trinary::NotFound,
+                display_name: Trinary::Set("sub-RAT123".into()),
+                content_length: Trinary::NotFound,
+                content_type: Trinary::Void,
+                last_modified: Trinary::Void,
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(true),
+            },
+            Resource {
+                href: "/dandisets/000001/releases/0.210512.1623/dandiset.yaml".into(),
+                creation_date: Trinary::NotFound,
+                display_name: Trinary::Set("dandiset.yaml".into()),
+                content_length: Trinary::Set(429),
+                content_type: Trinary::Void,
+                last_modified: Trinary::Void,
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(false),
+            },
+        ]
+    );
+}

@@ -1,106 +1,7 @@
-- asset_id: "07fe0648-3590-4478-b516-a9cb72ba6a36"
-  blob: "1e931716-9d7e-4c86-9d22-4f9f3a18cb82"
-  zarr: null
-  path: "fT.json"
-  size: 10882
-  created: "2022-08-31T17:56:31.788054+00:00"
-  modified: "2024-12-25T06:56:57.603784+00:00"
-  metadata:
-    "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.3/context.json"
-    schemaVersion: "0.6.3"
-    schemaKey: "Asset"
-    id: "dandiasset:07fe0648-3590-4478-b516-a9cb72ba6a36"
-    identifier: "07fe0648-3590-4478-b516-a9cb72ba6a36"
-    path: "fT.json"
-    encodingFormat: "application/json"
-    dateModified: "2024-05-13T01:35:33.232988+00:00"
-    blobDateModified: "2024-12-21T23:07:07.844796+00:00"
-    contentUrl:
-      - "https://api.dandiarchive.org/api/assets/07fe0648-3590-4478-b516-a9cb72ba6a36/download/"
-      - "https://dandiarchive.s3.amazonaws.com/blobs/1e9/317/1e931716-9d7e-4c86-9d22-4f9f3a18cb82"
-    contentSize: 10882
-    digest:
-      dandi:dandi-etag: "9b4e051977ac679b72719c8dc025df4d-1"
-      dandi:sha2-256: "f0751a6c730203df5bd1f0e12df64ba7b0c1455287c897060aede19447235df4"
-
-- asset_id: "3da246c1-e51c-453c-b8a6-0407ea556642"
-  blob: "f9b19e1a-80e9-4563-84ee-1369532f6c48"
-  zarr: null
-  path: "FCLX3M8q5.json"
-  size: 5844
-  created: "2020-04-03T19:33:34.841107+00:00"
-  modified: "2024-05-15T03:29:42.794075+00:00"
-  metadata:
-    "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.3/context.json"
-    schemaVersion: "0.6.3"
-    schemaKey: "Asset"
-    id: "dandiasset:3da246c1-e51c-453c-b8a6-0407ea556642"
-    identifier: "3da246c1-e51c-453c-b8a6-0407ea556642"
-    path: "FCLX3M8q5.json"
-    encodingFormat: "application/json"
-    dateModified: "2023-01-10T05:51:45.737965+00:00"
-    blobDateModified: "2023-12-21T15:32:46.792136+00:00"
-    contentUrl:
-      - "https://api.dandiarchive.org/api/assets/3da246c1-e51c-453c-b8a6-0407ea556642/download/"
-      - "https://dandiarchive.s3.amazonaws.com/blobs/f9b/19e/f9b19e1a-80e9-4563-84ee-1369532f6c48"
-    contentSize: 5844
-    digest:
-      dandi:dandi-etag: "5b690f98abbdb5c9155648a58bce8e6c-1"
-      dandi:sha2-256: "a919fd57174c20c75439c68ef57a755fb4797550488407d3e10a3bd0a345d6b2"
-
-- asset_id: "ed09859a-b85b-4d9c-92be-bee049fd49f8"
-  blob: "e9016ac3-a210-4646-b1d1-ceb5906b8eeb"
-  zarr: null
-  path: "LBCcTPeA.nwb"
-  size: 2086
-  created: "2021-02-03T21:54:27.951779+00:00"
-  modified: "2024-11-12T05:15:52.110876+00:00"
-  metadata:
-    "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.3/context.json"
-    schemaVersion: "0.6.3"
-    schemaKey: "Asset"
-    id: "dandiasset:ed09859a-b85b-4d9c-92be-bee049fd49f8"
-    identifier: "ed09859a-b85b-4d9c-92be-bee049fd49f8"
-    path: "LBCcTPeA.nwb"
-    encodingFormat: "application/x-nwb"
-    dateModified: "2022-09-10T19:16:27.694085+00:00"
-    blobDateModified: "2023-12-22T17:16:28.262283+00:00"
-    contentUrl:
-      - "https://api.dandiarchive.org/api/assets/ed09859a-b85b-4d9c-92be-bee049fd49f8/download/"
-      - "https://dandiarchive.s3.amazonaws.com/blobs/e90/16a/e9016ac3-a210-4646-b1d1-ceb5906b8eeb"
-    contentSize: 2086
-    digest:
-      dandi:dandi-etag: "8d7d9a4b3b114cddb2a0c1af1714ae97-1"
-      dandi:sha2-256: "b4df6782549260d168e4f13b773dfcbfdb91c91ac78e788e885e2d2b6dc1f630"
-
-- asset_id: "3262d292-cf9d-4aa0-bdce-e3cfc9420768"
-  blob: null
-  zarr: "9eea4d89-c304-4a94-9117-66334b704cbd"
-  path: "19xqu.zarr"
-  size: 42464419
-  created: "2022-12-03T20:19:13.983328+00:00"
-  modified: "2024-12-03T10:09:28.139614+00:00"
-  metadata:
-    "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.3/context.json"
-    schemaVersion: "0.6.3"
-    schemaKey: "Asset"
-    id: "dandiasset:3262d292-cf9d-4aa0-bdce-e3cfc9420768"
-    identifier: "3262d292-cf9d-4aa0-bdce-e3cfc9420768"
-    path: "19xqu.zarr"
-    encodingFormat: "application/x-zarr"
-    dateModified: "2024-08-28T14:12:31.000174+00:00"
-    blobDateModified: "2024-11-28T16:44:05.012634+00:00"
-    contentUrl:
-      - "https://api.dandiarchive.org/api/assets/3262d292-cf9d-4aa0-bdce-e3cfc9420768/download/"
-      - "https://dandiarchive.s3.amazonaws.com/zarr/9eea4d89-c304-4a94-9117-66334b704cbd/"
-    contentSize: 42464419
-    digest:
-      dandi:dandi-zarr-checksum: "312272472968a8a5aa0423daeb63fa9e-2587--42464419"
-
 - asset_id: "d0bc22db-65af-4dfe-90b8-2840b96f74ae"
   blob: "9db44c9d-b8be-404e-ab3b-413fd98fd797"
   zarr: null
-  path: "Df.json"
+  path: "participants.tsv"
   size: 5968
   created: "2022-08-26T03:21:32.305654+00:00"
   modified: "2024-10-04T05:53:14.697984+00:00"
@@ -110,8 +11,8 @@
     schemaKey: "Asset"
     id: "dandiasset:d0bc22db-65af-4dfe-90b8-2840b96f74ae"
     identifier: "d0bc22db-65af-4dfe-90b8-2840b96f74ae"
-    path: "Df.json"
-    encodingFormat: "application/json"
+    path: "participants.tsv"
+    encodingFormat: "text/tab-separated-values"
     dateModified: "2024-03-10T13:46:11.461772+00:00"
     blobDateModified: "2024-07-18T16:12:55.367373+00:00"
     contentUrl:
@@ -122,27 +23,51 @@
       dandi:dandi-etag: "d80b74152eed942fca5845273a4f1256-1"
       dandi:sha2-256: "3153f9edfa04e600424480060f6e8f04b9b098050c27573bbe28a3ebea45cf8d"
 
-- asset_id: "49a2be41-dfc2-4518-bc99-d679f25f6f2e"
-  blob: "b1af222a-14a6-4d2a-8779-d6b36dd808cc"
+- asset_id: "838bab7b-9ab4-4d66-97b3-898a367c9c7e"
+  blob: "2dbaf0fd-5003-4a0a-b4c0-bc8cdbdb3826"
   zarr: null
-  path: "dPvw8J.nwb"
-  size: 19254
-  created: "2024-06-23T22:57:49.843737+00:00"
-  modified: "2024-11-25T17:37:47.766855+00:00"
+  path: "sub-RAT123/sub-RAT123.nwb"
+  size: 18792
+  created: "2023-03-02T22:10:45.985334Z"
+  modified: "2023-03-02T22:10:46.064360Z"
   metadata:
     "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.3/context.json"
     schemaVersion: "0.6.3"
     schemaKey: "Asset"
-    id: "dandiasset:49a2be41-dfc2-4518-bc99-d679f25f6f2e"
-    identifier: "49a2be41-dfc2-4518-bc99-d679f25f6f2e"
-    path: "dPvw8J.nwb"
+    id: "dandiasset:838bab7b-9ab4-4d66-97b3-898a367c9c7e"
+    identifier: "838bab7b-9ab4-4d66-97b3-898a367c9c7e"
+    path: "sub-RAT123/sub-RAT123.nwb"
     encodingFormat: "application/x-nwb"
-    dateModified: "2024-06-24T04:28:21.774416+00:00"
-    blobDateModified: "2024-08-11T13:51:44.649217+00:00"
+    dateModified: "2023-03-02T17:10:45.742644-05:00"
+    blobDateModified: "2020-10-21T10:10:35.457789-04:00"
     contentUrl:
-      - "https://api.dandiarchive.org/api/assets/49a2be41-dfc2-4518-bc99-d679f25f6f2e/download/"
-      - "https://dandiarchive.s3.amazonaws.com/blobs/b1a/f22/b1af222a-14a6-4d2a-8779-d6b36dd808cc"
-    contentSize: 19254
+      - "https://api.dandiarchive.org/api/assets/838bab7b-9ab4-4d66-97b3-898a367c9c7e/download/"
+      - "https://dandiarchive.s3.amazonaws.com/blobs/2db/af0/2dbaf0fd-5003-4a0a-b4c0-bc8cdbdb3826"
+    contentSize: 18792
     digest:
-      dandi:dandi-etag: "32ed7fe55660ddd4cd561b2b90b12157-1"
-      dandi:sha2-256: "07d3ba6768bf8a54967047873ecaded1c80592d5a04f47066dd5373d140fb20a"
+      dandi:dandi-etag: "6ec084ca9d3be17ec194a8f700d65344-1"
+      dandi:sha2-256: "1a765509384ea96b7b12136353d9c5b94f23d764ad0431e049197f7875eb352c"
+
+- asset_id: "3262d292-cf9d-4aa0-bdce-e3cfc9420768"
+  blob: null
+  zarr: "9eea4d89-c304-4a94-9117-66334b704cbd"
+  path: "sub-RAT123/sub-RAT456.zarr"
+  size: 42464419
+  created: "2022-12-03T20:19:13.983328+00:00"
+  modified: "2024-12-03T10:09:28.139614+00:00"
+  metadata:
+    "@context": "https://raw.githubusercontent.com/dandi/schema/master/releases/0.6.3/context.json"
+    schemaVersion: "0.6.3"
+    schemaKey: "Asset"
+    id: "dandiasset:3262d292-cf9d-4aa0-bdce-e3cfc9420768"
+    identifier: "3262d292-cf9d-4aa0-bdce-e3cfc9420768"
+    path: "sub-RAT123/sub-RAT456.zarr"
+    encodingFormat: "application/x-zarr"
+    dateModified: "2024-08-28T14:12:31.000174+00:00"
+    blobDateModified: "2024-11-28T16:44:05.012634+00:00"
+    contentUrl:
+      - "https://api.dandiarchive.org/api/assets/3262d292-cf9d-4aa0-bdce-e3cfc9420768/download/"
+      - "https://dandiarchive.s3.amazonaws.com/zarr/9eea4d89-c304-4a94-9117-66334b704cbd/"
+    contentSize: 42464419
+    digest:
+      dandi:dandi-zarr-checksum: "312272472968a8a5aa0423daeb63fa9e-2587--42464419"

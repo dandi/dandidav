@@ -592,7 +592,7 @@ async fn get_dandiset_releases() {
                         app.archive_url
                     )),
                     typekind: "Dandiset version".into(),
-                    size: "40.54 MiB".into(),
+                    size: "40.52 MiB".into(),
                     created: "2021-05-12 16:23:14Z".into(),
                     modified: "2021-05-12 16:23:19Z".into(),
                 },
@@ -1450,4 +1450,113 @@ async fn propfind_invalid_depth() {
         .send()
         .await
         .assert_status(StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn propfind_version_toplevel() {
+    let mut app = MockApp::new().await;
+    let resources = app
+        .propfind("/dandisets/000001/releases/0.210512.1623/")
+        .send()
+        .await
+        .success()
+        .into_resources();
+    pretty_assertions::assert_eq!(
+        resources,
+        vec![
+            Resource {
+                href: "/dandisets/000001/releases/0.210512.1623/".into(),
+                creation_date: Trinary::Set("2021-05-12T16:23:14.388489Z".into()),
+                display_name: Trinary::Set("0.210512.1623".into()),
+                content_length: Trinary::Set(42489179,),
+                content_type: Trinary::Void,
+                last_modified: Trinary::Set("Wed, 12 May 2021 16:23:19 GMT".into()),
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(true),
+            },
+            Resource {
+                href: "/dandisets/000001/releases/0.210512.1623/participants.tsv".into(),
+                creation_date: Trinary::Set("2022-08-26T03:21:32.305654Z".into()),
+                display_name: Trinary::Set("participants.tsv".into()),
+                content_length: Trinary::Set(5968),
+                content_type: Trinary::Set("text/tab-separated-values".into()),
+                last_modified: Trinary::Set("Fri, 04 Oct 2024 05:53:14 GMT".into()),
+                etag: Trinary::Set("d80b74152eed942fca5845273a4f1256-1".into()),
+                language: Trinary::Void,
+                is_collection: Some(false),
+            },
+            Resource {
+                href: "/dandisets/000001/releases/0.210512.1623/sub-RAT123/".into(),
+                creation_date: Trinary::Void,
+                display_name: Trinary::Set("sub-RAT123".into()),
+                content_length: Trinary::Void,
+                content_type: Trinary::Void,
+                last_modified: Trinary::Void,
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(true),
+            },
+            Resource {
+                href: "/dandisets/000001/releases/0.210512.1623/dandiset.yaml".into(),
+                creation_date: Trinary::Void,
+                display_name: Trinary::Set("dandiset.yaml".into()),
+                content_length: Trinary::Set(429),
+                content_type: Trinary::Set(YAML_CONTENT_TYPE.into()),
+                last_modified: Trinary::Void,
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(false),
+            },
+        ]
+    );
+}
+
+#[tokio::test]
+async fn propfind_asset_folder() {
+    let mut app = MockApp::new().await;
+    let resources = app
+        .propfind("/dandisets/000001/releases/0.210512.1623/sub-RAT123/")
+        .send()
+        .await
+        .success()
+        .into_resources();
+    pretty_assertions::assert_eq!(
+        resources,
+        vec![
+            Resource {
+                href: "/dandisets/000001/releases/0.210512.1623/sub-RAT123/".into(),
+                creation_date: Trinary::Void,
+                display_name: Trinary::Set("sub-RAT123".into()),
+                content_length: Trinary::Void,
+                content_type: Trinary::Void,
+                last_modified: Trinary::Void,
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(true),
+            },
+            Resource {
+                href: "/dandisets/000001/releases/0.210512.1623/sub-RAT123/sub-RAT123.nwb".into(),
+                creation_date: Trinary::Set("2023-03-02T22:10:45.985334Z".into()),
+                display_name: Trinary::Set("sub-RAT123.nwb".into()),
+                content_length: Trinary::Set(18792),
+                content_type: Trinary::Set("application/x-nwb".into()),
+                last_modified: Trinary::Set("Thu, 02 Mar 2023 22:10:46 GMT".into()),
+                etag: Trinary::Set("6ec084ca9d3be17ec194a8f700d65344-1".into()),
+                language: Trinary::Void,
+                is_collection: Some(false),
+            },
+            Resource {
+                href: "/dandisets/000001/releases/0.210512.1623/sub-RAT123/sub-RAT456.zarr/".into(),
+                creation_date: Trinary::Set("2022-12-03T20:19:13.983328Z".into()),
+                display_name: Trinary::Set("sub-RAT456.zarr".into()),
+                content_length: Trinary::Set(42464419),
+                content_type: Trinary::Void,
+                last_modified: Trinary::Set("Tue, 03 Dec 2024 10:09:28 GMT".into()),
+                etag: Trinary::Void,
+                language: Trinary::Void,
+                is_collection: Some(true),
+            },
+        ]
+    );
 }

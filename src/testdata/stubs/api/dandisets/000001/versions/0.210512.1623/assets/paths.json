@@ -1,0 +1,52 @@
+[
+  {
+    "params": {},
+    "response": {
+      "count": 2,
+      "next": null,
+      "results": [
+        {
+          "path": "participants.tsv",
+          "aggregate_files": 1,
+          "aggregate_size": 5968,
+          "asset": {
+            "asset_id": "d0bc22db-65af-4dfe-90b8-2840b96f74ae"
+          }
+        },
+        {
+          "path": "sub-RAT123",
+          "aggregate_files": 2,
+          "aggregate_size": 42483211,
+          "asset": null
+        }
+      ]
+    }
+  },
+  {
+    "params": {
+      "path_prefix": "sub-RAT123/"
+    },
+    "response": {
+      "count": 2,
+      "next": null,
+      "results": [
+        {
+          "path": "sub-RAT123/sub-RAT123.nwb",
+          "aggregate_files": 1,
+          "aggregate_size": 18792,
+          "asset": {
+            "asset_id": "838bab7b-9ab4-4d66-97b3-898a367c9c7e"
+          }
+        },
+        {
+          "path": "sub-RAT123/sub-RAT456.zarr",
+          "aggregate_files": 1,
+          "aggregate_size": 42464419,
+          "asset": {
+            "asset_id": "3262d292-cf9d-4aa0-bdce-e3cfc9420768"
+          }
+        }
+      ]
+    }
+  }
+]

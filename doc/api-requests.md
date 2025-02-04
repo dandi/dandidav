@@ -112,7 +112,7 @@ version.
 Then, for each initial subpath of `path` that ends with either (a) a component
 ending in ".zarr" or ".ngff" (case insensitive) or (b) the end of the path, an
 API request is made to
-`/dandisets/{dandiset_id}/versions/{version_id}/assets/?path={subpath}&metadata=1&order=path`,
+`/dandisets/{dandiset_id}/versions/{version_id}/assets/?path={subpath}&metadata=true&order=path`,
 which is paginated through until one of the following occurs:
 
 - An asset whose path equals `subpath` is found.  In this case:

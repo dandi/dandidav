@@ -195,7 +195,7 @@ fn main() -> anyhow::Result<()> {
                         &assets,
                         &format!("/api/dandisets/{}/versions/{}/assets/", d.id, v.id),
                         BTreeMap::from([
-                            ("metadata".to_owned(), "1".to_owned()),
+                            ("metadata".to_owned(), "true".to_owned()),
                             ("order".to_owned(), "path".to_owned()),
                             ("path".to_owned(), p),
                         ]),
@@ -212,7 +212,7 @@ fn main() -> anyhow::Result<()> {
                     &assets,
                     &format!("/api/dandisets/{}/versions/{}/assets/", d.id, v.id),
                     BTreeMap::from([
-                        ("metadata".to_owned(), "1".to_owned()),
+                        ("metadata".to_owned(), "true".to_owned()),
                         ("order".to_owned(), "path".to_owned()),
                         ("path".to_owned(), apath.clone()),
                     ]),

@@ -1,7 +1,7 @@
 [
   {
     "params": {
-      "metadata": "1",
+      "metadata": "true",
       "order": "path",
       "path": "sub-RAT123/sub-RAT123.nwb"
     },

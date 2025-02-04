@@ -448,7 +448,7 @@ impl<'a> VersionEndpoint<'a> {
             "assets",
         ]);
         url.append_query_param("path", path.as_ref());
-        url.append_query_param("metadata", "1");
+        url.append_query_param("metadata", "true");
         url.append_query_param("order", "path");
         let dirpath = path.to_dir_path();
         let mut stream = self.client.paginate::<RawAsset>(url.clone());

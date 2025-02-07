@@ -6,7 +6,7 @@ const COLUMNS: usize = 5;
 static EXPECTED_COLUMN_NAMES: [&str; COLUMNS] = ["Name", "Type", "Size", "Created", "Modified"];
 
 pub fn parse_collection_page(html: &str) -> Result<CollectionPage, ParseCollectionError> {
-    let soup = Soup::html(html);
+    let soup = Soup::html_strict(html).map_err(|e| ParseCollectionError::Parse(e.to_string()))?;
     let breadcrumbs = soup
         .tag("div")
         .attr("class", "breadcrumbs")
@@ -159,7 +159,7 @@ pub struct Link {
 
 impl Link {
     fn from_node(
-        node: QueryItem<'_, HTMLNode<tendril::Tendril<tendril::fmt::UTF8>>>,
+        node: QueryItem<'_, HTMLNode<std::borrow::Cow<'_, str>>>,
     ) -> Result<Link, ParseLinkError> {
         let href = node.get("href").ok_or(ParseLinkError::NoHref)?.to_string();
         let text = node.all_text();
@@ -169,6 +169,8 @@ impl Link {
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum ParseCollectionError {
+    #[error("failed to parse HTML: {0}")]
+    Parse(String),
     #[error("breadcrumbs div not found in source")]
     NoBreadcrumbs,
     #[error("collection table not found in source")]
@@ -210,7 +212,7 @@ mod tests {
     fn test_parse_collection_page() {
         let html = include_str!("testdata/000027.html");
         let page = parse_collection_page(html).unwrap();
-        assert_eq!(page, CollectionPage {
+        pretty_assertions::assert_eq!(page, CollectionPage {
             breadcrumbs: vec![
                 Link { text: "dandidav".into(), href: "/".into() },
                 Link { text: "dandisets".into(), href: "/dandisets/".into() },

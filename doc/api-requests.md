@@ -19,6 +19,9 @@ resources:
   (hereafter referred to as a "shallow request"), `dandidav` requests only the
   resource identified by the request path, not any of its children.
 
+Note that `dandidav` immediately rejects all `PROPFIND` requests with a `Depth`
+header of `infinity`.
+
 Dandiset Index
 --------------
 

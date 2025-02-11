@@ -41,6 +41,10 @@ pub(crate) struct DandiClient {
     /// and as construction of the inner `aws_sdk_s3::Client` is expensive, we
     /// cache them.
     s3clients: Cache<BucketSpec, Arc<S3Client>>,
+
+    /// The page size to use when making paginated requests to the DANDI
+    /// Archive API.  `None` means to not specify a page size.
+    page_size: Option<usize>,
 }
 
 impl DandiClient {
@@ -50,7 +54,10 @@ impl DandiClient {
     /// # Errors
     ///
     /// Returns an error if construction of the inner `reqwest::Client` fails
-    pub(crate) fn new(api_url: HttpUrl) -> Result<Self, BuildClientError> {
+    pub(crate) fn new(
+        api_url: HttpUrl,
+        page_size: Option<usize>,
+    ) -> Result<Self, BuildClientError> {
         let inner = Client::new()?;
         let s3clients = CacheBuilder::new(S3CLIENT_CACHE_SIZE)
             .name("s3clients")
@@ -59,6 +66,7 @@ impl DandiClient {
             inner,
             api_url,
             s3clients,
+            page_size,
         })
     }
 
@@ -83,7 +91,10 @@ impl DandiClient {
     /// Return a [`futures_util::Stream`] that makes paginated `GET` requests
     /// to the given URL and its subsequent pages and yields a `Result<T,
     /// DandiError>` value for each item deserialized from the responses
-    fn paginate<T: DeserializeOwned + 'static>(&self, url: HttpUrl) -> Paginate<T> {
+    fn paginate<T: DeserializeOwned + 'static>(&self, mut url: HttpUrl) -> Paginate<T> {
+        if let Some(size) = self.page_size {
+            url.append_query_param("page_size", &size.to_string());
+        }
         Paginate::new(self, url)
     }
 

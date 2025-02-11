@@ -1,6 +1,8 @@
 [
   {
-    "params": {},
+    "params": {
+      "page_size": "25"
+    },
     "response": {
       "count": 10,
       "next": null,
@@ -86,6 +88,7 @@
   },
   {
     "params": {
+      "page_size": "25",
       "path_prefix": "fRLy/"
     },
     "response": {

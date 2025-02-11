@@ -1,6 +1,8 @@
 [
   {
-    "params": {},
+    "params": {
+      "page_size": "25"
+    },
     "response": {
       "count": 2,
       "next": null,
@@ -24,6 +26,7 @@
   },
   {
     "params": {
+      "page_size": "25",
       "path_prefix": "sub-RAT123/"
     },
     "response": {

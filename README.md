@@ -106,6 +106,10 @@ Options
 - `--api-url <URL>` — Specify the API URL of the DANDI Archive instance to
   serve [default: `https://api.dandiarchive.org/api`]
 
+- `--dandi-page-size <INT>` — Specify the page size to use when requesting
+  paginated results from the DANDI Archive API.  The default is to not specify
+  a page size in the requests.
+
 - `--ip-addr <IPADDR>` — Specify the IP address for the server to listen on
   [default: 127.0.0.1]
 

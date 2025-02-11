@@ -1,9 +1,11 @@
 [
   {
-    "params": {},
+    "params": {
+      "page_size": "25"
+    },
     "response": {
       "count": 130,
-      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=2",
+      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=2&page_size=25",
       "results": [
         {
           "path": "15j3l.nwb",
@@ -210,11 +212,12 @@
   },
   {
     "params": {
-      "page": "2"
+      "page": "2",
+      "page_size": "25"
     },
     "response": {
       "count": 130,
-      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=3",
+      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=3&page_size=25",
       "results": [
         {
           "path": "ADKiUC.nwb",
@@ -421,11 +424,12 @@
   },
   {
     "params": {
-      "page": "3"
+      "page": "3",
+      "page_size": "25"
     },
     "response": {
       "count": 130,
-      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=4",
+      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=4&page_size=25",
       "results": [
         {
           "path": "LK.nwb",
@@ -632,11 +636,12 @@
   },
   {
     "params": {
-      "page": "4"
+      "page": "4",
+      "page_size": "25"
     },
     "response": {
       "count": 130,
-      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=5",
+      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=5&page_size=25",
       "results": [
         {
           "path": "bw6B.nwb",
@@ -843,11 +848,12 @@
   },
   {
     "params": {
-      "page": "5"
+      "page": "5",
+      "page_size": "25"
     },
     "response": {
       "count": 130,
-      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=6",
+      "next": "{base_url}/api/dandisets/000003/versions/draft/assets/paths/?page=6&page_size=25",
       "results": [
         {
           "path": "mQJQ.nwb",
@@ -1054,7 +1060,8 @@
   },
   {
     "params": {
-      "page": "6"
+      "page": "6",
+      "page_size": "25"
     },
     "response": {
       "count": 130,

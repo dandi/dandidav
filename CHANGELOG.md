@@ -8,6 +8,7 @@ In Development
 - Outgoing requests to servers other than S3 now time out after 10 seconds
 - Memory usage is now only logged if `--log-memory` was supplied on the command
   line
+- Add `--dandi-page-size` option
 
 v0.5.0 (2024-11-18)
 -------------------

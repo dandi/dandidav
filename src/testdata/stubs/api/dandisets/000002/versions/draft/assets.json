@@ -3,6 +3,7 @@
     "params": {
       "metadata": "true",
       "order": "path",
+      "page_size": "25",
       "path": "fRLy"
     },
     "response": {

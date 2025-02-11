@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
-const PER_PAGE: usize = 25;
+const PAGE_SIZE: usize = 25;
 
 #[derive(Clone, Debug, Eq, PartialEq, Parser)]
 struct Arguments {
@@ -261,25 +261,24 @@ fn paginate<T: Clone>(
         .format_with("", |(k, v), f| f(&format_args!("{k}={v}&")))
         .to_string();
     loop {
-        let len = items.len().min(PER_PAGE);
+        let len = items.len().min(PAGE_SIZE);
         if len == 0 && pageno != 1 {
             break;
         }
         let (results, items2) = items.split_at(len);
         items = items2;
+        let mut params = params.clone();
+        params.insert("page_size".to_owned(), PAGE_SIZE.to_string());
+        if pageno != 1 {
+            params.insert("page".to_owned(), pageno.to_string());
+        }
         pages.push(Stub {
-            params: if pageno == 1 {
-                params.clone()
-            } else {
-                let mut p2 = params.clone();
-                p2.insert("page".to_owned(), pageno.to_string());
-                p2
-            },
+            params,
             response: Page {
                 count,
                 next: (!items.is_empty()).then(|| {
                     format!(
-                        "{{base_url}}{path}?{query_prefix}page={next_page}",
+                        "{{base_url}}{path}?{query_prefix}page={next_page}&page_size={PAGE_SIZE}",
                         next_page = pageno + 1
                     )
                 }),

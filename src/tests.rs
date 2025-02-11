@@ -31,7 +31,11 @@ struct MockApp {
 
 impl MockApp {
     async fn new() -> MockApp {
-        MockApp::with_config(Config::default()).await
+        MockApp::with_config(Config {
+            dandi_page_size: Some(25),
+            ..Config::default()
+        })
+        .await
     }
 
     async fn with_config(mut cfg: Config) -> MockApp {
@@ -1209,6 +1213,7 @@ async fn get_blob_asset() {
 async fn get_blob_asset_prefer_s3_redirects() {
     let mut app = MockApp::with_config(Config {
         prefer_s3_redirects: true,
+        dandi_page_size: Some(25),
         ..Config::default()
     })
     .await;

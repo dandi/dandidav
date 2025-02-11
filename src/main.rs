@@ -78,6 +78,11 @@ struct Config {
     #[arg(long, default_value = DEFAULT_API_URL, value_name = "URL")]
     api_url: HttpUrl,
 
+    /// Page size to use when requesting paginated results from the DANDI
+    /// Archive API
+    #[arg(long, value_name = "INT")]
+    dandi_page_size: Option<usize>,
+
     /// Log the process's memory usage at the start & end of each incoming
     /// request
     #[arg(long)]
@@ -104,6 +109,7 @@ impl Default for Config {
             api_url: DEFAULT_API_URL
                 .parse::<HttpUrl>()
                 .expect("DEFAULT_API_URL should be a valid HttpUrl"),
+            dandi_page_size: None,
             log_memory: false,
             prefer_s3_redirects: false,
             title: env!("CARGO_PKG_NAME").into(),
@@ -155,7 +161,7 @@ async fn run() -> anyhow::Result<()> {
 }
 
 fn get_app(cfg: Config) -> anyhow::Result<Router> {
-    let dandi = DandiClient::new(cfg.api_url)?;
+    let dandi = DandiClient::new(cfg.api_url, cfg.dandi_page_size)?;
     let zarrfetcher = ManifestFetcher::new(cfg.zarrman_cache_mb * 1_000_000)?;
     zarrfetcher.install_periodic_dump(ZARR_MANIFEST_CACHE_DUMP_PERIOD);
     let zarrman = ZarrManClient::new(zarrfetcher);

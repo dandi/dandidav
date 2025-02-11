@@ -1,7 +1,7 @@
 How `dandidav` Uses the DANDI Archive API
 =========================================
 
-*This document is up-to-date as of 2025 January 16.*
+*This document is up-to-date as of 2025 February 11.*
 
 When `dandidav` receives a request for a path under `/dandisets/`, the requests
 it makes to the DANDI Archive API for each type of `dandidav` request path are
@@ -161,7 +161,7 @@ requests continue as follows:
 Other Notes
 -----------
 
-- Paginated requests to the Archive use the default `page_size` value and are
+- Paginated requests to the Archive use a `page_size` of 10,000 and are
   requested serially.
 
 - `dandidav` requires the following information from the Archive about each

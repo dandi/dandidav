@@ -536,7 +536,7 @@ pub(super) struct DavItem {
     pub(super) modified: Option<OffsetDateTime>,
 
     /// The resource's Content-Type/MIME type
-    pub(super) content_type: String,
+    pub(super) content_type: Option<String>,
 
     /// The size of the resource
     pub(super) size: Option<i64>,
@@ -606,7 +606,7 @@ impl HasProperties for DavItem {
     }
 
     fn getcontenttype(&self) -> Option<String> {
-        Some(self.content_type.clone())
+        self.content_type.clone()
     }
 
     fn getetag(&self) -> Option<String> {
@@ -632,7 +632,7 @@ impl From<VersionMetadata> for DavItem {
                 .expect(r#""dandiset.yaml" should be a valid path"#),
             created: None,
             modified: None,
-            content_type: YAML_CONTENT_TYPE.to_owned(),
+            content_type: Some(YAML_CONTENT_TYPE.to_owned()),
             size: i64::try_from(len).ok(),
             etag: None,
             kind: ResourceKind::VersionMetadata,
@@ -663,7 +663,7 @@ impl From<BlobAsset> for DavItem {
             path: blob.path,
             created: Some(blob.created),
             modified: Some(blob.modified),
-            content_type,
+            content_type: Some(content_type),
             size: Some(blob.size),
             etag,
             kind: ResourceKind::Blob,
@@ -679,7 +679,7 @@ impl From<ZarrEntry> for DavItem {
             path: entry.zarr_path.to_dir_path().join(&entry.path),
             created: None,
             modified: Some(entry.modified),
-            content_type: DEFAULT_CONTENT_TYPE.to_owned(),
+            content_type: None,
             size: Some(entry.size),
             etag: Some(entry.etag),
             kind: ResourceKind::ZarrEntry,
@@ -695,7 +695,7 @@ impl From<ManifestEntry> for DavItem {
             path: entry.web_path,
             created: None,
             modified: Some(entry.modified),
-            content_type: DEFAULT_CONTENT_TYPE.to_owned(),
+            content_type: None,
             size: Some(entry.size),
             etag: Some(entry.etag),
             kind: ResourceKind::ZarrEntry,

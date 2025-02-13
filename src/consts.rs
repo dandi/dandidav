@@ -37,7 +37,7 @@ pub(crate) static CSS_CONTENT_TYPE: &str = "text/css; charset=utf-8";
 pub(crate) static YAML_CONTENT_TYPE: &str = "text/yaml; charset=utf-8";
 
 /// The "Content-Type" value given in `PROPFIND` responses for blob assets with
-/// no `encodingFormat` set and also for Zarr entries
+/// no `encodingFormat` set
 pub(crate) static DEFAULT_CONTENT_TYPE: &str = "application/octet-stream";
 
 /// The "Content-Type" value for `PROPFIND` XML responses

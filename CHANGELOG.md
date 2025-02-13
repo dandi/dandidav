@@ -9,6 +9,7 @@ In Development
 - Memory usage is now only logged if `--log-memory` was supplied on the command
   line
 - Add `--dandi-page-size` option
+- Stop providing `getcontenttype` WebDAV property for Zarr entries
 
 v0.5.0 (2024-11-18)
 -------------------

@@ -111,7 +111,13 @@ impl DandiDav {
                 content_type,
                 content: DavContent::Blob(blob),
                 ..
-            }) => Ok(([(CONTENT_TYPE, content_type)], blob).into_response()),
+            }) => {
+                if let Some(ct) = content_type {
+                    Ok(([(CONTENT_TYPE, ct)], blob).into_response())
+                } else {
+                    Ok(blob.into_response())
+                }
+            }
             DavResourceWithChildren::Item(DavItem {
                 content: DavContent::Redirect(redir),
                 ..

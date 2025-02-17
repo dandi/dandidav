@@ -35,7 +35,7 @@ aws-smithy-runtime-api = "1.7.3"
 aws-smithy-types-convert = { version = "0.60.8", features = ["convert-time"] }
 axum = { version = "0.8.1", default-features = false, features = ["http1", "tokio", "tower-log"] }
 bytes = "1.10.0"
-clap = { version = "4.5.28", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
+clap = { version = "4.5.29", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
 enum_dispatch = "0.3.13"
 futures-util = "0.3.31"
 get-size = { version = "0.1.4", features = ["derive"] }

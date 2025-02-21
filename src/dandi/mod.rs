@@ -278,7 +278,6 @@ impl<'a> VersionEndpoint<'a> {
         self.client
             .get::<VersionMetadata>(self.metadata_url())
             .await
-            .map_err(Into::into)
     }
 
     /// Get details on the resource at the given `path` in the version's file

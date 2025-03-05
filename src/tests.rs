@@ -91,7 +91,7 @@ impl MockApp {
 
     async fn get_collection_html(&mut self, path: &str) -> CollectionPage {
         let response = self.get(path).await;
-        assert_eq!(response.status(), StatusCode::OK);
+        check_status(&response, StatusCode::OK);
         assert_eq!(
             response
                 .headers()
@@ -162,7 +162,7 @@ struct PropfindResponse(Response<Bytes>);
 
 impl PropfindResponse {
     fn assert_status(self, status: StatusCode) -> Self {
-        assert_eq!(self.0.status(), status);
+        check_status(&self.0, status);
         self
     }
 
@@ -193,6 +193,16 @@ impl PropfindResponse {
         let body = std::str::from_utf8(self.0.body()).unwrap();
         pretty_assertions::assert_eq!(body, expected);
         self
+    }
+}
+
+fn check_status(r: &Response<Bytes>, status: StatusCode) {
+    if r.status() != status {
+        let body = String::from_utf8_lossy(r.body());
+        panic!(
+            "Status check failed:\nExpected: {status:?}\nActual: {actual:?}\n\nBody:\n{body}",
+            actual = r.status()
+        )
     }
 }
 

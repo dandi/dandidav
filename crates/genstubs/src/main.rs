@@ -218,7 +218,7 @@ fn main() -> anyhow::Result<()> {
                 ]);
                 if let Some(ref p) = dirpath {
                     entries.push(AtPathResource::Folder(AssetFolder {
-                        path: prefix,
+                        path: p.to_owned(),
                         total_assets: total_count.count,
                         total_size: total_count.total_size,
                     }));

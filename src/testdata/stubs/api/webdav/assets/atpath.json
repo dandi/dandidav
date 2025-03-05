@@ -165,7 +165,7 @@
         {
           "type": "folder",
           "resource": {
-            "path": "sub-RAT123/",
+            "path": "sub-RAT123",
             "total_assets": 2,
             "total_size": 42483211
           }
@@ -745,7 +745,7 @@
         {
           "type": "folder",
           "resource": {
-            "path": "fRLy/",
+            "path": "fRLy",
             "total_assets": 20,
             "total_size": 13101026
           }

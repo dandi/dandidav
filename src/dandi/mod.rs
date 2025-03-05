@@ -424,7 +424,7 @@ impl<'a> VersionEndpoint<'a> {
         url.append_query_param("metadata", "true");
         let mut stream = self.client.paginate::<AtPathResource>(url);
         match stream.try_next().await? {
-            Some(AtPathResource::Folder(folder)) => Ok(AtAssetPath::Folder(folder)),
+            Some(AtPathResource::Folder(folder)) => Ok(AtAssetPath::Folder(folder.into())),
             Some(AtPathResource::Asset(asset)) => {
                 Ok(AtAssetPath::Asset(asset.try_into_asset(self)?))
             }
@@ -453,7 +453,7 @@ impl<'a> VersionEndpoint<'a> {
             .paginate::<AtPathResource>(url)
             .and_then(move |child| async move {
                 match child {
-                    AtPathResource::Folder(subf) => Ok(AtAssetPath::Folder(subf)),
+                    AtPathResource::Folder(subf) => Ok(AtAssetPath::Folder(subf.into())),
                     AtPathResource::Asset(asset) => {
                         Ok(AtAssetPath::Asset(asset.try_into_asset(self)?))
                     }

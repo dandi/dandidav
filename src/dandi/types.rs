@@ -136,8 +136,21 @@ pub(crate) struct AssetFolder {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(tag = "type", content = "resource", rename_all = "lowercase")]
 pub(super) enum AtPathResource {
-    Folder(AssetFolder),
+    Folder(RawAssetFolder),
     Asset(RawAsset),
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub(crate) struct RawAssetFolder {
+    pub(crate) path: PurePath,
+}
+
+impl From<RawAssetFolder> for AssetFolder {
+    fn from(value: RawAssetFolder) -> AssetFolder {
+        AssetFolder {
+            path: value.path.to_dir_path(),
+        }
+    }
 }
 
 #[allow(clippy::large_enum_variant)]

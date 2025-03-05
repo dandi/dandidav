@@ -41,11 +41,20 @@ is an object with the following fields:
     - `created` — timestamp
     - `modified` — timestamp
     - `metadata` — arbitrary JSON-compatible data
-    - `assets` *(optional)* — A list of asset paths that the tests will query
-      for and thus that appropriate stubs should be generated for.
-    - `asset_dirs` *(optional)* — A list of asset directory paths (sans trailing
-      slash) that the tests will query for and thus that appropriate stubs should
-      be generated for.  A path of `null` denotes the root directory.
+
+    - `atpath` *(optional)* — An object describing the asset & folder paths
+      that the tests will query via the `/webdav/assets/atpath/` endpoint and
+      thus that appropriate stubs should be generated for.
+
+      The fields of the object (all optional) are:
+
+        - `assets` — a list of asset paths that will be queried with
+          `children=true`
+        - `assets_no_children` — a list of asset paths that will be queried
+          with `children=false`
+        - `folders` — a list of asset directory paths (sans trailing slash)
+          that will be queried with `children=true`.  A path of `null` denotes
+          the root directory.
 
     There must be one version with a `version` value of "draft".  The non-draft
     version with the latest `created` date, if any, becomes the most recent

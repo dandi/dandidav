@@ -47,10 +47,6 @@ impl PurePath {
         PurePath(format!("{self}/{c}"))
     }
 
-    pub(crate) fn is_strictly_under(&self, other: &PureDirPath) -> bool {
-        self.0.starts_with(&other.0)
-    }
-
     /// For each non-final component in the path that has an extension of
     /// `.zarr` or `.ngff` (case sensitive), yield the portion of the path up
     /// through that component along with the rest of the path.
@@ -190,17 +186,6 @@ mod tests {
     fn test_bad_paths(#[case] s: &str) {
         let r = s.parse::<PurePath>();
         assert_matches!(r, Err(_));
-    }
-
-    #[rstest]
-    #[case("foo/bar/baz", "foo/bar/baz/", false)]
-    #[case("foo/bar/baz", "foo/bar/", true)]
-    #[case("foo/bar/baz", "foo/", true)]
-    #[case("foo/bar", "foo/bar/baz/", false)]
-    #[case("foo", "foo/bar/baz/", false)]
-    #[case("foobar", "foo/", false)]
-    fn test_is_strictly_under(#[case] p1: PurePath, #[case] p2: PureDirPath, #[case] r: bool) {
-        assert_eq!(p1.is_strictly_under(&p2), r);
     }
 
     #[rstest]

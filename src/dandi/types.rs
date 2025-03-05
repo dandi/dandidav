@@ -128,51 +128,21 @@ impl<'de> Deserialize<'de> for VersionMetadata {
     }
 }
 
-// Item in a `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths/`
-// response
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-#[serde(from = "RawFolderEntry")]
-pub(crate) enum FolderEntry {
-    Folder(AssetFolder),
-    Asset { path: PurePath, id: String },
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct AssetFolder {
     pub(crate) path: PureDirPath,
 }
 
-impl From<RawFolderEntry> for FolderEntry {
-    fn from(entry: RawFolderEntry) -> FolderEntry {
-        if let Some(asset) = entry.asset {
-            FolderEntry::Asset {
-                path: entry.path,
-                id: asset.asset_id,
-            }
-        } else {
-            FolderEntry::Folder(AssetFolder {
-                path: entry.path.to_dir_path(),
-            })
-        }
-    }
-}
-
-// Raw item in a `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths/`
-// response
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-struct RawFolderEntry {
-    path: PurePath,
-    asset: Option<RawFolderEntryAsset>,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-struct RawFolderEntryAsset {
-    asset_id: String,
+#[serde(tag = "type", content = "resource", rename_all = "lowercase")]
+pub(super) enum AtPathResource {
+    Folder(AssetFolder),
+    Asset(RawAsset),
 }
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum AtAssetPath {
+pub(super) enum AtAssetPath {
     Folder(AssetFolder),
     Asset(Asset),
 }

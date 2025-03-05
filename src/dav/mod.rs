@@ -380,6 +380,7 @@ impl VersionHandler<'_> {
     async fn get_root_children(&self) -> Result<Vec<DavResource>, DandiError> {
         self.endpoint
             .get_root_children()
+            .await?
             .map_ok(|res| {
                 DavResource::from(res).under_version_path(self.dandiset_id, self.version_spec)
             })

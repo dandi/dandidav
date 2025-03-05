@@ -301,17 +301,11 @@ impl<'a> VersionEndpoint<'a> {
     ) -> Result<DandiResourceWithChildren, DandiError> {
         match self.get_resource_with_s3(path).await? {
             DandiResourceWithS3::Folder(folder) => {
-                let mut children = Vec::new();
-                let mut stream = self.get_folder_entries(&folder).await?;
-                while let Some(child) = stream.try_next().await? {
-                    let child = match child {
-                        AtPathResource::Folder(subf) => DandiResource::Folder(subf),
-                        AtPathResource::Asset(asset) => {
-                            DandiResource::Asset(asset.try_into_asset(self)?)
-                        }
-                    };
-                    children.push(child);
-                }
+                let children = self
+                    .get_folder_entries(&folder)
+                    .await?
+                    .try_collect::<Vec<_>>()
+                    .await?;
                 Ok(DandiResourceWithChildren::Folder { folder, children })
             }
             DandiResourceWithS3::Asset(Asset::Blob(r)) => Ok(DandiResourceWithChildren::Blob(r)),
@@ -341,17 +335,7 @@ impl<'a> VersionEndpoint<'a> {
     pub(crate) async fn get_root_children(
         &self,
     ) -> Result<impl Stream<Item = Result<DandiResource, DandiError>> + '_, DandiError> {
-        Ok(self
-            .get_entries_under_path(None)
-            .await?
-            .and_then(move |child| async move {
-                match child {
-                    AtPathResource::Folder(subf) => Ok(DandiResource::Folder(subf)),
-                    AtPathResource::Asset(asset) => {
-                        Ok(DandiResource::Asset(asset.try_into_asset(self)?))
-                    }
-                }
-            }))
+        self.get_entries_under_path(None).await
     }
 
     /// Get details on the resource at the given `path` in the version's file
@@ -396,6 +380,7 @@ impl<'a> VersionEndpoint<'a> {
                 }
             }
         }
+        // TODO: Get children as well if needed for calling context
         self.get_path(path).await.map(Into::into)
     }
 
@@ -436,7 +421,7 @@ impl<'a> VersionEndpoint<'a> {
         }
     }
 
-    /// Return a [`futures_util::Stream`] that yields an [`AtPathResource`]
+    /// Return a [`futures_util::Stream`] that yields a [`DandiResource`]
     /// object for each immediate child resource (both assets and folders) of
     /// the folder at `path` in the version's file hierarchy, treating Zarrs as
     /// non-collections.  If `path` is `None`, the resources at the root of the
@@ -444,7 +429,7 @@ impl<'a> VersionEndpoint<'a> {
     async fn get_entries_under_path(
         &self,
         path: Option<&PureDirPath>,
-    ) -> Result<Paginate<AtPathResource>, DandiError> {
+    ) -> Result<impl Stream<Item = Result<DandiResource, DandiError>> + '_, DandiError> {
         let mut url = self.client.get_url(["webdav", "assets", "atpath"]);
         url.append_query_param("dandiset_id", self.dandiset_id.as_ref());
         url.append_query_param("version_id", self.version_id.as_ref());
@@ -458,17 +443,24 @@ impl<'a> VersionEndpoint<'a> {
             // Toss initial item for the folder itself
             let _ = stream.try_next().await?;
         }
-        Ok(stream)
+        Ok(stream.and_then(move |child| async move {
+            match child {
+                AtPathResource::Folder(subf) => Ok(DandiResource::Folder(subf)),
+                AtPathResource::Asset(asset) => {
+                    Ok(DandiResource::Asset(asset.try_into_asset(self)?))
+                }
+            }
+        }))
     }
 
-    /// Return a [`futures_util::Stream`] that yields an [`AtPathResource`]
+    /// Return a [`futures_util::Stream`] that yields a [`DandiResource`]
     /// object for each immediate child resource (both assets and folders) of
     /// the folder at `path` in the version's file hierarchy, treating Zarrs as
     /// non-collections.
     async fn get_folder_entries(
         &self,
         path: &AssetFolder,
-    ) -> Result<Paginate<AtPathResource>, DandiError> {
+    ) -> Result<impl Stream<Item = Result<DandiResource, DandiError>> + '_, DandiError> {
         self.get_entries_under_path(Some(&path.path)).await
     }
 }

@@ -209,10 +209,24 @@ impl ZarrAsset {
             .find_map(|url| S3Location::parse_url(url.as_url()).ok())
     }
 
-    pub(crate) fn make_resource(&self, value: S3Entry) -> DandiResource {
+    pub(super) fn make_resource(&self, value: S3Entry) -> DandiResource {
         match value {
             S3Entry::Folder(folder) => DandiResource::ZarrFolder(self.make_folder(folder)),
             S3Entry::Object(obj) => DandiResource::ZarrEntry(self.make_entry(obj)),
+        }
+    }
+
+    pub(super) fn make_resource_with_s3(
+        &self,
+        value: S3Entry,
+        s3: PrefixedS3Client,
+    ) -> ZarrResource {
+        match value {
+            S3Entry::Folder(folder) => ZarrResource::Folder {
+                folder: self.make_folder(folder),
+                s3,
+            },
+            S3Entry::Object(obj) => ZarrResource::Entry(self.make_entry(obj)),
         }
     }
 
@@ -319,17 +333,6 @@ pub(crate) enum DandiResource {
     ZarrEntry(ZarrEntry),
 }
 
-impl DandiResource {
-    pub(super) fn with_s3(self, s3: PrefixedS3Client) -> DandiResourceWithS3 {
-        match self {
-            DandiResource::Folder(r) => DandiResourceWithS3::Folder(r),
-            DandiResource::Asset(r) => DandiResourceWithS3::Asset(r),
-            DandiResource::ZarrFolder(folder) => DandiResourceWithS3::ZarrFolder { folder, s3 },
-            DandiResource::ZarrEntry(r) => DandiResourceWithS3::ZarrEntry(r),
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ZarrFolder {
     pub(crate) zarr_path: PurePath,
@@ -374,32 +377,28 @@ pub(crate) struct ZarrEntry {
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum DandiResourceWithS3 {
-    Folder(AssetFolder),
-    Asset(Asset),
-    ZarrFolder {
+pub(super) enum ZarrResource {
+    Folder {
         folder: ZarrFolder,
         s3: PrefixedS3Client,
     },
-    ZarrEntry(ZarrEntry),
+    Entry(ZarrEntry),
 }
 
-impl From<AtAssetPath> for DandiResourceWithS3 {
-    fn from(value: AtAssetPath) -> DandiResourceWithS3 {
+impl From<AtAssetPath> for DandiResource {
+    fn from(value: AtAssetPath) -> DandiResource {
         match value {
-            AtAssetPath::Folder(r) => DandiResourceWithS3::Folder(r),
-            AtAssetPath::Asset(r) => DandiResourceWithS3::Asset(r),
+            AtAssetPath::Folder(r) => DandiResource::Folder(r),
+            AtAssetPath::Asset(r) => DandiResource::Asset(r),
         }
     }
 }
 
-impl From<DandiResourceWithS3> for DandiResource {
-    fn from(value: DandiResourceWithS3) -> DandiResource {
+impl From<ZarrResource> for DandiResource {
+    fn from(value: ZarrResource) -> DandiResource {
         match value {
-            DandiResourceWithS3::Folder(r) => DandiResource::Folder(r),
-            DandiResourceWithS3::Asset(r) => DandiResource::Asset(r),
-            DandiResourceWithS3::ZarrFolder { folder, .. } => DandiResource::ZarrFolder(folder),
-            DandiResourceWithS3::ZarrEntry(r) => DandiResource::ZarrEntry(r),
+            ZarrResource::Folder { folder, .. } => DandiResource::ZarrFolder(folder),
+            ZarrResource::Entry(r) => DandiResource::ZarrEntry(r),
         }
     }
 }

@@ -286,7 +286,11 @@ impl<'a> VersionEndpoint<'a> {
     /// Although `path` is a `PurePath`, the resulting resource may be a
     /// collection.
     pub(crate) async fn get_resource(&self, path: &PurePath) -> Result<DandiResource, DandiError> {
-        self.get_resource_with_s3(path).await.map(Into::into)
+        if let Some(r) = self.resolve_zarr_entry(path).await? {
+            Ok(r.into())
+        } else {
+            self.atpath(path).await.map(Into::into)
+        }
     }
 
     /// Get details on the resource at the given `path` in the version's file
@@ -299,26 +303,8 @@ impl<'a> VersionEndpoint<'a> {
         &self,
         path: &PurePath,
     ) -> Result<DandiResourceWithChildren, DandiError> {
-        match self.get_resource_with_s3(path).await? {
-            DandiResourceWithS3::Folder(folder) => {
-                let children = self
-                    .get_folder_entries(&folder)
-                    .await?
-                    .try_collect::<Vec<_>>()
-                    .await?;
-                Ok(DandiResourceWithChildren::Folder { folder, children })
-            }
-            DandiResourceWithS3::Asset(Asset::Blob(r)) => Ok(DandiResourceWithChildren::Blob(r)),
-            DandiResourceWithS3::Asset(Asset::Zarr(zarr)) => {
-                let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
-                let children = s3
-                    .get_root_entries()
-                    .map_ok(|child| zarr.make_resource(child))
-                    .try_collect::<Vec<_>>()
-                    .await?;
-                Ok(DandiResourceWithChildren::Zarr { zarr, children })
-            }
-            DandiResourceWithS3::ZarrFolder { folder, s3 } => {
+        match self.resolve_zarr_entry(path).await? {
+            Some(ZarrResource::Folder { folder, s3 }) => {
                 let children = s3
                     .get_folder_entries(&folder.path)
                     .map_ok(|child| folder.make_resource(child))
@@ -326,20 +312,46 @@ impl<'a> VersionEndpoint<'a> {
                     .await?;
                 Ok(DandiResourceWithChildren::ZarrFolder { folder, children })
             }
-            DandiResourceWithS3::ZarrEntry(r) => Ok(DandiResourceWithChildren::ZarrEntry(r)),
+            Some(ZarrResource::Entry(r)) => Ok(DandiResourceWithChildren::ZarrEntry(r)),
+            None => {
+                let stream = self.atpath_with_children(Some(path));
+                tokio::pin!(stream);
+                match stream.try_next().await? {
+                    Some(AtAssetPath::Folder(folder)) => {
+                        let children = stream
+                            .map_ok(DandiResource::from)
+                            .try_collect::<Vec<_>>()
+                            .await?;
+                        Ok(DandiResourceWithChildren::Folder { folder, children })
+                    }
+                    Some(AtAssetPath::Asset(Asset::Blob(r))) => {
+                        Ok(DandiResourceWithChildren::Blob(r))
+                    }
+                    Some(AtAssetPath::Asset(Asset::Zarr(zarr))) => {
+                        let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
+                        let children = s3
+                            .get_root_entries()
+                            .map_ok(|child| zarr.make_resource(child))
+                            .try_collect::<Vec<_>>()
+                            .await?;
+                        Ok(DandiResourceWithChildren::Zarr { zarr, children })
+                    }
+                    None => Err(DandiError::PathNotFound { path: path.clone() }),
+                }
+            }
         }
     }
 
     /// Return a [`futures_util::Stream`] that yields the resources at the root
     /// of the version's file hierarchy
-    pub(crate) async fn get_root_children(
+    pub(crate) fn get_root_children(
         &self,
-    ) -> Result<impl Stream<Item = Result<DandiResource, DandiError>> + '_, DandiError> {
-        self.get_entries_under_path(None).await
+    ) -> impl Stream<Item = Result<DandiResource, DandiError>> + '_ {
+        self.atpath_with_children(None).map_ok(DandiResource::from)
     }
 
-    /// Get details on the resource at the given `path` in the version's file
-    /// hierarchy, treating Zarrs as directories of their entries
+    /// If the resource at `path` is a folder or entry inside a Zarr, return
+    /// details on that resource; otherwise, return `None`.
     ///
     /// In order to determine whether `path` consists of a path to a Zarr asset
     /// followed by a path to a resource within that Zarr, we perform the
@@ -354,13 +366,13 @@ impl<'a> VersionEndpoint<'a> {
     ///   Zarr asset, and the rest of the original path is the Zarr entry path.
     ///
     /// - If all components are exhausted without erroring or finding a Zarr,
-    ///   treat the entirety of `path` as an asset/folder path.
-    async fn get_resource_with_s3(
+    ///   then `path` is not a path inside a Zarr.
+    async fn resolve_zarr_entry(
         &self,
         path: &PurePath,
-    ) -> Result<DandiResourceWithS3, DandiError> {
+    ) -> Result<Option<ZarrResource>, DandiError> {
         for (zarr_path, entry_path) in path.split_zarr_candidates() {
-            match self.get_path(&zarr_path).await? {
+            match self.atpath(&zarr_path).await? {
                 AtAssetPath::Folder(_) => continue,
                 AtAssetPath::Asset(Asset::Blob(_)) => {
                     return Err(DandiError::PathUnderBlob {
@@ -371,7 +383,7 @@ impl<'a> VersionEndpoint<'a> {
                 AtAssetPath::Asset(Asset::Zarr(zarr)) => {
                     let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
                     return match s3.get_path(&entry_path).await? {
-                        Some(entry) => Ok(zarr.make_resource(entry).with_s3(s3)),
+                        Some(entry) => Ok(Some(zarr.make_resource_with_s3(entry, s3))),
                         None => Err(DandiError::ZarrEntryNotFound {
                             zarr_path,
                             entry_path,
@@ -380,8 +392,7 @@ impl<'a> VersionEndpoint<'a> {
                 }
             }
         }
-        // TODO: Get children as well if needed for calling context
-        self.get_path(path).await.map(Into::into)
+        Ok(None)
     }
 
     /// Return the URL for the version's metadata
@@ -405,7 +416,7 @@ impl<'a> VersionEndpoint<'a> {
 
     /// Get details on the resource (an asset or folder) at the given `path` in
     /// the version's file hierarchy, treating Zarrs as non-collections.
-    async fn get_path(&self, path: &PurePath) -> Result<AtAssetPath, DandiError> {
+    async fn atpath(&self, path: &PurePath) -> Result<AtAssetPath, DandiError> {
         let mut url = self.client.get_url(["webdav", "assets", "atpath"]);
         url.append_query_param("dandiset_id", self.dandiset_id.as_ref());
         url.append_query_param("version_id", self.version_id.as_ref());
@@ -421,15 +432,15 @@ impl<'a> VersionEndpoint<'a> {
         }
     }
 
-    /// Return a [`futures_util::Stream`] that yields a [`DandiResource`]
-    /// object for each immediate child resource (both assets and folders) of
-    /// the folder at `path` in the version's file hierarchy, treating Zarrs as
-    /// non-collections.  If `path` is `None`, the resources at the root of the
-    /// file hierarchy are yielded.
-    async fn get_entries_under_path(
+    /// Return a [`futures_util::Stream`] that yields [`DandiResource`] objects
+    /// for the resource at `path` in the version's file hierarchy plus (if
+    /// that resource is a folder) each of its immediate child resources (both
+    /// assets and folders), treating Zarrs as non-collections.  If `path` is
+    /// `None`, the resources at the root of the file hierarchy are yielded.
+    fn atpath_with_children(
         &self,
-        path: Option<&PureDirPath>,
-    ) -> Result<impl Stream<Item = Result<DandiResource, DandiError>> + '_, DandiError> {
+        path: Option<&PurePath>,
+    ) -> impl Stream<Item = Result<AtAssetPath, DandiError>> + '_ {
         let mut url = self.client.get_url(["webdav", "assets", "atpath"]);
         url.append_query_param("dandiset_id", self.dandiset_id.as_ref());
         url.append_query_param("version_id", self.version_id.as_ref());
@@ -438,30 +449,16 @@ impl<'a> VersionEndpoint<'a> {
         }
         url.append_query_param("children", "true");
         url.append_query_param("metadata", "true");
-        let mut stream = self.client.paginate::<AtPathResource>(url);
-        if path.is_some() {
-            // Toss initial item for the folder itself
-            let _ = stream.try_next().await?;
-        }
-        Ok(stream.and_then(move |child| async move {
-            match child {
-                AtPathResource::Folder(subf) => Ok(DandiResource::Folder(subf)),
-                AtPathResource::Asset(asset) => {
-                    Ok(DandiResource::Asset(asset.try_into_asset(self)?))
+        self.client
+            .paginate::<AtPathResource>(url)
+            .and_then(move |child| async move {
+                match child {
+                    AtPathResource::Folder(subf) => Ok(AtAssetPath::Folder(subf)),
+                    AtPathResource::Asset(asset) => {
+                        Ok(AtAssetPath::Asset(asset.try_into_asset(self)?))
+                    }
                 }
-            }
-        }))
-    }
-
-    /// Return a [`futures_util::Stream`] that yields a [`DandiResource`]
-    /// object for each immediate child resource (both assets and folders) of
-    /// the folder at `path` in the version's file hierarchy, treating Zarrs as
-    /// non-collections.
-    async fn get_folder_entries(
-        &self,
-        path: &AssetFolder,
-    ) -> Result<impl Stream<Item = Result<DandiResource, DandiError>> + '_, DandiError> {
-        self.get_entries_under_path(Some(&path.path)).await
+            })
     }
 }
 

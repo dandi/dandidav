@@ -1,5 +1,5 @@
-In Development
---------------
+v0.6.0 (2025-02-06)
+-------------------
 - Serve a `/robots.txt` file denying all robots
 - Log `User-Agent` and `X-Request-ID` headers
 - Rate limit incoming requests

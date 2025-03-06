@@ -47,8 +47,7 @@ fn main() -> anyhow::Result<()> {
                 },
                 metadata: v.metadata,
                 assets,
-                assets_req: v.assets,
-                asset_dirs: v.asset_dirs,
+                atpath: v.atpath,
             });
         }
         let mrpv = versions
@@ -77,6 +76,7 @@ fn main() -> anyhow::Result<()> {
             versions,
         });
     }
+
     dandisets.sort_unstable_by(|a, b| a.id.cmp(&b.id));
     dump_json(
         &paginate(
@@ -89,6 +89,9 @@ fn main() -> anyhow::Result<()> {
         ),
         args.stubdir.join("api").join("dandisets.json"),
     )?;
+
+    let mut atpath_responses = Vec::new();
+
     for d in dandisets {
         dump_json(
             &vec![Stub::from(&d.api_payload)],
@@ -97,6 +100,7 @@ fn main() -> anyhow::Result<()> {
                 .join("dandisets")
                 .join(format!("{}.json", d.id)),
         )?;
+
         dump_json(
             &paginate(
                 &d.versions
@@ -112,6 +116,7 @@ fn main() -> anyhow::Result<()> {
                 .join(&d.id)
                 .join("versions.json"),
         )?;
+
         for v in d.versions {
             dump_json(
                 &vec![Stub::from(&v.metadata)],
@@ -122,6 +127,7 @@ fn main() -> anyhow::Result<()> {
                     .join("versions")
                     .join(format!("{}.json", v.id)),
             )?;
+
             dump_json(
                 &vec![Stub::from(&ApiVersionInfo {
                     version: &v.api_payload,
@@ -135,116 +141,106 @@ fn main() -> anyhow::Result<()> {
                     .join(&v.id)
                     .join("info.json"),
             )?;
-            let mut assets_responses = Vec::new();
-            let mut assets_paths_responses = Vec::new();
-            for dirpath in v.asset_dirs {
+
+            for p in v.atpath.assets_no_children {
+                let assets = v
+                    .assets
+                    .iter()
+                    .filter(|a| a.properties.path.starts_with(&p))
+                    .map(|a| AtPathResource::Asset(a.clone()))
+                    .collect::<Vec<_>>();
+                atpath_responses.extend(paginate(
+                    &assets,
+                    "/api/webdav/assets/atpath/",
+                    BTreeMap::from([
+                        ("dandiset_id".to_owned(), d.id.clone()),
+                        ("version_id".to_owned(), v.id.clone()),
+                        ("path".to_owned(), p.clone()),
+                        ("metadata".to_owned(), "true".to_owned()),
+                    ]),
+                ));
+            }
+
+            for p in v.atpath.assets {
+                let assets = v
+                    .assets
+                    .iter()
+                    .filter(|a| a.properties.path.starts_with(&p))
+                    .map(|a| AtPathResource::Asset(a.clone()))
+                    .collect::<Vec<_>>();
+                atpath_responses.extend(paginate(
+                    &assets,
+                    "/api/webdav/assets/atpath/",
+                    BTreeMap::from([
+                        ("dandiset_id".to_owned(), d.id.clone()),
+                        ("version_id".to_owned(), v.id.clone()),
+                        ("path".to_owned(), p.clone()),
+                        ("children".to_owned(), "true".to_owned()),
+                        ("metadata".to_owned(), "true".to_owned()),
+                    ]),
+                ));
+            }
+
+            for dirpath in v.atpath.folders {
                 let prefix = match dirpath {
                     Some(ref p) => format!("{p}/"),
                     None => String::new(),
                 };
                 let mut assets_in_dir = Vec::new();
                 let mut dirs_in_dir = BTreeMap::<String, AssetCounter>::new();
+                let mut total_count = AssetCounter::default();
                 for a in &v.assets {
                     if let Some(p) = a.properties.path.strip_prefix(&prefix) {
+                        total_count.add(a);
                         if let Some((pre, _)) = p.split_once('/') {
                             dirs_in_dir.entry(pre.to_owned()).or_default().add(a);
                         } else {
-                            assets_in_dir.push(a);
+                            assets_in_dir.push(a.clone());
                         }
                     }
                 }
                 let mut entries = assets_in_dir
-                    .iter()
-                    .copied()
-                    .map(AssetPathsEntry::for_asset)
+                    .into_iter()
+                    .map(AtPathResource::Asset)
                     .chain(dirs_in_dir.into_iter().map(|(path, counts)| {
-                        AssetPathsEntry::for_folder(format!("{prefix}{path}"), counts)
+                        AtPathResource::Folder(AssetFolder {
+                            path: format!("{prefix}{path}"),
+                            total_assets: counts.count,
+                            total_size: counts.total_size,
+                        })
                     }))
                     .collect::<Vec<_>>();
-                entries.sort_unstable_by(|a, b| a.path.cmp(&b.path));
-                let params = match dirpath {
-                    Some(ref p) => BTreeMap::from([("path_prefix".to_owned(), format!("{p}/"))]),
-                    None => BTreeMap::new(),
-                };
-                assets_paths_responses.extend(paginate(
-                    &entries,
-                    &format!("/api/dandisets/{}/versions/{}/assets/paths/", d.id, v.id),
-                    params,
-                ));
-                for a in assets_in_dir {
-                    dump_json(
-                        &vec![Stub::from(a)],
-                        args.stubdir
-                            .join("api")
-                            .join("dandisets")
-                            .join(&d.id)
-                            .join("versions")
-                            .join(&v.id)
-                            .join("assets")
-                            .join(&a.properties.asset_id)
-                            .join("info.json"),
-                    )?;
+                let mut params = BTreeMap::from([
+                    ("dandiset_id".to_owned(), d.id.clone()),
+                    ("version_id".to_owned(), v.id.clone()),
+                    ("children".to_owned(), "true".to_owned()),
+                    ("metadata".to_owned(), "true".to_owned()),
+                ]);
+                if let Some(ref p) = dirpath {
+                    entries.push(AtPathResource::Folder(AssetFolder {
+                        path: p.to_owned(),
+                        total_assets: total_count.count,
+                        total_size: total_count.total_size,
+                    }));
+                    params.insert("path".to_owned(), p.to_owned());
                 }
-                if let Some(p) = dirpath {
-                    let assets = v
-                        .assets
-                        .iter()
-                        .filter(|a| a.properties.path.starts_with(&p))
-                        .collect::<Vec<_>>();
-                    assets_responses.extend(paginate(
-                        &assets,
-                        &format!("/api/dandisets/{}/versions/{}/assets/", d.id, v.id),
-                        BTreeMap::from([
-                            ("metadata".to_owned(), "true".to_owned()),
-                            ("order".to_owned(), "path".to_owned()),
-                            ("path".to_owned(), p),
-                        ]),
-                    ));
-                }
-            }
-            for apath in &v.assets_req {
-                let assets = v
-                    .assets
-                    .iter()
-                    .filter(|a| a.properties.path.starts_with(apath))
-                    .collect::<Vec<_>>();
-                assets_responses.extend(paginate(
-                    &assets,
-                    &format!("/api/dandisets/{}/versions/{}/assets/", d.id, v.id),
-                    BTreeMap::from([
-                        ("metadata".to_owned(), "true".to_owned()),
-                        ("order".to_owned(), "path".to_owned()),
-                        ("path".to_owned(), apath.clone()),
-                    ]),
-                ));
-            }
-            if !assets_responses.is_empty() {
-                dump_json(
-                    &assets_responses,
-                    args.stubdir
-                        .join("api")
-                        .join("dandisets")
-                        .join(&d.id)
-                        .join("versions")
-                        .join(&v.id)
-                        .join("assets.json"),
-                )?;
-            }
-            if !assets_paths_responses.is_empty() {
-                dump_json(
-                    &assets_paths_responses,
-                    args.stubdir
-                        .join("api")
-                        .join("dandisets")
-                        .join(&d.id)
-                        .join("versions")
-                        .join(&v.id)
-                        .join("assets")
-                        .join("paths.json"),
-                )?;
+                entries.sort_unstable_by(|a, b| a.path().cmp(b.path()));
+                atpath_responses.extend(paginate(&entries, "/api/webdav/assets/atpath/", params));
             }
         }
     }
+
+    if !atpath_responses.is_empty() {
+        dump_json(
+            &atpath_responses,
+            args.stubdir
+                .join("api")
+                .join("webdav")
+                .join("assets")
+                .join("atpath.json"),
+        )?;
+    }
+
     Ok(())
 }
 
@@ -321,9 +317,17 @@ struct VersionSpec {
     modified: String,
     metadata: serde_json::Value,
     #[serde(default)]
+    atpath: AtPathSpec,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+struct AtPathSpec {
+    #[serde(default)]
     assets: Vec<String>,
     #[serde(default)]
-    asset_dirs: Vec<Option<String>>,
+    assets_no_children: Vec<String>,
+    #[serde(default)]
+    folders: Vec<Option<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -386,8 +390,7 @@ struct Version {
     api_payload: ApiVersion,
     metadata: serde_json::Value,
     assets: Vec<Asset>,
-    assets_req: Vec<String>,
-    asset_dirs: Vec<Option<String>>,
+    atpath: AtPathSpec,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -427,36 +430,24 @@ impl AssetCounter {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-struct AssetPathsEntry {
-    path: String,
-    aggregate_files: usize,
-    aggregate_size: u64,
-    asset: Option<AssetPathsAsset>,
+#[serde(tag = "type", content = "resource", rename_all = "lowercase")]
+enum AtPathResource {
+    Folder(AssetFolder),
+    Asset(Asset),
 }
 
-impl AssetPathsEntry {
-    fn for_asset(asset: &Asset) -> AssetPathsEntry {
-        AssetPathsEntry {
-            path: asset.properties.path.clone(),
-            aggregate_files: 1,
-            aggregate_size: asset.properties.size,
-            asset: Some(AssetPathsAsset {
-                asset_id: asset.properties.asset_id.clone(),
-            }),
-        }
-    }
-
-    fn for_folder(path: String, size: AssetCounter) -> AssetPathsEntry {
-        AssetPathsEntry {
-            path,
-            aggregate_files: size.count,
-            aggregate_size: size.total_size,
-            asset: None,
+impl AtPathResource {
+    fn path(&self) -> &str {
+        match self {
+            AtPathResource::Folder(AssetFolder { path, .. }) => path,
+            AtPathResource::Asset(Asset { properties, .. }) => &properties.path,
         }
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-struct AssetPathsAsset {
-    asset_id: String,
+struct AssetFolder {
+    path: String,
+    total_assets: usize,
+    total_size: u64,
 }

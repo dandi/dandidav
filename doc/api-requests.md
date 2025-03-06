@@ -1,7 +1,7 @@
 How `dandidav` Uses the DANDI Archive API
 =========================================
 
-*This document is up-to-date as of 2025 February 11.*
+*This document is up-to-date as of 2025 March 6.*
 
 When `dandidav` receives a request for a path under `/dandisets/`, the requests
 it makes to the DANDI Archive API for each type of `dandidav` request path are
@@ -64,18 +64,8 @@ version.
 For deep requests, `dandidav` makes API requests to the following endpoints:
 
 - `/dandisets/{dandiset_id}/versions/{version_id}/info/`
-- `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths/` (paginated)
-    - Because this endpoint only provides assets' paths, IDs, and sizes, for
-      each separate asset returned from this endpoint, `dandidav` makes another
-      request to
-      `/dandisets/{dandiset_id}/versions/{version_id}/assets/{asset_id}/info/`
-      to fetch further details about the asset (See ["Other
-      Notes"](#other-notes) below).
-- Prior to [PR #236](https://github.com/dandi/dandidav/pull/236), a request was
-  also made to `/dandisets/{dandiset_id}/versions/{version_id}/` to fetch the
-  version metadata (so that its size could be reported), but this was changed
-  to use the metadata from the
-  `/dandisets/{dandiset_id}/versions/{version_id}/info/` request instead.
+- `/webdav/assets/atpath/?dandiset_id={dandiset_id}&version_id={version_id}&children=true&metadata=true`
+  (paginated)
 
 For shallow requests, `dandidav` makes an API request to
 `/dandisets/{dandiset_id}/versions/{version_id}/info/`.
@@ -112,51 +102,33 @@ For both deep and shallow requests, if the request path is
 `/dandiset/{dandiset_id}/` to get the version ID of the latest published
 version.
 
-Then, for each initial subpath of `path` that ends with either (a) a component
-ending in ".zarr" or ".ngff" (case insensitive) or (b) the end of the path, an
-API request is made to
-`/dandisets/{dandiset_id}/versions/{version_id}/assets/?path={subpath}&metadata=true&order=path`,
-which is paginated through until one of the following occurs:
+Then, for each initial subpath of `path` that ends with a non-final component
+ending in ".zarr" or ".ngff" (case insensitive), an API request is made to
+`/webdav/assets/atpath/?dandiset_id={dandiset_id}&version_id={version_id}&path={subpath}&metadata=true`,
+and the result is handled as follows:
 
-- An asset whose path equals `subpath` is found.  In this case:
+- If the response consists of a blob asset, then the user requested a path
+  under a blob, and so no more requests are made to the Archive, and `dandidav`
+  returns a 404 response.
 
-    - If the asset is a blob:
+- If the response consists of a Zarr asset, `dandidav` has found a Zarr asset,
+  and the checking of initial subpaths terminates.  A request is then made to
+  S3 to fetch information about the resource at the path equal to the
+  remainder.
 
-        - If `subpath` is the whole of `path`, `dandidav` has found a blob
-          asset, and the checking of initial subpaths terminates.
+- If the response consists of a folder, the next initial subpath is checked.
 
-        - If `subpath` is not the whole of `path`, then the user requested a
-          path under a blob, and so no more requests are made to the Archive,
-          and `dandidav` returns a 404 response.
+- If the response is a 404, no more requests are made to the Archive, and
+  `dandidav` returns a 404 response.
 
-    - If the asset is a Zarr, `dandidav` has found a Zarr asset, and the
-      checking of initial subpaths terminates.  If `subpath` is not the whole
-      of `path`, a request is made to S3 to fetch information about the
-      resource at the path equal to the remainder.
-
-- An asset whose path is under the directory `{subpath}/` is found.  In this
-  case, the next initial subpath is checked.  If there is no next initial
-  subpath, then `dandidav` has found an asset folder at `path`.
-
-- An asset whose path is lexicographically after `{subpath}/` is found, or no
-  assets were returned by the API.  In this case, no more requests are made to
-  the Archive, and `dandidav` returns a 404 response.
-
-Shallow requests stop making requests to the Archive at this point.  Deep
-requests continue as follows:
-
-- If an asset folder was found at path `path`, a paginated request is made to
-  `/dandisets/{dandiset_id}/versions/{version_id}/assets/paths/?path_prefix={path}/`.
-  Because this endpoint only provides assets' paths, IDs, and sizes, for each
-  separate asset returned from this endpoint, `dandidav` makes another request
-  to `/dandisets/{dandiset_id}/versions/{version_id}/assets/{asset_id}/info/`
-  to fetch further details about the asset (See ["Other Notes"](#other-notes)
-  below).
-
-- If a blob asset was found, no more requests are made to the Archive.
-
-- If a Zarr asset was found, further requests are made to S3 to fetch
-  information about the Zarr's entries.
+If all initial subpaths are checked without finding an asset or a 404, then
+`path` is treated as an asset path with no intra-Zarr subpath.  Shallow
+requests then make a request to
+`/webdav/assets/atpath/?dandiset_id={dandiset_id}&version_id={version_id}&path={path}&metadata=true`,
+while deep requests make a paginated request to the same endpoint but with
+`children=true` added to the query parameters.  For deep requests, if a Zarr
+asset is found at `path`, further requests are made to S3 to fetch information
+about the Zarr's entries.
 
 Other Notes
 -----------

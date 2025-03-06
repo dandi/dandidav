@@ -317,17 +317,15 @@ impl<'a> VersionEndpoint<'a> {
                 let stream = self.atpath_with_children(Some(path));
                 tokio::pin!(stream);
                 match stream.try_next().await? {
-                    Some(AtAssetPath::Folder(folder)) => {
+                    Some(AtPath::Folder(folder)) => {
                         let children = stream
                             .map_ok(DandiResource::from)
                             .try_collect::<Vec<_>>()
                             .await?;
                         Ok(DandiResourceWithChildren::Folder { folder, children })
                     }
-                    Some(AtAssetPath::Asset(Asset::Blob(r))) => {
-                        Ok(DandiResourceWithChildren::Blob(r))
-                    }
-                    Some(AtAssetPath::Asset(Asset::Zarr(zarr))) => {
+                    Some(AtPath::Asset(Asset::Blob(r))) => Ok(DandiResourceWithChildren::Blob(r)),
+                    Some(AtPath::Asset(Asset::Zarr(zarr))) => {
                         let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
                         let children = s3
                             .get_root_entries()
@@ -373,14 +371,14 @@ impl<'a> VersionEndpoint<'a> {
     ) -> Result<Option<ZarrResource>, DandiError> {
         for (zarr_path, entry_path) in path.split_zarr_candidates() {
             match self.atpath(&zarr_path).await? {
-                AtAssetPath::Folder(_) => continue,
-                AtAssetPath::Asset(Asset::Blob(_)) => {
+                AtPath::Folder(_) => continue,
+                AtPath::Asset(Asset::Blob(_)) => {
                     return Err(DandiError::PathUnderBlob {
                         path: path.clone(),
                         blob_path: zarr_path,
                     })
                 }
-                AtAssetPath::Asset(Asset::Zarr(zarr)) => {
+                AtPath::Asset(Asset::Zarr(zarr)) => {
                     let s3 = self.client.get_s3client_for_zarr(&zarr).await?;
                     return match s3.get_path(&entry_path).await? {
                         Some(entry) => Ok(Some(zarr.make_resource_with_s3(entry, s3))),
@@ -416,31 +414,29 @@ impl<'a> VersionEndpoint<'a> {
 
     /// Get details on the resource (an asset or folder) at the given `path` in
     /// the version's file hierarchy, treating Zarrs as non-collections.
-    async fn atpath(&self, path: &PurePath) -> Result<AtAssetPath, DandiError> {
+    async fn atpath(&self, path: &PurePath) -> Result<AtPath, DandiError> {
         let mut url = self.client.get_url(["webdav", "assets", "atpath"]);
         url.append_query_param("dandiset_id", self.dandiset_id.as_ref());
         url.append_query_param("version_id", self.version_id.as_ref());
         url.append_query_param("path", path.as_ref());
         url.append_query_param("metadata", "true");
-        let mut stream = self.client.paginate::<AtPathResource>(url);
-        match stream.try_next().await? {
-            Some(AtPathResource::Folder(folder)) => Ok(AtAssetPath::Folder(folder.into())),
-            Some(AtPathResource::Asset(asset)) => {
-                Ok(AtAssetPath::Asset(asset.try_into_asset(self)?))
-            }
-            None => Err(DandiError::PathNotFound { path: path.clone() }),
+        let mut stream = self.client.paginate::<RawAtPath>(url);
+        if let Some(r) = stream.try_next().await? {
+            r.try_unraw(self)
+        } else {
+            Err(DandiError::PathNotFound { path: path.clone() })
         }
     }
 
-    /// Return a [`futures_util::Stream`] that yields [`DandiResource`] objects
-    /// for the resource at `path` in the version's file hierarchy plus (if
-    /// that resource is a folder) each of its immediate child resources (both
+    /// Return a [`futures_util::Stream`] that yields [`AtPath`] objects for
+    /// the resource at `path` in the version's file hierarchy plus (if that
+    /// resource is a folder) each of its immediate child resources (both
     /// assets and folders), treating Zarrs as non-collections.  If `path` is
     /// `None`, the resources at the root of the file hierarchy are yielded.
     fn atpath_with_children(
         &self,
         path: Option<&PurePath>,
-    ) -> impl Stream<Item = Result<AtAssetPath, DandiError>> + '_ {
+    ) -> impl Stream<Item = Result<AtPath, DandiError>> + '_ {
         let mut url = self.client.get_url(["webdav", "assets", "atpath"]);
         url.append_query_param("dandiset_id", self.dandiset_id.as_ref());
         url.append_query_param("version_id", self.version_id.as_ref());
@@ -450,15 +446,8 @@ impl<'a> VersionEndpoint<'a> {
         url.append_query_param("children", "true");
         url.append_query_param("metadata", "true");
         self.client
-            .paginate::<AtPathResource>(url)
-            .and_then(move |child| async move {
-                match child {
-                    AtPathResource::Folder(subf) => Ok(AtAssetPath::Folder(subf.into())),
-                    AtPathResource::Asset(asset) => {
-                        Ok(AtAssetPath::Asset(asset.try_into_asset(self)?))
-                    }
-                }
-            })
+            .paginate::<RawAtPath>(url)
+            .and_then(move |child| async move { child.try_unraw(self) })
     }
 }
 

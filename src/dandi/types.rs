@@ -1,4 +1,4 @@
-use super::{DandisetId, VersionId};
+use super::{DandiError, DandisetId, VersionId};
 use crate::httputil::HttpUrl;
 use crate::paths::{PureDirPath, PurePath};
 use crate::s3::{PrefixedS3Client, S3Entry, S3Folder, S3Location, S3Object};
@@ -135,27 +135,28 @@ pub(crate) struct AssetFolder {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(tag = "type", content = "resource", rename_all = "lowercase")]
-pub(super) enum AtPathResource {
-    Folder(RawAssetFolder),
+pub(super) enum RawAtPath {
+    Folder { path: PurePath },
     Asset(RawAsset),
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-pub(crate) struct RawAssetFolder {
-    pub(crate) path: PurePath,
-}
-
-impl From<RawAssetFolder> for AssetFolder {
-    fn from(value: RawAssetFolder) -> AssetFolder {
-        AssetFolder {
-            path: value.path.to_dir_path(),
+impl RawAtPath {
+    pub(super) fn try_unraw(
+        self,
+        endpoint: &super::VersionEndpoint<'_>,
+    ) -> Result<AtPath, DandiError> {
+        match self {
+            RawAtPath::Folder { path } => Ok(AtPath::Folder(AssetFolder {
+                path: path.to_dir_path(),
+            })),
+            RawAtPath::Asset(asset) => Ok(AtPath::Asset(asset.try_into_asset(endpoint)?)),
         }
     }
 }
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) enum AtAssetPath {
+pub(super) enum AtPath {
     Folder(AssetFolder),
     Asset(Asset),
 }
@@ -398,11 +399,11 @@ pub(super) enum ZarrResource {
     Entry(ZarrEntry),
 }
 
-impl From<AtAssetPath> for DandiResource {
-    fn from(value: AtAssetPath) -> DandiResource {
+impl From<AtPath> for DandiResource {
+    fn from(value: AtPath) -> DandiResource {
         match value {
-            AtAssetPath::Folder(r) => DandiResource::Folder(r),
-            AtAssetPath::Asset(r) => DandiResource::Asset(r),
+            AtPath::Folder(r) => DandiResource::Folder(r),
+            AtPath::Asset(r) => DandiResource::Asset(r),
         }
     }
 }

@@ -52,13 +52,13 @@ Top Level of a Dandiset Version
 
 > **dandidav paths:**
 >
-> - `/dandiset/{dandiset_id}/draft/`
-> - `/dandiset/{dandiset_id}/latest/`
-> - `/dandiset/{dandiset_id}/releases/{version_id}/`
+> - `/dandisets/{dandiset_id}/draft/`
+> - `/dandisets/{dandiset_id}/latest/`
+> - `/dandisets/{dandiset_id}/releases/{version_id}/`
 
 For both deep and shallow requests, if the request path is
-`/dandiset/{dandiset_id}/latest/`, an initial request is made to
-`/dandiset/{dandiset_id}/` to get the version ID of the latest published
+`/dandisets/{dandiset_id}/latest/`, an initial request is made to
+`/dandisets/{dandiset_id}/` to get the version ID of the latest published
 version.
 
 For deep requests, `dandidav` makes API requests to the following endpoints:
@@ -75,13 +75,13 @@ Metadata File
 
 > **dandidav paths:**
 >
-> - `/dandiset/{dandiset_id}/draft/dandiset.yaml`
-> - `/dandiset/{dandiset_id}/latest/dandiset.yaml`
-> - `/dandiset/{dandiset_id}/releases/{version_id}/dandiset.yaml`
+> - `/dandisets/{dandiset_id}/draft/dandiset.yaml`
+> - `/dandisets/{dandiset_id}/latest/dandiset.yaml`
+> - `/dandisets/{dandiset_id}/releases/{version_id}/dandiset.yaml`
 
 For both deep and shallow requests, if the request path is
-`/dandiset/{dandiset_id}/latest/`, an initial request is made to
-`/dandiset/{dandiset_id}/` to get the version ID of the latest published
+`/dandisets/{dandiset_id}/latest/`, an initial request is made to
+`/dandisets/{dandiset_id}/` to get the version ID of the latest published
 version.  Then, for both deep and shallow requests, `dandidav` makes an API
 request to `/dandisets/{dandiset_id}/versions/{version_id}/`.
 
@@ -90,16 +90,16 @@ Asset Path
 
 > **dandidav paths:**
 >
-> - `/dandiset/{dandiset_id}/draft/{path}`
-> - `/dandiset/{dandiset_id}/latest/{path}`
-> - `/dandiset/{dandiset_id}/releases/{version_id}/{path}`
+> - `/dandisets/{dandiset_id}/draft/{path}`
+> - `/dandisets/{dandiset_id}/latest/{path}`
+> - `/dandisets/{dandiset_id}/releases/{version_id}/{path}`
 >
 > Note that any trailing slashes at the end of `path` are ignored and are
 > stripped before passing to the Archive.
 
 For both deep and shallow requests, if the request path is
-`/dandiset/{dandiset_id}/latest/`, an initial request is made to
-`/dandiset/{dandiset_id}/` to get the version ID of the latest published
+`/dandisets/{dandiset_id}/latest/`, an initial request is made to
+`/dandisets/{dandiset_id}/` to get the version ID of the latest published
 version.
 
 Then, for each initial subpath of `path` that ends with a non-final component

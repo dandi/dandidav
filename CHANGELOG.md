@@ -2,6 +2,8 @@ In Development
 --------------
 - Use the Archive API's `/webdav/assets/atpath/` endpoint for fetching
   information about assets
+- Configure rate limiting to allow bursts of up to 50 requests, replenishing
+  one request per 50 ms
 
 v0.6.0 (2025-03-06)
 -------------------

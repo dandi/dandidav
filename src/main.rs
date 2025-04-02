@@ -212,6 +212,8 @@ fn get_app(cfg: Config) -> anyhow::Result<Router> {
         .layer(GovernorLayer {
             config: Arc::new(
                 GovernorConfigBuilder::default()
+                    .burst_size(50)
+                    .per_millisecond(50)
                     .key_extractor(SmartIpKeyExtractor)
                     .finish()
                     .expect("building GovernorConfig should not fail"),

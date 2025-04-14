@@ -26,16 +26,16 @@ exclude = ["/.*"]
 publish = false
 
 [dependencies]
-anyhow = "1.0.97"
+anyhow = "1.0.98"
 async-trait = "0.1.88"
 aws-config = { version = "1.6.1", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.81.0"
+aws-sdk-s3 = "1.82.0"
 aws-smithy-async = "1.2.4"
 aws-smithy-runtime-api = "1.7.3"
 aws-smithy-types-convert = { version = "0.60.9", features = ["convert-time"] }
 axum = { version = "0.8.3", default-features = false, features = ["http1", "tokio", "tower-log"] }
 bytes = "1.10.1"
-clap = { version = "4.5.34", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
+clap = { version = "4.5.36", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
 enum_dispatch = "0.3.13"
 futures-util = "0.3.31"
 get-size = { version = "0.1.4", features = ["derive"] }
@@ -48,7 +48,7 @@ moka = { version = "0.12.10", features = ["future"] }
 percent-encoding = "2.3.1"
 pin-project = "1.1.10"
 reqwest = { version = "0.12.15", default-features = false, features = ["json", "rustls-tls-native-roots"] }
-reqwest-middleware = "0.4.1"
+reqwest-middleware = "0.4.2"
 reqwest-retry = "0.7.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.140", features = ["preserve_order"] }
@@ -57,7 +57,7 @@ smartstring = "1.0.1"
 tera = { version = "1.20.0", default-features = false }
 thiserror = "2.0.12"
 time = { version = "0.3.41", features = ["formatting", "macros", "parsing", "serde"] }
-tokio = { version = "1.44.1", features = ["macros", "net", "rt-multi-thread", "time"] }
+tokio = { version = "1.44.2", features = ["macros", "net", "rt-multi-thread", "time"] }
 tower = { version = "0.5.2", features = ["timeout", "util"] }
 tower-http = { version = "0.6.2", features = ["set-header", "trace"] }
 tower_governor = { version = "0.7.0", features = ["tracing"] }
@@ -65,7 +65,7 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["json", "local-time", "time"] }
 url = { version = "2.5.4", features = ["serde"] }
 uuid = { version = "1.16.0", features = ["fast-rng", "v4"] }
-xml-rs = "0.8.25"
+xml-rs = "0.8.26"
 
 [dev-dependencies]
 assert_matches = "1.5.0"
@@ -76,7 +76,7 @@ testutils = { path = "crates/testutils" }
 wiremock = "0.6.3"
 
 [build-dependencies]
-anyhow = "1.0.97"
+anyhow = "1.0.98"
 
 [lints]
 workspace = true

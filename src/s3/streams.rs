@@ -51,7 +51,7 @@ impl ListEntryPages {
         self.die(S3Error::ListObjects {
             bucket: self.bucket.clone(),
             prefix: self.key_prefix.clone(),
-            source,
+            source: Box::new(source),
         })
     }
 

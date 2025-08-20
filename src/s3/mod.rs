@@ -382,7 +382,7 @@ pub(crate) enum S3Error {
     ListObjects {
         bucket: CompactString,
         prefix: String,
-        source: ListObjectsError,
+        source: Box<ListObjectsError>,
     },
     #[error("invalid object found in S3 bucket {bucket:?} under prefix {prefix:?}")]
     BadObject {

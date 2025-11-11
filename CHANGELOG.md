@@ -1,9 +1,11 @@
-In Development
---------------
+v0.7.0 (2025-11-11)
+-------------------
 - Use the Archive API's `/webdav/assets/atpath/` endpoint for fetching
   information about assets
 - Configure rate limiting to allow bursts of up to 50 requests, replenishing
   one request per 50 ms
+- Fix clippy lint compatibility: Replace removed `string_to_string` lint with
+  `implicit_clone` for newer Rust versions
 
 v0.6.0 (2025-03-06)
 -------------------

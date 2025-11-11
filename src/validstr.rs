@@ -53,7 +53,7 @@ macro_rules! validstr {
         }
 
         impl From<&$t> for String {
-            #[allow(clippy::string_to_string)]
+            #[allow(clippy::implicit_clone)]
             fn from(value: &$t) -> String {
                 value.0.to_string()
             }

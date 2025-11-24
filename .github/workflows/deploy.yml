@@ -22,7 +22,7 @@ jobs:
     if: "github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'skip deployment')"
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Activate cache
         uses: Swatinem/rust-cache@v2

@@ -3,6 +3,7 @@
 [![codecov.io](https://codecov.io/gh/dandi/dandidav/branch/main/graph/badge.svg)](https://codecov.io/gh/dandi/dandidav)
 [![Minimum Supported Rust Version](https://img.shields.io/badge/MSRV-1.81-orange)](https://www.rust-lang.org)
 [![MIT License](https://img.shields.io/github/license/dandi/dandidav.svg)](https://opensource.org/licenses/MIT)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17584447.svg)](https://doi.org/10.5281/zenodo.17584447)
 
 [GitHub](https://github.com/dandi/dandidav) | [Issues](https://github.com/dandi/dandidav/issues) | [Changelog](https://github.com/dandi/dandidav/blob/main/CHANGELOG.md)
 

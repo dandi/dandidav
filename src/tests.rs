@@ -728,7 +728,7 @@ async fn get_version_toplevel() {
                 CollectionEntry {
                     name: Link {
                         text: "JEhE.tsv".into(),
-                        href: "https://api.dandiarchive.org/api/assets/faeb54dc-f906-40fa-b48e-28816c422ec5/download/".into()
+                        href: "/dandisets/000002/draft/JEhE.tsv".into()
                     },
                     metadata_link: Some(format!(
                         "{}/dandisets/000002/versions/draft/assets/faeb54dc-f906-40fa-b48e-28816c422ec5/",
@@ -789,7 +789,7 @@ async fn get_version_toplevel() {
                 CollectionEntry {
                     name: Link {
                         text: "nPjB.json".into(),
-                        href: "https://api.dandiarchive.org/api/assets/08938c9b-b248-4aa0-b963-859029a1f38b/download/".into()
+                        href: "/dandisets/000002/draft/nPjB.json".into()
                     },
                     metadata_link: Some(format!(
                         "{}/dandisets/000002/versions/draft/assets/08938c9b-b248-4aa0-b963-859029a1f38b/",
@@ -803,7 +803,7 @@ async fn get_version_toplevel() {
                 CollectionEntry {
                     name: Link {
                         text: "ykBgN.tsv".into(),
-                        href: "https://api.dandiarchive.org/api/assets/3a4bc5da-4920-467b-9a82-4e1a9cac90b7/download/".into()
+                        href: "/dandisets/000002/draft/ykBgN.tsv".into()
                     },
                     metadata_link: Some(format!(
                         "{}/dandisets/000002/versions/draft/assets/3a4bc5da-4920-467b-9a82-4e1a9cac90b7/",
@@ -1338,7 +1338,7 @@ async fn get_latest_version() {
                 CollectionEntry {
                     name: Link {
                         text: "PYQIm.tsv".into(),
-                        href: "https://api.dandiarchive.org/api/assets/34523ca7-ff7c-42b3-a311-2f2d0ccc780f/download/".into()
+                        href: "/dandisets/000001/latest/PYQIm.tsv".into()
                     },
                     metadata_link: Some(format!(
                         "{}/dandisets/000001/versions/0.230629.1955/assets/34523ca7-ff7c-42b3-a311-2f2d0ccc780f/",

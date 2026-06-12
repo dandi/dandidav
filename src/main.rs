@@ -13,7 +13,7 @@ mod zarrman;
 use crate::consts::*;
 use crate::dandi::DandiClient;
 use crate::dav::{DandiDav, Templater};
-use crate::httputil::HttpUrl;
+use crate::httputil::{Client, HttpUrl};
 use crate::zarrman::{ManifestFetcher, ZarrManClient};
 use anyhow::Context;
 use axum::{
@@ -166,10 +166,12 @@ fn get_app(cfg: Config) -> anyhow::Result<Router> {
     zarrfetcher.install_periodic_dump(ZARR_MANIFEST_CACHE_DUMP_PERIOD);
     let zarrman = ZarrManClient::new(zarrfetcher);
     let templater = Templater::new(cfg.title)?;
+    let web = Client::new()?;
     let dav = Arc::new(DandiDav {
         dandi,
         zarrman,
         templater,
+        web,
         prefer_s3_redirects: cfg.prefer_s3_redirects,
     });
     let mut app = Router::new()

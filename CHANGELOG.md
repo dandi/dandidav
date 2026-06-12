@@ -1,3 +1,16 @@
+in development
+--------------
+- Serve certain small files inline rather than redirecting to S3, so that they
+  display in the browser instead of being downloaded:
+    - JSON files (any `.json` file, plus Zarr metadata files `.zattrs`,
+      `.zarray`, and `.zgroup`), served as `application/json`
+    - YAML files (`.yaml`, `.yml`), served as `text/yaml`, matching the virtual
+      `dandiset.yaml` files
+    - Other text-based files (`.tsv`, `.csv`, `.md`, `.txt`, and `.bidsignore`),
+      served as `text/plain` (which browsers reliably display inline)
+  Only files no larger than 10 MiB are served inline; larger files continue to
+  be redirected to S3 as before.
+
 v0.7.0 (2025-11-11)
 -------------------
 - Use the Archive API's `/webdav/assets/atpath/` endpoint for fetching

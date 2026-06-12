@@ -32,13 +32,49 @@ pub(crate) static HTML_CONTENT_TYPE: &str = "text/html; charset=utf-8";
 /// The "Content-Type" value for the stylesheet
 pub(crate) static CSS_CONTENT_TYPE: &str = "text/css; charset=utf-8";
 
-/// The "Content-Type" value (reported in both `GET` and `PROPFIND` responses)
-/// for virtual `dandiset.yaml` files
+/// The "Content-Type" value used when serving YAML files inline: the virtual
+/// `dandiset.yaml` files as well as general `.yaml`/`.yml` files (reported in
+/// both `GET` and `PROPFIND` responses for the former)
 pub(crate) static YAML_CONTENT_TYPE: &str = "text/yaml; charset=utf-8";
 
 /// The "Content-Type" value given in `PROPFIND` responses for blob assets with
 /// no `encodingFormat` set
 pub(crate) static DEFAULT_CONTENT_TYPE: &str = "application/octet-stream";
+
+/// The "Content-Type" value used when serving JSON files (general `.json`
+/// files as well as Zarr metadata) inline
+pub(crate) static JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
+
+/// The "Content-Type" value used when serving other text-based files inline.
+///
+/// `text/plain` is used rather than more specific types (such as
+/// `text/tab-separated-values` or `text/markdown`) because browsers reliably
+/// display `text/plain` inline, whereas they tend to download the more
+/// specific types.
+pub(crate) static PLAIN_TEXT_CONTENT_TYPE: &str = "text/plain; charset=utf-8";
+
+/// File extensions (case insensitive, without the leading period) of
+/// text-based files that `dandidav` fetches and serves inline as `text/plain`
+/// (so that they display in the browser rather than being downloaded).  JSON
+/// and YAML files are handled separately; see [`JSON_CONTENT_TYPE`] and
+/// [`YAML_CONTENT_TYPE`].
+pub(crate) static INLINE_TEXT_EXTENSIONS: [&str; 5] = ["tsv", "csv", "md", "txt", "bidsignore"];
+
+/// The base names of Zarr metadata files.
+///
+/// Rather than redirecting `GET` requests for these files to S3 (which serves
+/// them with a `binary/octet-stream` content type, causing browsers to
+/// download rather than display them), `dandidav` fetches their (small)
+/// contents itself and serves them inline as JSON.  This covers both Zarr v2
+/// (`.zgroup`, `.zarray`, `.zattrs`) and Zarr v3 (`zarr.json`) metadata.
+pub(crate) static ZARR_METADATA_FILENAMES: [&str; 4] =
+    [".zgroup", ".zarray", ".zattrs", "zarr.json"];
+
+/// The maximum size (in bytes) of a file that `dandidav` will fetch and serve
+/// inline (so that it displays in the browser rather than downloading).  Files
+/// larger than this are redirected to S3 as usual, to avoid buffering large
+/// amounts of data in memory.
+pub(crate) static MAX_INLINE_SIZE: i64 = 10 * 1024 * 1024;
 
 /// The "Content-Type" value for `PROPFIND` XML responses
 ///

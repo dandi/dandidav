@@ -12,6 +12,7 @@ use self::util::*;
 use self::xml::*;
 use crate::consts::{DAV_XML_CONTENT_TYPE, HTML_CONTENT_TYPE};
 use crate::dandi::*;
+use crate::httputil::{Client, HttpError};
 use crate::paths::Component;
 use crate::paths::PurePath;
 use crate::zarrman::*;
@@ -41,6 +42,11 @@ pub(crate) struct DandiDav {
     /// A client for fetching data from
     /// <https://github.com/dandi/zarr-manifests>
     pub(crate) zarrman: ZarrManClient,
+
+    /// A general-purpose HTTP client used to fetch the contents of resources
+    /// that `dandidav` serves inline (i.e., Zarr metadata files) rather than
+    /// redirecting to
+    pub(crate) web: Client,
 
     /// Manager for templating of HTML responses
     pub(crate) templater: Templater,
@@ -125,6 +131,13 @@ impl DandiDav {
                 Redirect::temporary(redir.get_url(self.prefer_s3_redirects).as_str())
                     .into_response(),
             ),
+            DavResourceWithChildren::Item(DavItem {
+                content: DavContent::Inline { url, content_type },
+                ..
+            }) => {
+                let blob = self.web.get_bytes(url).await?;
+                Ok(([(CONTENT_TYPE, content_type)], blob).into_response())
+            }
             DavResourceWithChildren::Item(DavItem {
                 content: DavContent::Missing,
                 ..
@@ -417,6 +430,8 @@ pub(crate) enum DavError {
     Dandi(#[from] DandiError),
     #[error("failed to fetch data from Zarr manifests")]
     ZarrMan(#[from] ZarrManError),
+    #[error("failed to fetch resource content for inline display")]
+    Fetch(#[from] HttpError),
     #[error(
         "latest version was requested for Dandiset {dandiset_id}, but it has not been published"
     )]
@@ -433,6 +448,7 @@ impl DavError {
         match self {
             DavError::Dandi(e) => e.class(),
             DavError::ZarrMan(e) => e.class(),
+            DavError::Fetch(e) => e.class(),
             DavError::NoLatestVersion { .. } => ErrorClass::NotFound,
             DavError::Template(_) | DavError::Xml(_) => ErrorClass::Internal,
         }

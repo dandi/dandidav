@@ -90,6 +90,29 @@ impl Client {
         self.request(Method::GET, url).await
     }
 
+    /// Perform a `GET` request to the given URL and return the response body
+    /// as raw bytes
+    ///
+    /// # Errors
+    ///
+    /// If sending the request fails, the response has a 4xx or 5xx status, or
+    /// reading the response body fails, an error is returned.
+    pub(crate) fn get_bytes(
+        &self,
+        url: HttpUrl,
+    ) -> impl Future<Output = Result<Vec<u8>, HttpError>> {
+        let client = self.clone();
+        async move {
+            client
+                .get(url.clone())
+                .await?
+                .bytes()
+                .await
+                .map(|b| b.to_vec())
+                .map_err(move |source| HttpError::Read { url, source })
+        }
+    }
+
     /// Perform a `GET` request to the given URL and deserialize the response
     /// body as JSON into `T`
     ///
@@ -178,6 +201,13 @@ pub(crate) enum HttpError {
         url: HttpUrl,
         source: reqwest::Error,
     },
+
+    /// Reading the response body failed
+    #[error("failed to read response body from {url}")]
+    Read {
+        url: HttpUrl,
+        source: reqwest::Error,
+    },
 }
 
 impl HttpError {
@@ -189,6 +219,7 @@ impl HttpError {
             HttpError::Deserialize { source, .. } if source.is_timeout() => {
                 ErrorClass::GatewayTimeout
             }
+            HttpError::Read { source, .. } if source.is_timeout() => ErrorClass::GatewayTimeout,
             _ => ErrorClass::BadGateway,
         }
     }

@@ -1,7 +1,10 @@
 use super::util::{format_creationdate, format_modifieddate, version_path, Href};
 use super::xml::{PropValue, Property};
 use super::VersionSpec;
-use crate::consts::{DEFAULT_CONTENT_TYPE, YAML_CONTENT_TYPE};
+use crate::consts::{
+    DEFAULT_CONTENT_TYPE, INLINE_TEXT_EXTENSIONS, JSON_CONTENT_TYPE, MAX_INLINE_SIZE,
+    PLAIN_TEXT_CONTENT_TYPE, YAML_CONTENT_TYPE, ZARR_METADATA_FILENAMES,
+};
 use crate::dandi::*;
 use crate::httputil::HttpUrl;
 use crate::paths::{PureDirPath, PurePath};
@@ -642,6 +645,41 @@ impl From<VersionMetadata> for DavItem {
     }
 }
 
+/// If the file at `path` is one that `dandidav` serves inline (so that it
+/// displays in the browser rather than being downloaded), return the
+/// `Content-Type` to serve it with; otherwise, return `None`.
+///
+/// This covers JSON files (general `.json` files as well as Zarr v2 metadata
+/// files, which have no extension) — served as `application/json` — YAML files
+/// (`.yaml`/`.yml`) — served as `text/yaml`, matching the virtual
+/// `dandiset.yaml` files — and a set of other text-based files (see
+/// [`INLINE_TEXT_EXTENSIONS`]) served as `text/plain`.  Callers must
+/// additionally check that the file is no larger than
+/// [`MAX_INLINE_SIZE`](crate::consts::MAX_INLINE_SIZE) before serving inline.
+fn inline_content_type(path: &PurePath) -> Option<&'static str> {
+    let name = path.name_str();
+    let ext = name.rsplit_once('.').map(|(_, ext)| ext);
+    // Zarr v2 metadata files (`.zgroup`, `.zarray`, `.zattrs`) are JSON but
+    // have no `.json` extension, so they are matched by name; `zarr.json` and
+    // all other `.json` files are matched by extension below.
+    if ZARR_METADATA_FILENAMES.contains(&name)
+        || ext.is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+    {
+        return Some(JSON_CONTENT_TYPE);
+    }
+    if ext.is_some_and(|ext| ext.eq_ignore_ascii_case("yaml") || ext.eq_ignore_ascii_case("yml")) {
+        return Some(YAML_CONTENT_TYPE);
+    }
+    if ext.is_some_and(|ext| {
+        INLINE_TEXT_EXTENSIONS
+            .iter()
+            .any(|e| ext.eq_ignore_ascii_case(e))
+    }) {
+        return Some(PLAIN_TEXT_CONTENT_TYPE);
+    }
+    None
+}
+
 impl From<BlobAsset> for DavItem {
     fn from(blob: BlobAsset) -> DavItem {
         // Call methods before moving out `path` field:
@@ -650,14 +688,32 @@ impl From<BlobAsset> for DavItem {
             .unwrap_or(DEFAULT_CONTENT_TYPE)
             .to_owned();
         let etag = blob.etag().map(String::from);
-        let content = match (blob.archive_url(), blob.s3_url()) {
-            (Some(archive), Some(s3)) => DavContent::Redirect(Redirect::Alt {
-                s3: s3.clone(),
-                archive: archive.clone(),
-            }),
-            (Some(u), None) | (None, Some(u)) => DavContent::Redirect(Redirect::Direct(u.clone())),
-            // TODO: Log a warning when asset doesn't have a download URL?
-            (None, None) => DavContent::Missing,
+        // Small files of certain types are fetched and served inline (so they
+        // display in the browser) rather than redirected to S3.  We fetch such
+        // files from S3 directly when possible.
+        let inline = inline_content_type(&blob.path)
+            .filter(|_| blob.size <= MAX_INLINE_SIZE)
+            .and_then(|ct| {
+                blob.s3_url()
+                    .or_else(|| blob.archive_url())
+                    .map(|u| DavContent::Inline {
+                        url: u.clone(),
+                        content_type: ct,
+                    })
+            });
+        let content = match inline {
+            Some(content) => content,
+            None => match (blob.archive_url(), blob.s3_url()) {
+                (Some(archive), Some(s3)) => DavContent::Redirect(Redirect::Alt {
+                    s3: s3.clone(),
+                    archive: archive.clone(),
+                }),
+                (Some(u), None) | (None, Some(u)) => {
+                    DavContent::Redirect(Redirect::Direct(u.clone()))
+                }
+                // TODO: Log a warning when asset doesn't have a download URL?
+                (None, None) => DavContent::Missing,
+            },
         };
         DavItem {
             path: blob.path,
@@ -675,6 +731,18 @@ impl From<BlobAsset> for DavItem {
 
 impl From<ZarrEntry> for DavItem {
     fn from(entry: ZarrEntry) -> DavItem {
+        // Zarr metadata files are served inline as JSON (so they display in the
+        // browser) rather than redirected to S3; all other entries redirect.
+        // Note that we intentionally do not set `content_type` (i.e., the
+        // `getcontenttype` PROPFIND property) for Zarr entries, in keeping with
+        // the rest of the codebase.
+        let content = match inline_content_type(&entry.path) {
+            Some(content_type) if entry.size <= MAX_INLINE_SIZE => DavContent::Inline {
+                url: entry.url,
+                content_type,
+            },
+            _ => DavContent::Redirect(Redirect::Direct(entry.url)),
+        };
         DavItem {
             path: entry.zarr_path.to_dir_path().join(&entry.path),
             created: None,
@@ -683,7 +751,7 @@ impl From<ZarrEntry> for DavItem {
             size: Some(entry.size),
             etag: Some(entry.etag),
             kind: ResourceKind::ZarrEntry,
-            content: DavContent::Redirect(Redirect::Direct(entry.url)),
+            content,
             metadata_url: None,
         }
     }
@@ -691,6 +759,15 @@ impl From<ZarrEntry> for DavItem {
 
 impl From<ManifestEntry> for DavItem {
     fn from(entry: ManifestEntry) -> DavItem {
+        // See the note in `From<ZarrEntry>` regarding inline serving and
+        // `content_type`.
+        let content = match inline_content_type(&entry.web_path) {
+            Some(content_type) if entry.size <= MAX_INLINE_SIZE => DavContent::Inline {
+                url: entry.url,
+                content_type,
+            },
+            _ => DavContent::Redirect(Redirect::Direct(entry.url)),
+        };
         DavItem {
             path: entry.web_path,
             created: None,
@@ -699,7 +776,7 @@ impl From<ManifestEntry> for DavItem {
             size: Some(entry.size),
             etag: Some(entry.etag),
             kind: ResourceKind::ZarrEntry,
-            content: DavContent::Redirect(Redirect::Direct(entry.url)),
+            content,
             metadata_url: None,
         }
     }
@@ -718,6 +795,17 @@ pub(super) enum DavContent {
     /// A URL that `dandidav` should redirect to when a `GET` request is made
     /// for the resource
     Redirect(Redirect),
+
+    /// A URL whose contents `dandidav` should fetch and serve inline (with the
+    /// given content type) in response to a `GET` request, rather than
+    /// redirecting.
+    ///
+    /// This is used for small text-based files (see [`inline_content_type`])
+    /// so that they display in the browser instead of being downloaded.
+    Inline {
+        url: HttpUrl,
+        content_type: &'static str,
+    },
 
     /// No download URL could be determined for the resource
     Missing,
@@ -820,5 +908,40 @@ impl Serialize for ResourceKind {
         S: Serializer,
     {
         serializer.serialize_str(self.as_str())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    // Zarr metadata is served as JSON:
+    #[case("zarr.json", Some(JSON_CONTENT_TYPE))]
+    #[case(".zgroup", Some(JSON_CONTENT_TYPE))]
+    #[case(".zarray", Some(JSON_CONTENT_TYPE))]
+    #[case(".zattrs", Some(JSON_CONTENT_TYPE))]
+    // General JSON files are served as JSON:
+    #[case("dataset_description.json", Some(JSON_CONTENT_TYPE))]
+    #[case("foo.JSON", Some(JSON_CONTENT_TYPE))]
+    // YAML files are served as `text/yaml`, matching the virtual
+    // `dandiset.yaml` files:
+    #[case("config.yaml", Some(YAML_CONTENT_TYPE))]
+    #[case("config.yml", Some(YAML_CONTENT_TYPE))]
+    #[case("config.YAML", Some(YAML_CONTENT_TYPE))]
+    // Other text-based files are served as plain text:
+    #[case("participants.tsv", Some(PLAIN_TEXT_CONTENT_TYPE))]
+    #[case("data.csv", Some(PLAIN_TEXT_CONTENT_TYPE))]
+    #[case("README.md", Some(PLAIN_TEXT_CONTENT_TYPE))]
+    #[case("notes.txt", Some(PLAIN_TEXT_CONTENT_TYPE))]
+    #[case(".bidsignore", Some(PLAIN_TEXT_CONTENT_TYPE))]
+    #[case("README.MD", Some(PLAIN_TEXT_CONTENT_TYPE))]
+    // Everything else is not served inline:
+    #[case("data.nwb", None)]
+    #[case("image.png", None)]
+    #[case("noextension", None)]
+    fn test_inline_content_type(#[case] name: PurePath, #[case] expected: Option<&'static str>) {
+        assert_eq!(inline_content_type(&name), expected);
     }
 }

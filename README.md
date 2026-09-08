@@ -1,4 +1,12 @@
-[![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+> [!IMPORTANT]
+> **The DANDI WebDAV service has been retired.**
+>
+> For background and history, see the
+> [DANDI WebDAV documentation](https://docs.dandiarchive.org/user-guide-using/accessing-data/downloading/#using-webdav).
+>
+> This repository is kept for historical reference and is no longer maintained.
+
+[![Project Status: Unsupported – The project has reached a stable, usable state but the authors have ceased all work on it.](https://www.repostatus.org/badges/latest/unsupported.svg)](https://www.repostatus.org/#unsupported)
 [![CI Status](https://github.com/dandi/dandidav/actions/workflows/test.yml/badge.svg)](https://github.com/dandi/dandidav/actions/workflows/test.yml)
 [![codecov.io](https://codecov.io/gh/dandi/dandidav/branch/main/graph/badge.svg)](https://codecov.io/gh/dandi/dandidav)
 [![Minimum Supported Rust Version](https://img.shields.io/badge/MSRV-1.81-orange)](https://www.rust-lang.org)
@@ -11,9 +19,9 @@ This is a [Rust](https://www.rust-lang.org) implementation of a readonly
 [WebDAV](https://webdav.org) interface to [DANDI
 Archive](https://dandiarchive.org).
 
-Active instances are currently accessible at
+Public instances were formerly hosted at
 <https://dandi.centerforopenneuroscience.org> and
-<https://webdav.dandiarchive.org>.
+<https://webdav.dandiarchive.org>; both have been shut down.
 
 Features
 ========
